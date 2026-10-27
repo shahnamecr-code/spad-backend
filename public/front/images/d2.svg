@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 23.1.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 72 72" style="enable-background:new 0 0 72 72;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:none;}
+	.st1{filter:url(#brand_icon-a);}
+	.st2{fill-rule:evenodd;clip-rule:evenodd;}
+	.st3{fill-rule:evenodd;clip-rule:evenodd;fill:#B3B3B3;}
+	.st4{filter:url(#brand_icon-c);}
+	.st5{fill-rule:evenodd;clip-rule:evenodd;fill:#A62626;}
+	.st6{fill-rule:evenodd;clip-rule:evenodd;fill:#FFFFFF;}
+</style>
+<filter  filterUnits="objectBoundingBox" height="192.1%" id="brand_icon-c" width="194.5%" x="-47.2%" y="-40.3%">
+	<feMorphology  in="SourceAlpha" operator="erode" radius="1" result="shadowSpreadOuter1"></feMorphology>
+	<feOffset  dy="2" in="shadowSpreadOuter1" result="shadowOffsetOuter1"></feOffset>
+	<feGaussianBlur  in="shadowOffsetOuter1" result="shadowBlurOuter1" stdDeviation="6"></feGaussianBlur>
+	<feColorMatrix  in="shadowBlurOuter1" values="0 0 0 0 0.650980392   0 0 0 0 0.149019608   0 0 0 0 0.149019608  0 0 0 0.48 0">
+		</feColorMatrix>
+</filter>
+<filter  filterUnits="objectBoundingBox" height="205.6%" id="brand_icon-a" width="291.2%" x="-95.6%" y="-50.8%">
+	<feMorphology  in="SourceAlpha" operator="erode" radius="1" result="shadowSpreadOuter1"></feMorphology>
+	<feOffset  dy="2" in="shadowSpreadOuter1" result="shadowOffsetOuter1"></feOffset>
+	<feGaussianBlur  in="shadowOffsetOuter1" result="shadowBlurOuter1" stdDeviation="6"></feGaussianBlur>
+	<feColorMatrix  in="shadowBlurOuter1" values="0 0 0 0 0.701960784   0 0 0 0 0.701960784   0 0 0 0 0.701960784  0 0 0 1 0">
+		</feColorMatrix>
+</filter>
+<g transform="translate(-10 -3)">
+	<rect x="10" y="3" class="st0" width="72" height="72"/>
+	<g class="st1">
+		<polygon id="brand_icon-b_1_" class="st2" points="46,36.4 37.6,36.4 37.6,64 46,55.4 54.4,64 54.4,36.4 		"/>
+	</g>
+	<g>
+		<polygon class="st3" points="46,36.4 37.6,36.4 37.6,64 46,55.4 54.4,64 54.4,36.4 		"/>
+	</g>
+	<g class="st4">
+		<path id="brand_icon-d_1_" class="st2" d="M29.1,30.4C29.1,20.8,36.6,13,46,13s16.9,7.8,16.9,17.4S55.3,47.8,46,47.8
+			S29.1,40,29.1,30.4z"/>
+	</g>
+	<g>
+		<path class="st5" d="M29.1,30.4C29.1,20.8,36.6,13,46,13s16.9,7.8,16.9,17.4S55.3,47.8,46,47.8S29.1,40,29.1,30.4z"/>
+	</g>
+	<polygon class="st6" points="46,35.4 51.8,39.5 49.8,32.6 55.4,28.2 48.3,28.1 46,21.2 43.7,28.1 36.6,28.2 42.2,32.6 40.2,39.5 	
+		"/>
+</g>
+</svg>

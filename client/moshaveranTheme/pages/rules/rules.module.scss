@@ -1,0 +1,57 @@
+@use "../../styles/abstracts/responsive";
+@use "../../styles/abstracts/variables" as var;
+
+.container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 32px;
+  width: 100%;
+  background-color: var.$color-white;
+  box-shadow: var.$box-shadow-card;
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 42px 56px;
+  gap: 32px;
+}
+
+.description-container {
+  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  background-color: var.$color-light-gray;
+  border-radius: 10px;
+  padding: 16px 20px;
+  p {
+    text-align: center;
+    font-size: var(--font-size-md);
+  }
+}
+
+.title {
+  color: var.$color-primary;
+  font-weight: bold;
+  font-size: var(--font-size-lg);
+}
+
+.items-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.item-title {
+  font-weight: bold;
+  font-size: var(--font-size-lg);
+}
+
+.item-description {
+  text-align: justify;
+  line-height: 2;
+}
+
+@include responsive.media-xs {
+  .container {
+    padding: 24px 32px;
+  }
+}

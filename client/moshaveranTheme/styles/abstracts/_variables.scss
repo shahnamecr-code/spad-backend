@@ -1,0 +1,33 @@
+@use "./responsive";
+
+/** color **/
+$color-primary: #0984e3;
+$color-hover: #81ecec;
+$color-bg: #f7f7f7;
+$color-light-gray: hsl(0, 0%, 80%);
+$color-middle-gray: #bebebe;
+$color-gray: #a7a9b0;
+$color-dark-gray: #707070;
+$color-text: #2d3436;
+$color-footer-usage: #b4cde9;
+$color-light: #f9fbff;
+$color-dark: #333333;
+$color-blue: #4285f4;
+$color-yellow: #ffca28;
+$color-white: #ffffff;
+$color-footer-bg: #efefef;
+$color-red: #e01e36;
+$color-success: #008000;
+$color-orange: #e67e22;
+
+/** Font weight  */
+$font-weight-ultraLight: 100;
+$font-weight-light: 300;
+$font-weight-medium: 500;
+
+/** box shadow **/
+$box-shadow-main: 0 3px 6px 0 rgba(0, 0, 0, 0.16);
+$box-shadow-card: 2px 2px 13px -7px rgba(0, 0, 0, 0.75);
+
+/** general **/
+$header-height: 80px;

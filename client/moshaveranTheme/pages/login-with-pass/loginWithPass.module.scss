@@ -1,0 +1,63 @@
+@use "../../styles/abstracts/variables" as var;
+@use "../../styles/abstracts/responsive";
+
+.container {
+  background-color: var.$color-white;
+  border-radius: 16px;
+  padding: 20px 32px;
+  display: flex;
+  flex-direction: column;
+  margin-block: 56px;
+  gap: 16px;
+  width: 450px;
+  margin-inline: auto;
+  box-shadow: var.$box-shadow-card;
+}
+
+@include responsive.media-xs {
+  .container {
+    min-width: 100%;
+    width: 100%;
+  }
+}
+
+.login {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.input {
+  background-color: rgba($color: var.$color-primary, $alpha: 0.1);
+  border-radius: 6px;
+  padding: 8px 16px;
+  height: 40px;
+  width: 100%;
+  margin: 10px 0;
+}
+
+.title {
+  text-align: center;
+  margin-block: 16px;
+  font-weight: var.$font-weight-medium;
+  font-size: var(--font-size-lg);
+}
+
+.login-btn {
+  height: 40px;
+  width: 30%;
+  min-width: 100px;
+}
+
+.errors {
+  color: red;
+}
+
+.btns-container {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}

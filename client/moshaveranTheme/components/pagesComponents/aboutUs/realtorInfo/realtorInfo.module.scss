@@ -1,0 +1,70 @@
+@use "../../../../styles/abstracts/variables" as var;
+@use "../../../../styles/abstracts/responsive";
+
+.realtor-box {
+  font-size: var(--font-size-md);
+  background-color: var.$color-white;
+  border-radius: 8px;
+  padding-top: 12px;
+  width: calc(33.33% - 14px);
+  margin-block: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: var.$box-shadow-card;
+  overflow: hidden;
+  border: 1px solid var.$color-light-gray;
+  cursor: pointer;
+  img {
+    border-radius: 100%;
+  }
+}
+
+.name {
+  font-weight: var.$font-weight-medium;
+  margin-block: 12px;
+}
+
+.contact-box {
+  display: flex;
+  align-items: flex-end;
+  border-top: 1px solid var.$color-light-gray;
+  width: 100%;
+  svg {
+    font-size: 16px;
+  }
+
+  .tel {
+    color: var.$color-gray;
+    border-inline-end: 1px solid var.$color-light-gray;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    &:hover {
+      background-color: var.$color-success;
+      color: var.$color-white;
+    }
+  }
+  .sms {
+    color: var.$color-gray;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    &:hover {
+      background-color: var.$color-yellow;
+      color: var.$color-white;
+    }
+  }
+}
+
+@include responsive.media-xs {
+  .realtor-box {
+    width: 100%;
+  }
+}

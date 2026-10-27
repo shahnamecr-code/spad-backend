@@ -1,0 +1,116 @@
+@use "../../../../../styles/abstracts/variables" as var;
+@use "../../../../../styles/abstracts/responsive";
+
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.info-container {
+  width: 100%;
+  padding: 16px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba($color: var.$color-light-gray, $alpha: 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+}
+
+.code {
+  font-size: var(--font-size-md);
+  color: var.$color-gray;
+  border: 1px solid var.$color-light-gray;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.region {
+  font-size: var(--font-size-md);
+  color: var.$color-gray;
+}
+
+.title {
+  font-weight: bold;
+  margin-inline-end: 16px;
+}
+
+.primary {
+  color: var.$color-primary;
+}
+
+.btn-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  justify-content: flex-end;
+  svg {
+    color: var.$color-gray;
+    font-size: 20px;
+  }
+}
+
+.items-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 0 20px 20px 20px;
+  align-items: center;
+  overflow-y: auto;
+  max-height: 70vh;
+}
+
+.property-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.property-title-container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.property-title {
+  font-weight: bold;
+}
+
+.item-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+}
+
+.item-title,
+.item-value {
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: var(--font-size-md);
+  border: 1px solid var.$color-light-gray;
+  flex: 1;
+  min-height: 37px;
+}
+
+.item-title {
+  font-weight: bold;
+  background-color: rgba($color: var.$color-light-gray, $alpha: 0.2);
+}
+
+.item-value {
+  color: var.$color-primary;
+  background-color: white;
+  font-weight: var.$font-weight-medium;
+  span {
+    color: var.$color-text;
+  }
+}

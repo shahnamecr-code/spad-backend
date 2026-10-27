@@ -1,0 +1,71 @@
+@use "../../../../styles/abstracts/responsive";
+@use "../../../../styles/abstracts/variables" as var;
+
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 16px;
+  overflow: visible;
+  gap: 12px;
+  background-color: var.$color-bg;
+}
+
+.btn-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.title {
+  text-align: center;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+@include responsive.media-xs {
+  .hide-filters {
+    height: 0;
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .search-btn {
+    background-color: var.$color-white;
+    height: 46px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.box-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var.$color-white;
+  border-radius: 10px;
+  box-shadow: var.$box-shadow-card;
+}
+
+.box-label-container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 12px 4px 12px;
+  span {
+    font-weight: bold;
+  }
+  svg {
+    color: var.$color-primary;
+  }
+}
+
+.box-items-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 12px 10px 12px;
+}

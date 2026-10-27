@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 23.1.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 72 72" style="enable-background:new 0 0 72 72;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:none;}
+	.st1{filter:url(#support_icon-a);}
+	.st2{fill-rule:evenodd;clip-rule:evenodd;}
+	.st3{fill-rule:evenodd;clip-rule:evenodd;fill:#B3B3B3;}
+	.st4{filter:url(#support_icon-c);}
+	.st5{fill-rule:evenodd;clip-rule:evenodd;fill:#A62626;}
+</style>
+<filter  filterUnits="objectBoundingBox" height="328.6%" id="support_icon-c" width="188.9%" x="-44.4%" y="-100%">
+	<feMorphology  in="SourceAlpha" operator="erode" radius="1" result="shadowSpreadOuter1"></feMorphology>
+	<feOffset  dy="2" in="shadowSpreadOuter1" result="shadowOffsetOuter1"></feOffset>
+	<feGaussianBlur  in="shadowOffsetOuter1" result="shadowBlurOuter1" stdDeviation="6"></feGaussianBlur>
+	<feColorMatrix  in="shadowBlurOuter1" values="0 0 0 0 0.650980392   0 0 0 0 0.149019608   0 0 0 0 0.149019608  0 0 0 0.48 0">
+		</feColorMatrix>
+</filter>
+<filter  filterUnits="objectBoundingBox" height="173.5%" id="support_icon-a" width="180%" x="-60%" y="-53.5%">
+	<feMorphology  in="SourceAlpha" operator="erode" radius="1" result="shadowSpreadOuter1"></feMorphology>
+	<feOffset  dy="2" in="shadowSpreadOuter1" result="shadowOffsetOuter1"></feOffset>
+	<feGaussianBlur  in="shadowOffsetOuter1" result="shadowBlurOuter1" stdDeviation="6"></feGaussianBlur>
+	<feColorMatrix  in="shadowBlurOuter1" values="0 0 0 0 0.701960784   0 0 0 0 0.701960784   0 0 0 0 0.701960784  0 0 0 1 0">
+		</feColorMatrix>
+</filter>
+<g transform="translate(-7 -7)">
+	<rect x="7" y="7" class="st0" width="72" height="72"/>
+	<g class="st1">
+		<path id="support_icon-b_1_" class="st2" d="M47.4,26.4c5.8-5.8,15.3-5.8,21.1,0l0,0l1.3,1.3v-2.3c0-0.9,0.7-1.6,1.6-1.6
+			c0.9,0,1.6,0.7,1.6,1.6l0,0v6.1c0,0.9-0.7,1.6-1.6,1.6l0,0v0h-6.1c-0.9,0-1.6-0.7-1.6-1.6s0.7-1.6,1.6-1.6l0,0h2.3l-1.3-1.3
+			c-4.6-4.6-12.1-4.6-16.6,0s-4.6,12.1,0,16.6s12.1,4.6,16.6,0c1.8-1.8,3-4.1,3.3-6.7c0.1-0.9,0.9-1.5,1.8-1.4
+			c0.9,0.1,1.5,0.9,1.4,1.8c-0.4,3.2-1.9,6.2-4.2,8.5c-2.9,2.9-6.8,4.4-10.6,4.4s-7.7-1.5-10.6-4.4C41.5,41.7,41.5,32.2,47.4,26.4z
+			 M57.6,28.9c0.9,0,1.6,0.7,1.6,1.5l0,0v5.4l3.7,1c0.8,0.2,1.3,1.1,1.1,1.9c-0.2,0.7-0.8,1.1-1.5,1.1c-0.2,0-0.3,0-0.4-0.1l0,0
+			l-4.8-1.4C56.5,38.3,56,37.7,56,37l0,0v-6.5C56,29.6,56.7,28.9,57.6,28.9z"/>
+	</g>
+	<g>
+		<path class="st3" d="M47.4,26.4c5.8-5.8,15.3-5.8,21.1,0l0,0l1.3,1.3v-2.3c0-0.9,0.7-1.6,1.6-1.6c0.9,0,1.6,0.7,1.6,1.6l0,0v6.1
+			c0,0.9-0.7,1.6-1.6,1.6l0,0v0h-6.1c-0.9,0-1.6-0.7-1.6-1.6s0.7-1.6,1.6-1.6l0,0h2.3l-1.3-1.3c-4.6-4.6-12.1-4.6-16.6,0
+			s-4.6,12.1,0,16.6s12.1,4.6,16.6,0c1.8-1.8,3-4.1,3.3-6.7c0.1-0.9,0.9-1.5,1.8-1.4c0.9,0.1,1.5,0.9,1.4,1.8
+			c-0.4,3.2-1.9,6.2-4.2,8.5c-2.9,2.9-6.8,4.4-10.6,4.4s-7.7-1.5-10.6-4.4C41.5,41.7,41.5,32.2,47.4,26.4z M57.6,28.9
+			c0.9,0,1.6,0.7,1.6,1.5l0,0v5.4l3.7,1c0.8,0.2,1.3,1.1,1.1,1.9c-0.2,0.7-0.8,1.1-1.5,1.1c-0.2,0-0.3,0-0.4-0.1l0,0l-4.8-1.4
+			C56.5,38.3,56,37.7,56,37l0,0v-6.5C56,29.6,56.7,28.9,57.6,28.9z"/>
+	</g>
+	<g transform="rotate(-120 25 35)">
+		<g class="st4">
+			<path id="support_icon-d_1_" class="st2" d="M22.9,42.3c0,1.2,1,2.2,2.2,2.2h6.1c1.2,0,2.2-1,2.2-2.6v-2.3c0-2.7-1.6-5.1-4.1-6.2
+				c-8.9-3.9-19-3.9-27.9,0C-1,34.5-2.6,37-2.6,39.6l0,2.3c0,1.6,1,2.6,2.2,2.6l6.1,0c1.2,0,2.2-1,2.2-2.2l0-3.7
+				c0-0.3,0.2-0.7,0.6-0.7c4.5-1.1,9.2-1.1,13.7,0c0.3,0.1,0.6,0.4,0.6,0.7V42.3z"/>
+		</g>
+		<g>
+			<path class="st5" d="M22.9,42.3c0,1.2,1,2.2,2.2,2.2h6.1c1.2,0,2.2-1,2.2-2.6v-2.3c0-2.7-1.6-5.1-4.1-6.2c-8.9-3.9-19-3.9-27.9,0
+				C-1,34.5-2.6,37-2.6,39.6l0,2.3c0,1.6,1,2.6,2.2,2.6l6.1,0c1.2,0,2.2-1,2.2-2.2l0-3.7c0-0.3,0.2-0.7,0.6-0.7
+				c4.5-1.1,9.2-1.1,13.7,0c0.3,0.1,0.6,0.4,0.6,0.7V42.3z"/>
+		</g>
+	</g>
+</g>
+</svg>

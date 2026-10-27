@@ -1,0 +1,44 @@
+$separator-color-light: #eef3f6;
+$separator-color: #dce6ed;
+$background-color: #f5f9fc;
+$foreground-color: #ffffff;
+$input-background: #ffffff;
+
+$dark-btn-background: #183348;
+$light-btn-background: #edf4f8;
+$button-text-color: #fff;
+
+$theme-color-1: #0984e3;
+$theme-color-2: #6c5ce7;
+$theme-color-3: #00b894;
+$theme-color-4: #0873c5;
+$theme-color-5: #74b9ff;
+$theme-color-6: #718797;
+
+$primary-color: #294052;
+$secondary-color: #748694;
+$muted-color: #8c9aa5;
+
+$gradient-color-1: #36a5f7;
+$gradient-color-2: #0984e3;
+$gradient-color-3: #6c5ce7;
+
+$lp-bg-color-1: #064e82;
+$lp-bg-color-2: #0874c7;
+$lp-bg-color-3: #0984e3;
+$lp-bg-color-4: #6c5ce7;
+
+$shadow-offsets-top: 1 3 10 14 19;
+$shadow-blurs-top: 1.5 5 10 14 19;
+$shadow-opacities-top: 0.03 0.06 0.10 0.13 0.16;
+
+$shadow-offsets-bottom: 1 3 6 10 15;
+$shadow-blurs-bottom: 3 6 6 5 6;
+$shadow-opacities-bottom: 0.03 0.06 0.10 0.12 0.14;
+
+$logo-path: "/assets/logos/black.png";
+$logo-path-mobile: "/assets/logos/mobile.png";
+$lp-logo-path: "/assets/logos/white-full.png";
+$lp-logo-path-pinned: "/assets/logos/black.png";
+
+@import "../main.scss";

@@ -1,0 +1,22 @@
+@use "../../styles/abstracts/variables" as var;
+@use "../../styles/abstracts/responsive";
+
+.container {
+  background-color: var.$color-white;
+  border-radius: 16px;
+  padding: 20px 32px;
+  display: flex;
+  flex-direction: column;
+  margin-block: 56px;
+  gap: 16px;
+  width: 450px;
+  margin-inline: auto;
+  box-shadow: var.$box-shadow-card;
+}
+
+@include responsive.media-xs {
+  .container {
+    min-width: 100%;
+    width: 100%;
+  }
+}

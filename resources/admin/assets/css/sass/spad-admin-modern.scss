@@ -1,0 +1,44 @@
+/* SPAD global admin visual layer - no business logic changes. */
+.spad-admin-modern {
+  --spad-blue:#0b8ee8;
+  --spad-blue-2:#1769d1;
+  --spad-ink:#17354f;
+  --spad-muted:#71879a;
+}
+.spad-admin-modern .card,
+.spad-admin-modern .card-body,
+.spad-admin-modern .form-control,
+.spad-admin-modern .custom-select,
+.spad-admin-modern .btn,
+.spad-admin-modern .modal-content,
+.spad-admin-modern .dropdown-menu {
+  border-radius:14px;
+}
+.spad-admin-modern .card {
+  border:1px solid #e4edf4;
+  box-shadow:0 10px 30px rgba(20,65,100,.055);
+}
+.spad-admin-modern .btn { font-weight:500; transition:.18s ease; }
+.spad-admin-modern .btn:hover { transform:translateY(-1px); }
+.spad-admin-modern .form-control { min-height:40px; border-color:#dce7ef; }
+.spad-admin-modern .table { border-radius:14px; overflow:hidden; }
+.spad-admin-modern .table thead th { background:#f5f9fc; color:#496477; font-weight:600; border-bottom:1px solid #e2ebf1; }
+.spad-admin-modern .badge { border-radius:999px; padding:.45em .75em; }
+
+.spad-admin-quick-card{margin-bottom:22px;border:0!important;overflow:hidden;background:linear-gradient(145deg,#fafdff,#f1f8fc)!important}
+.spad-admin-quick-head{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:16px}
+.spad-admin-quick-head>div:first-child span{font-size:9px;letter-spacing:.14em;color:#0b8ee8;font-weight:700}
+.spad-admin-quick-head h3{margin:5px 0 3px;font-size:19px;color:#17354f;font-weight:600}
+.spad-admin-quick-head p{margin:0;color:#7a8e9f;font-size:11px}
+.spad-admin-quick-mark{width:54px;height:54px;border-radius:17px;display:grid;place-items:center;color:#fff;font-weight:800;background:linear-gradient(145deg,#0ca7f4,#1769d1);box-shadow:0 12px 25px rgba(11,142,232,.2)}
+.spad-admin-quick-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.spad-admin-quick-item{display:flex;align-items:center;gap:10px;min-width:0;padding:11px;border:1px solid #e2edf4;border-radius:14px;background:rgba(255,255,255,.82);text-decoration:none!important;transition:.18s ease;box-shadow:0 5px 18px rgba(28,73,108,.035)}
+.spad-admin-quick-item:hover{transform:translateY(-2px);border-color:#9fd8fa;box-shadow:0 12px 25px rgba(22,91,135,.09)}
+.spad-admin-quick-item.is-featured{background:linear-gradient(135deg,#eef9ff,#f4f0ff);border-color:#b6ddf6}
+.spad-admin-quick-icon{width:38px;height:38px;flex:0 0 38px;border-radius:12px;display:grid;place-items:center;background:#eaf6fd;color:#0b8ee8;font-size:15px}
+.spad-admin-quick-item.is-featured .spad-admin-quick-icon{background:linear-gradient(145deg,#0b9ff0,#7256dd);color:#fff}
+.spad-admin-quick-copy{min-width:0;flex:1}.spad-admin-quick-copy b,.spad-admin-quick-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.spad-admin-quick-copy b{font-size:10px;color:#23465e;font-weight:600}.spad-admin-quick-copy small{font-size:8px;color:#91a1ad;margin-top:2px}.spad-admin-quick-arrow{font-size:18px;color:#94a8b7}
+@media(max-width:1100px){.spad-admin-quick-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:767px){.spad-admin-quick-head{align-items:flex-start}.spad-admin-quick-grid{grid-template-columns:1fr 1fr}.spad-admin-quick-head h3{font-size:16px}.spad-admin-quick-item{padding:9px}.spad-admin-quick-icon{width:34px;height:34px;flex-basis:34px}.spad-admin-quick-copy b{font-size:9px}}
+.spad-edit-entry-card{max-width:760px;margin:25px auto;border:0!important;background:linear-gradient(145deg,#ffffff,#f3f9fd)!important}.spad-edit-entry-card .card-body{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;padding:24px}.spad-edit-entry-icon{width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(145deg,#0b9ff0,#1769d1);color:#fff;font-size:20px}.spad-edit-entry-copy span{font-size:8px;color:#0b8ee8;letter-spacing:.12em}.spad-edit-entry-copy h2{font-size:20px;color:#17354f;margin:4px 0}.spad-edit-entry-copy p{font-size:10px;color:#7890a1;margin:0;line-height:1.9}.spad-edit-entry-form{grid-column:1/-1;display:grid;grid-template-columns:1fr auto;gap:8px}.spad-edit-entry-form label{grid-column:1/-1;font-size:9px;color:#607789;margin:0}.spad-edit-entry-form .form-control{min-height:42px}.spad-edit-entry-form .btn{min-width:170px}@media(max-width:767px){.spad-edit-entry-form{grid-template-columns:1fr}.spad-edit-entry-form .btn{width:100%}.spad-edit-entry-card .card-body{padding:18px}}
+.vt-studio-badge{display:inline-flex;align-items:center;gap:6px;margin-top:7px;padding:5px 9px;border-radius:999px;background:rgba(11,142,232,.08);border:1px solid rgba(11,142,232,.13);color:#087fc9;font-size:9px}.vt-studio-badge-dot{width:6px;height:6px;border-radius:50%;background:#18b77a;box-shadow:0 0 0 4px rgba(24,183,122,.1)}.vt-main-create{box-shadow:0 10px 22px rgba(11,142,232,.18)}

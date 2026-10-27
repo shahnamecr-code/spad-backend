@@ -1,0 +1,45 @@
+@use "../../../../styles/abstracts/responsive";
+@use "../../../../styles/abstracts/variables" as var;
+
+.container {
+  flex-direction: column;
+  display: flex;
+  gap: 12px;
+  width: 100%;
+  align-items: flex-end;
+  button {
+    margin-top: 12px;
+  }
+}
+
+.place-container {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+}
+
+.input-container {
+  display: flex;
+  flex: 1;
+  width: 100%;
+}
+
+.select-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  span {
+    font-size: var(--font-size-md);
+  }
+}
+
+@include responsive.media-xs {
+  .place-container {
+    flex-direction: column-reverse;
+    .input-container {
+      flex-direction: column;
+      gap: 12px;
+    }
+  }
+}

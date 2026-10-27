@@ -1,0 +1,23 @@
+@use "../../../../styles/abstracts/responsive";
+@use "../../../../styles/abstracts/variables" as var;
+
+.container {
+  position: relative;
+}
+
+.input {
+  background-color: rgba($color: var.$color-primary, $alpha: 0.1);
+  border-radius: 6px;
+  padding: 8px 16px;
+  height: 40px;
+  width: 100%;
+}
+
+.validation-message {
+  position: absolute;
+  left: 0;
+  top: 105%;
+  font-size: var(--font-size-sm);
+  color: var.$color-red;
+  font-weight: bold;
+}

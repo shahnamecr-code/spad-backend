@@ -1,0 +1,19 @@
+{
+  "login": "/login",
+  "login-with-pass": "/login-with-pass",
+  "favorites": "/favorites",
+  "search": "/search",
+  "create": "/create",
+  "about-us": "/about-us",
+  "contact-us": "/contact-us",
+  "news": "/news",
+  "realtors": "/realtors",
+  "request": "/request",
+  "rules": "/rules",
+  "profile": "/profile",
+  "ad-expertise-request": "/ad-expertise-request",
+  "recruitment": "/recruitment",
+  "single": "/ads",
+  "404": "/404",
+  "single-preview": "/ads/preview"
+}

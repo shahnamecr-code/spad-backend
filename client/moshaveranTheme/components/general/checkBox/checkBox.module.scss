@@ -1,0 +1,49 @@
+@use "../../../styles/abstracts/responsive";
+@use "../../../styles/abstracts/variables" as var;
+
+.container {
+  position: relative;
+  align-items: center;
+  display: flex;
+}
+
+.check-box {
+  position: relative;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border-radius: 4px;
+  width: 20px !important;
+  height: 20px !important;
+  margin: 0;
+  outline: none;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100%;
+  transition: 0.2s all;
+  border: 1px solid var.$color-gray;
+  cursor: pointer;
+  margin-inline-end: 16px;
+  &:checked {
+    border: none;
+    background-color: var.$color-primary;
+    &::after {
+      left: 4.5px;
+      top: 50%;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg) translateX(-50%) translateY(-50%);
+      content: "";
+      position: absolute;
+      display: block;
+    }
+  }
+}
+
+.label {
+  cursor: pointer;
+  color: var.$color-text;
+  font-size: var(--font-size-md);
+}

@@ -1,0 +1,29 @@
+@use "../../../../styles/abstracts/variables";
+@use "../../../../styles/abstracts/responsive";
+
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-block: 40px;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.swiper-container {
+  width: calc(100% + 16px);
+  position: relative;
+}
+
+@include responsive.media-max-lg {
+  .swiper-container {
+    width: calc(100% - 16px);
+  }
+}
+
+@include responsive.media-xs {
+  .swiper-container {
+    width: 90%;
+    margin: auto;
+  }
+}

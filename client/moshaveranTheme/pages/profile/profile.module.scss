@@ -1,0 +1,64 @@
+@use "../../styles/abstracts/responsive";
+@use "../../styles/abstracts/variables" as var;
+
+.container {
+  display: flex;
+  width: 100%;
+  gap: 16px;
+  margin-bottom: 32px;
+  align-items: flex-start;
+  margin-top: 20px;
+}
+
+.aside-profile {
+  align-items: flex-start;
+
+  width: 25%;
+  position: sticky;
+  top: 24px;
+  background-color: var.$color-white;
+  border-radius: 8px;
+  box-shadow: var.$box-shadow-card;
+  overflow-y: scroll;
+  padding: 20px;
+}
+
+.info-container {
+  background-color: var.$color-white;
+  border-radius: 8px;
+  box-shadow: var.$box-shadow-card;
+  width: 75%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  position: relative;
+  .ad {
+    width: 50%;
+  }
+}
+
+@include responsive.media-xs {
+  .container {
+    flex-direction: column;
+  }
+  .aside-profile {
+    position: relative;
+    width: 100%;
+    margin-bottom: 32px;
+    margin-top: 0;
+  }
+  .info-container {
+    width: 100%;
+    .ad {
+      width: 100%;
+    }
+  }
+}
+
+@include responsive.media-lg {
+  .info-container {
+    .ad {
+      width: 33.33%;
+    }
+  }
+}

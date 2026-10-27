@@ -1,0 +1,61 @@
+@use "../../../styles/abstracts/variables" as var;
+@use "../../../styles/abstracts/responsive";
+
+.login {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.input {
+    background-color: rgba($color: var.$color-primary, $alpha: 0.1);
+    border-radius: 6px;
+    padding: 8px 16px;
+    height: 40px;
+    width: 100%;
+    margin: 10px 0;
+}
+
+.title {
+    text-align: center;
+    margin-block: 16px;
+    font-weight: var.$font-weight-medium;
+    font-size: var(--font-size-lg);
+}
+
+.signup-btn {
+    margin: 8px auto;
+    height: 40px;
+    width: 30%;
+    min-width: 100px;
+    color: #fff;
+}
+
+.errors {
+    color: red;
+}
+
+.sign-up {
+
+    button,
+    span {
+        font-size: var(--font-size-md);
+    }
+
+    input {
+        background-color: rgba($color: var.$color-primary, $alpha: 0.1);
+        border-radius: 6px;
+        padding: 8px 16px;
+        height: 40px;
+        width: 100%;
+        margin: 10px 0;
+    }
+
+    button {
+        text-decoration: none;
+        font-weight: bold;
+    }
+
+
+}

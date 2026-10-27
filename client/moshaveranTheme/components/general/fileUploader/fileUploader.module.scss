@@ -1,0 +1,104 @@
+@use "../../../styles/abstracts/responsive";
+@use "../../../styles/abstracts/variables" as var;
+
+.input-label,
+.img-container {
+  width: calc(25% - 12px);
+  margin: 6px;
+  aspect-ratio: 1;
+  display: flex;
+  border-radius: 6px;
+}
+
+.input-label {
+  border: 2px dashed;
+  border-color: var.$color-gray;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  svg {
+    font-size: 24px;
+    color: var.$color-gray;
+  }
+}
+
+.img-container {
+  flex-wrap: wrap;
+  border: 1px solid var.$color-gray;
+  position: relative;
+  overflow: hidden;
+}
+
+.delete-btn {
+  position: absolute;
+  background-color: rgba($color: #000000, $alpha: 0.3);
+  padding: 4px;
+  border-radius: 4px;
+  left: 4px;
+  top: 4px;
+  display: flex;
+  cursor: pointer;
+  svg {
+    color: var.$color-white;
+  }
+}
+
+.progress-container {
+  position: absolute;
+  background-color: rgba($color: #ffffff, $alpha: 0.5);
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  font-size: var(--font-size-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress {
+  display: flex;
+  width: 80%;
+  background-color: var.$color-white;
+  border-radius: 10px;
+  height: 8px;
+  overflow: hidden;
+  direction: ltr;
+}
+
+.progress-value {
+  display: flex;
+  height: 100%;
+  width: 0;
+  background-color: var.$color-primary;
+}
+
+.error {
+  position: absolute;
+  z-index: 1;
+  background-color: rgba($color: var.$color-white, $alpha: 0.7);
+  color: var.$color-primary;
+  font-size: var(--font-size-sm);
+  font-weight: bold;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-50%);
+  white-space: nowrap;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+@include responsive.media-xs {
+  .input-label,
+  .img-container {
+    margin: 4px;
+    width: calc(33.33% - 8px);
+  }
+}
+
+@include responsive.media-xl {
+  .input-label,
+  .img-container {
+    width: calc(20% - 12px);
+    margin: 6px;
+  }
+}

@@ -1,0 +1,92 @@
+@use "../../../styles/abstracts/variables" as var;
+@use "../../../styles/abstracts/responsive";
+
+.container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 998;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  opacity: 1;
+  visibility: visible;
+}
+
+.items-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 64px;
+  flex-direction: column;
+  opacity: 1;
+  visibility: visible;
+  width: 100%;
+  height: 28vh;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  margin: auto 0;
+  transition: 0.5s all;
+  z-index: 100000000000000000;
+}
+
+.progress {
+  position: relative;
+  width: 200px;
+  border-radius: 15px;
+}
+.color {
+  background-color: var.$color-primary;
+  width: 0px;
+  height: 3px;
+  border-radius: 15px;
+  animation: progres 3s infinite linear;
+}
+@keyframes progres {
+  0% {
+    width: 0%;
+  }
+  25% {
+    width: 50%;
+  }
+  50% {
+    width: 75%;
+  }
+  75% {
+    width: 85%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+.loader-toggle-bottom {
+  transform: translateY(50vh);
+}
+.screen-loader-bottom {
+  width: 100%;
+  height: 50vh;
+  background-color: var.$color-white;
+  transition: 1s all;
+}
+
+.loader-toggle-top {
+  transform: translateY(-50vh);
+}
+
+.screen-loader-top {
+  width: 100%;
+  height: 50vh;
+  background-color: var.$color-white;
+  transition: 1s all;
+}
+
+.d-none {
+  opacity: 0;
+  visibility: hidden;
+  transition: 1s all;
+}

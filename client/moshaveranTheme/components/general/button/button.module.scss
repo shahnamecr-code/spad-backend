@@ -1,0 +1,143 @@
+@use "../../../styles/abstracts/variables";
+@use "../../../styles/abstracts/responsive";
+
+.button {
+  border-radius: 4px;
+  padding: 4px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  gap: 8px;
+  &:disabled {
+    opacity: 0.6;
+    pointer-events: none;
+  }
+}
+
+.text-primary,
+.text-white,
+.text-gray,
+.text-dark {
+  padding: 0;
+  background-color: transparent;
+}
+
+.text-white {
+  color: variables.$color-white;
+}
+
+.text-primary {
+  color: variables.$color-primary;
+}
+
+.text-dark {
+  color: variables.$color-dark;
+}
+
+.text-gray {
+  color: variables.$color-gray;
+}
+
+.outlined {
+  background-color: transparent;
+}
+
+.contained-primary,
+.contained-dark,
+.contained-white,
+.contained-gray {
+  &:hover {
+    filter: brightness(0.85);
+  }
+}
+
+.contained-primary {
+  background-color: variables.$color-primary;
+  border: 1px solid variables.$color-primary;
+  color: white;
+}
+
+.contained-dark {
+  background-color: variables.$color-dark;
+  border: 1px solid variables.$color-dark;
+  color: white;
+}
+
+.contained-white {
+  background-color: variables.$color-white;
+  border: 1px solid variables.$color-white;
+  color: variables.$color-primary;
+}
+
+.contained-gray {
+  background-color: variables.$color-gray;
+  border: 1px solid variables.$color-gray;
+  color: white;
+}
+
+.outlined-primary {
+  background-color: transparent;
+  border: 1px solid variables.$color-primary;
+  color: variables.$color-primary !important;
+  &:hover {
+    background-color: variables.$color-primary;
+    color: variables.$color-white !important;
+    * {
+      color: variables.$color-white !important;
+    }
+  }
+}
+
+.outlined-dark {
+  background-color: transparent;
+  border: 1px solid variables.$color-dark;
+  color: variables.$color-dark !important;
+  &:hover {
+    background-color: variables.$color-dark;
+    color: variables.$color-white !important;
+    * {
+      color: variables.$color-white !important;
+    }
+  }
+}
+
+.outlined-white {
+  background-color: transparent;
+  border: 1px solid variables.$color-white;
+  color: variables.$color-white;
+
+  &:hover {
+    background-color: variables.$color-white;
+    color: variables.$color-primary;
+    * {
+      color: variables.$color-primary;
+    }
+  }
+}
+
+.outlined-gray {
+  background-color: transparent;
+  border: 1px solid variables.$color-gray;
+  color: variables.$color-gray !important;
+  &:hover {
+    background-color: variables.$color-gray;
+    color: variables.$color-white !important;
+    * {
+      color: variables.$color-white !important;
+    }
+  }
+}
+
+@include responsive.media-xs {
+  .button {
+    border-radius: 6px;
+    padding: 8px 8px;
+  }
+  .text-primary,
+  .text-white,
+  .text-gray,
+  .text-dark {
+    padding: 0;
+  }
+}

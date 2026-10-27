@@ -1,0 +1,81 @@
+@use "../../../../styles/abstracts/variables" as var;
+
+.container {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  max-height: 425px;
+  overflow-y: auto;
+  padding-bottom: 20px;
+  padding: 16px;
+  padding-top: 0;
+}
+.descriptiveParagraph {
+  font-size: 12px;
+  text-align: center;
+  margin-bottom: 1rem;
+}
+.itemContainer{
+  margin: 10px 0;
+}
+.date-btn__container {
+  display: flex;
+  // position: relative;
+  width: fit-content;
+// overflow: hidden;
+   border: 1px solid #c0c4d6;
+   border-radius: 13px !important;
+   align-items: center;
+   border-left: none;
+}
+.date-btn__item {
+  display: flex;
+}
+.date-btn-icon__container {
+  content: "";
+  background-color: var.$color-primary;
+  width: 96px;
+  height: 100px;
+  /* border: 3px solid rgba(176, 190, 197, 0.4); */
+  background-clip: padding-box;
+  border-radius: 50px 64px 0px 50px;
+  transition: all 0.4s;
+  display: flex;
+  justify-content: center;
+  height: 58px !important;
+  overflow: hidden;
+  .icon{
+    color: rgb(255, 255, 255);
+    font-size: 22px;
+    margin-top: 19px;
+    margin-left: 25px;
+  }
+}
+.icon-container{
+  overflow: hidden;
+  width: 60px;
+  position: relative;
+
+}
+.date-item{
+  display: flex;
+  align-items: center;
+  gap: 50px;
+  flex-wrap: wrap;
+}
+.add-time__btn{
+  margin: 10px 0;
+  margin-bottom: 50px;
+}
+
+.submitBtnContainer{
+  display: flex;
+  justify-content: flex-end;
+  position: absolute;
+  bottom: 0;
+  left: 15px;
+  background-color: rgb(255, 255, 255);
+  width: 98%;
+  padding-bottom: 15px;
+
+}

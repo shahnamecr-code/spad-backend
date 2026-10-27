@@ -1,0 +1,36 @@
+@use "../../../styles/abstracts/responsive";
+@use "../../../styles/abstracts/variables" as var;
+
+.container {
+  position: relative;
+  align-items: center;
+  display: flex;
+}
+
+.radio {
+  position: relative;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border-radius: 100%;
+  width: 18px !important;
+  height: 18px !important;
+  margin: 0;
+  outline: none;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100%;
+  transition: 0.2s all;
+  border: 1px solid var.$color-gray;
+  cursor: pointer;
+  margin-inline-end: 16px;
+  &:checked {
+    border: 5px solid var.$color-primary;
+  }
+}
+
+.label {
+  cursor: pointer;
+  color: var.$color-text;
+  font-size: var(--font-size-md);
+}

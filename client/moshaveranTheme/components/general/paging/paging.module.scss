@@ -1,0 +1,33 @@
+@use "../../../styles/abstracts/variables" as var;
+@use "../../../styles/abstracts/responsive";
+
+.container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.link {
+  color: var.$color-text;
+  cursor: pointer;
+  background-color: var.$color-white !important;
+  border-radius: 6px;
+  padding: 4px 12px !important;
+  box-shadow: var.$box-shadow-main;
+  font-weight: var.$font-weight-medium;
+}
+
+.active {
+  background-color: var.$color-primary !important;
+  color: var.$color-white !important;
+  font-weight: bold;
+}
+
+@include responsive.media-xs {
+  .container {flex-wrap: wrap;
+    gap: 12px;
+  }
+}

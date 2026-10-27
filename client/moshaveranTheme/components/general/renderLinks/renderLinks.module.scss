@@ -1,0 +1,58 @@
+@use "../../../styles/abstracts/responsive";
+@use "../../../styles/abstracts/variables" as var;
+
+.container {
+  width: 100%;
+  padding: 16px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  border-radius: 8px;
+  font-size: var(--font-size-md);
+  margin-top: 8px;
+
+  a {
+    color: var.$color-gray;
+    &::after {
+      content: " ";
+      margin-inline: 12px;
+      background-color: var.$color-gray;
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      border-radius: 100%;
+      opacity: 0.5;
+    }
+    &:hover {
+      color: var.$color-primary;
+    }
+  }
+
+  span,
+  h1 {
+    font-size: var(--font-size-md);
+    font-weight: var.$font-weight-medium;
+  }
+}
+
+.back-btn {
+  padding-inline-start: 0 !important;
+  gap: 4px;
+  font-size: var(--font-size-md);
+}
+
+.slash {
+  color: var.$color-gray;
+  font-size: var(--font-size-xl);
+  margin-inline: 12px;
+}
+
+@include responsive.media-xs {
+  .slash {
+    margin-inline: 8px;
+  }
+
+  .back-btn {
+    padding-inline: 0;
+  }
+}

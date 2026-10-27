@@ -1,0 +1,72 @@
+@use "../../../../styles/abstracts/variables" as var;
+
+.realtor-box {
+  font-size: var(--font-size-md);
+  background-color: var.$color-white;
+  border-radius: 8px;
+  padding: 15px;
+  width: 100%;
+  margin-block: 8px;
+  justify-content: space-between;
+  box-shadow: var.$box-shadow-card;
+  img {
+    border-radius: 100%;
+  }
+}
+.realtor-box-info {
+  display: flex;
+  justify-content: space-between;
+}
+
+.realtor-info {
+  display: flex;
+  flex-direction: column;
+  margin-inline-start: 16px;
+  justify-content: space-around;
+  flex: 1;
+  .name {
+    font-weight: var.$font-weight-medium;
+  }
+  .mobile {
+    color: var.$color-gray;
+    font-size: var(--font-size-md);
+  }
+}
+
+.contact-box {
+  display: flex;
+  align-items: flex-start;
+  float: left;
+  gap: 6px;
+  svg {
+    color: var.$color-white;
+    font-size: 16px;
+  }
+
+  .tel {
+    padding: 6px;
+    border-radius: 100%;
+    aspect-ratio: 1;
+    background-color: var.$color-success;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .sms {
+    padding: 6px;
+    border-radius: 100%;
+    aspect-ratio: 1;
+    background-color: var.$color-yellow;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+.name-and-job__container {
+  display: flex;
+
+  .job {
+    color: var.$color-primary;
+    margin-left: 5px;
+  }
+}

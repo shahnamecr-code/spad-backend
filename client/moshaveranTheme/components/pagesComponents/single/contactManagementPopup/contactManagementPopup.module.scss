@@ -1,0 +1,19 @@
+@use "../../../../styles/abstracts/variables" as var;
+
+.container {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-bottom: 20px;
+  padding: 16px;
+  padding-top: 0;
+}
+
+.not-exist {
+  text-align: center;
+  margin-top: 20px;
+  color: var.$color-gray;
+  margin-bottom: 12px;
+}

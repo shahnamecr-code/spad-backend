@@ -1,0 +1,259 @@
+@use "../../../styles/abstracts/variables" as var;
+@use "../../../styles/abstracts/responsive";
+
+.header {
+  background-color: var.$color-bg;
+  width: 100%;
+  height: var.$header-height;
+  background-color: var.$color-primary;
+  span,
+  svg {
+    color: var.$color-white;
+  }
+}
+
+.top-section {
+  position: relative;
+  padding-block: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-md);
+  svg {
+    font-size: 20px;
+  }
+}
+
+.icon-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  span {
+    white-space: nowrap;
+  }
+}
+
+.phone {
+  padding-inline-end: 4px;
+}
+
+.show-in-md {
+  display: none;
+}
+
+.middle {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding-inline-start: 4px;
+  a {
+    &:hover {
+      color: var.$color-hover;
+    }
+  }
+}
+
+.end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-inline-start: 4px;
+  a {
+    &:hover {
+      color: var.$color-hover;
+    }
+  }
+}
+
+.calendar {
+  display: none;
+  align-items: center;
+  gap: 48px;
+}
+
+.nav {
+  position: absolute;
+  top: 100%;
+  width: 100%;
+  background-color: var.$color-white;
+  border-radius: 6px;
+  padding-inline-start: 6px;
+  display: flex;
+  align-items: center;
+  box-shadow: var.$box-shadow-card;
+  z-index: 1;
+  .item {
+    display: none;
+    position: relative;
+    color: var.$color-text;
+    padding: 12px 10px;
+    text-align: center;
+    &:hover {
+      color: var.$color-primary;
+      &::after {
+        width: 100%;
+        left: 0;
+        transform: none;
+      }
+    }
+    &::after {
+      content: "";
+      position: absolute;
+      top: 90%;
+      left: 50%;
+      width: 0;
+      transform: translateX(-50%);
+      height: 2px;
+      background-color: var.$color-primary;
+      transition: 0.3s all linear;
+    }
+  }
+  .middle {
+    display: none;
+    align-items: center;
+    flex: 1;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-inline-end: 24px;
+
+    button {
+      min-width: 100px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+  }
+}
+
+.divider {
+  background-color: var.$color-white;
+  width: 1px;
+  height: 20px;
+  margin-inline: 4px;
+}
+
+.city-btn {
+  gap: 8px;
+  white-space: nowrap;
+  width: auto !important;
+  min-width: 100px;
+  &:hover {
+    svg {
+      fill: var.$color-primary !important;
+    }
+  }
+}
+
+.menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-start !important;
+  position: relative;
+  cursor: pointer;
+
+  svg,
+  span {
+    color: var.$color-text;
+    fill: var.$color-text;
+    font-size: var(--font-size-lg);
+  }
+  svg {
+    font-size: var(--font-size-4xl);
+  }
+}
+
+@keyframes growDown {
+  0% {
+    transform: scaleY(0);
+  }
+  80% {
+    transform: scaleY(1.1);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.active {
+  color: var.$color-primary !important;
+  font-weight: bold;
+}
+
+.mobile-menu {
+  position: absolute;
+  display: flex;
+  top: 175%;
+  right: 0;
+  flex-direction: column;
+  background-color: var.$color-white;
+  padding: 16px 0;
+  border-radius: 6px;
+  width: 60%;
+  animation: growDown 300ms ease-in-out forwards;
+  transform-origin: top center;
+  width: 250px;
+  z-index: 1;
+  box-shadow: 0 5px 10px -2px rgba(0, 0, 0, 0.16);
+  .menu-item {
+    font-size: var(--font-size-lg);
+    border-bottom: 1px solid rgba($color: var.$color-light-gray, $alpha: 0.5);
+    padding: 12px 20px;
+    color: var.$color-text;
+    white-space: nowrap;
+    text-align: start;
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 8px;
+    }
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .login-span {
+    display: none;
+  }
+  .city-btn {
+    min-width: unset;
+    span {
+      display: none;
+    }
+  }
+}
+
+@include responsive.media-xs {
+  .divider {
+    margin-inline: 6px;
+  }
+  .middle {
+    gap: 8px;
+  }
+  .nav {
+    justify-content: space-between;
+    padding: 0 20px;
+  }
+}
+
+@include responsive.media-lg {
+  .nav {
+    .item {
+      display: initial;
+    }
+    .middle {
+      display: flex;
+    }
+  }
+  .middle {
+    display: flex;
+  }
+  .mobile-menu {
+    display: none;
+  }
+  .calendar {
+    display: flex;
+  }
+  .show-in-md {
+    display: flex;
+  }
+}

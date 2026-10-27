@@ -1,0 +1,20 @@
+@font-face {
+    font-family: iranyekan;
+    font-style: normal;
+    font-weight: 700;
+    src: url(iranyekanwebbold.woff2) format("woff2"), url(iranyekanwebbold.woff) format("woff"), url(iranyekanwebbold.ttf) format("truetype")
+}
+
+@font-face {
+    font-family: iranyekan;
+    font-style: normal;
+    font-weight: 400;
+    src: url(iranyekanwebregular.woff2) format("woff2"), url(iranyekanwebregular.woff) format("woff"), url(iranyekanwebregular.ttf) format("truetype")
+}
+
+@font-face {
+    font-family: iranyekan;
+    font-style: normal;
+    font-weight: 300;
+    src: url(iranyekanweblight.woff2) format("woff2"), url(iranyekanweblight.woff) format("woff"), url(iranyekanweblight.ttf) format("truetype")
+}

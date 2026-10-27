@@ -1,0 +1,26 @@
+{
+    "name": "spad/real-estate-crm",
+    "version": "1.0.0-dev",
+    "authors": [
+        {
+            "name": "hossein_asadian",
+            "email": "hosseinasadian442@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Spad\\Crm\\": "src/"
+        },
+        "files": [
+            "src/helpers/helper.php"
+        ]
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Spad\\Crm\\CrmServiceProvider"
+            ]
+        }
+    },
+    "description": "SPAD real estate CRM module"
+}

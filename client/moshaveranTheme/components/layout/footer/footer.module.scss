@@ -1,0 +1,152 @@
+@use "../../../styles/abstracts/variables";
+@use "../../../styles/abstracts/responsive";
+
+.footer {
+  width: 100%;
+  background-color: variables.$color-footer-bg;
+  box-shadow: variables.$box-shadow-card;
+  margin-top: 32px;
+}
+
+.footer-container {
+  padding: 32px;
+  width: 100%;
+  display: flex;
+  gap: 56px;
+  padding-bottom: 100px;
+  background-image: url(../../../assets/images/footer.png);
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.title {
+  color: variables.$color-primary;
+  font-size: var(--font-size-lg);
+  margin-bottom: 20px;
+  font-weight: normal;
+}
+
+.credit {
+  flex: 1;
+}
+
+.about {
+  flex: 2;
+  p {
+    line-height: 2;
+    text-align: justify;
+  }
+}
+
+.contact {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.copyright {
+  width: 100%;
+  text-align: center;
+  color: variables.$color-white;
+  background-color: variables.$color-dark;
+  padding: 20px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  p {
+    font-size: var(--font-size-md);
+  }
+}
+
+.social-media {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-bottom: 20px;
+  .social-title {
+    font-size: var(--font-size-base);
+    color: variables.$color-primary;
+    flex: 1;
+    white-space: nowrap;
+    font-weight: normal;
+  }
+  svg {
+    font-size: 20px;
+  }
+  a {
+    &:hover {
+      color: variables.$color-primary;
+      .link-before {
+        width: 50px;
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.link-before {
+  font-size: var(--font-size-md);
+  width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: all 0.6s;
+  text-align: end;
+  margin-inline-end: 10px;
+}
+
+.app-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: flex-start;
+  .icon-link {
+    font-weight: bold;
+    padding-inline: 4px;
+    &:hover {
+      svg {
+        color: variables.$color-primary;
+      }
+    }
+  }
+  svg {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@include responsive.media-xs {
+  .footer-container {
+    flex-direction: column;
+    display: grid;
+    gap: 42px;
+    max-width: 100% !important;
+    background-size: unset;
+  }
+  .about {
+    grid-row: 1;
+    align-items: center;
+  }
+  .social-media {
+    margin-bottom: 24px;
+    align-items: center;
+  }
+  .copyright {
+    padding-bottom: 80px;
+  }
+  .credit,
+  .contact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .social-media {
+    justify-content: center;
+  }
+
+  .title {
+    text-align: center;
+  }
+}

@@ -1,0 +1,21 @@
+.uloader-container {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.uploader-title {
+  margin-bottom: 16px;
+}
+
+.fields-container {
+  display: flex;
+  margin-block: 8px;
+}
+
+.items-container {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}

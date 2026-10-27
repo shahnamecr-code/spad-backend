@@ -1,0 +1,22 @@
+@use "../../../../styles/abstracts/responsive";
+@use "../../../../styles/abstracts/variables" as var;
+
+.container {
+  width: 100%;
+  padding: 16px 28px;
+}
+
+.items-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.not-exist {
+  flex: 1;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+}

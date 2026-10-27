@@ -1,0 +1,51 @@
+@use "../../../../styles/abstracts/variables";
+@use "../../../../styles/abstracts/responsive";
+
+.container {
+  width: 100%;
+  margin-block: 40px;
+}
+
+.news-container {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+@include responsive.media-xs {
+  .news-container {
+    flex-direction: column;
+  }
+}
+
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-block: 40px;
+  min-height: 200px;
+  justify-content: center;
+}
+
+.swiper-container {
+  width: calc(100% + 16px);
+  position: relative;
+}
+.newsCard {
+  width: 100% !important;
+  min-height: 380px;
+
+
+}
+
+@include responsive.media-max-lg {
+  .swiper-container {
+    width:  calc(100% - 16px);
+  }
+}
+
+@include responsive.media-xs {
+  .swiper-container {
+    width: 90%;
+    margin: auto;
+  }
+}

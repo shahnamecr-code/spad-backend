@@ -1,0 +1,44 @@
+@use "../../../styles/abstracts/responsive";
+@use "../../../styles/abstracts/variables" as var;
+
+.container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.label {
+  font-weight: var.$font-weight-medium;
+  margin-inline-end: 4px;
+  font-size: var(--font-size-md);
+}
+
+.switch {
+  position: relative;
+  appearance: none;
+  padding: 2px;
+  background-color: var.$color-middle-gray;
+  min-width: 32px;
+  height: 16px;
+  border-radius: 4px;
+  &::after {
+    content: "";
+    width: 14px;
+    right: 2px;
+    height: 12px;
+    background-color: var.$color-white;
+    position: absolute;
+    border-radius: 4px;
+    transition: 0.2s all;
+  }
+  &:checked {
+    background-color: var.$color-primary;
+    &::after {
+      background-color: var.$color-white;
+      position: absolute;
+      border-radius: 4px;
+      right: 50%;
+    }
+  }
+}

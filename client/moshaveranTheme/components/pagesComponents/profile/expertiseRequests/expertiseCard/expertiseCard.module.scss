@@ -1,0 +1,74 @@
+@use "../../../../../styles/abstracts/variables" as var;
+@use "../../../../../styles/abstracts/responsive";
+
+.container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.info-container {
+  width: 100%;
+  padding: 16px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba($color: var.$color-light-gray, $alpha: 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+}
+
+.title {
+  font-weight: bold;
+  margin-inline-end: 16px;
+}
+
+.primary {
+  color: var.$color-primary;
+}
+
+.approved-bg {
+  background-color: var.$color-success;
+  &::after {
+    border-color: var.$color-success var.$color-success transparent transparent !important;
+  }
+}
+
+.rejected-bg {
+  background-color: var.$color-red;
+  &::after {
+    border-color: var.$color-red var.$color-red transparent transparent !important;
+  }
+}
+
+.waiting-bg {
+  background-color: var.$color-yellow;
+  &::after {
+    border-color: var.$color-yellow var.$color-yellow transparent transparent !important;
+  }
+}
+
+.status {
+  position: absolute;
+  top: 12px;
+  left: -16px;
+  padding: 4px 12px;
+  color: var.$color-white;
+  min-width: 100px;
+  text-align: center;
+  &::after {
+    border-style: solid;
+    border-width: 7px;
+    content: "";
+    height: 0;
+    left: 0;
+    position: absolute;
+    top: 100%;
+    width: 0;
+    filter: brightness(0.6);
+    border-color: transparent;
+  }
+}

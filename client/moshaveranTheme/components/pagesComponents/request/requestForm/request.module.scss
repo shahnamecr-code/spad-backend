@@ -1,0 +1,108 @@
+@use "../../../../styles/abstracts/responsive";
+@use "../../../../styles/abstracts/variables" as var;
+
+.form {
+  margin-inline: auto;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 32px;
+  width: 100%;
+  background-color: var.$color-white;
+  box-shadow: var.$box-shadow-card;
+  border-radius: 10px;
+  overflow: hidden;
+  padding: 20px 28px;
+  overflow: visible;
+}
+
+.title-container {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin-top: 48px;
+  gap: 8px;
+}
+
+.filters {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  row-gap: 12px;
+  align-items: flex-start;
+}
+
+.btn-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 48px;
+  width: 100%;
+}
+
+.input-main-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  .input-container {
+    display: flex;
+    align-items: baseline;
+    border-radius: 10px;
+    column-gap: 31px;
+    min-height: 36px;
+    overflow: visible;
+    width: 100%;
+    input {
+      width: 100%;
+      padding: 4px;
+      text-align: center;
+      height: 36px;
+    }
+  }
+  .label {
+    font-weight: var.$font-weight-medium;
+    font-size: var(--font-size-md);
+  }
+}
+
+.fields-box {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.fields-container {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  row-gap: 12px;
+}
+
+.fields-label {
+  font-weight: bold;
+  color: var.$color-primary;
+}
+
+@include responsive.media-xs {
+  .form {
+    width: 100%;
+  }
+  .input-container {
+    flex-direction: column;
+    row-gap: 12px;
+  }
+}
+
+@include responsive.media-sm {
+  .form {
+    width: 70%;
+  }
+}
+
+@include responsive.media-lg {
+  .form {
+    width: 50%;
+  }
+}
