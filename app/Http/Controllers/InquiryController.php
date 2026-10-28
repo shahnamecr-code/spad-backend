@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InquiryBatch;
 use App\Models\InquiryRequest;
 use App\Models\InquiryService;
 use App\Models\InquirySetting;
@@ -27,6 +28,188 @@ class InquiryController extends Controller
     {
         $this->wallets = $wallets;
         $this->executor = $executor;
+    }
+
+    /**
+     * Seven fixed, server-owned services. Never accept service ids or prices from customer.
+     * An unconfigured/disabled package is not available for sale.
+     */
+    protected function fixedSevenServices()
+    {
+        $ids = json_decode((string) InquirySetting::valueOf('seven_inquiry_service_ids', '[]'), true);
+        if (!is_array($ids) || count($ids) !== 7) return collect();
+        $ids = array_map('intval', $ids);
+        if (count(array_unique($ids)) !== 7 || min($ids) <= 0) return collect();
+
+        $byId = InquiryService::query()->where('enabled', true)
+            ->whereIn('id', $ids)->get()->keyBy('id');
+        if ($byId->count() !== 7) return collect();
+        return collect($ids)->map(function ($id) use ($byId) { return $byId->get($id); });
+    }
+
+    public function sevenPackage()
+    {
+        $services = $this->fixedSevenServices();
+        $ready = InquirySetting::valueOf('inquiries_enabled', '1') === '1'
+            && InquirySetting::valueOf('wallet_payment_enabled', '1') === '1'
+            && $services->count() === 7;
+        return response()->json(['data' => [
+            'ready' => $ready,
+            'payment_method' => 'wallet',
+            'services' => $ready ? $services->map(function ($service) {
+                return $service->publicPayload();
+            })->values() : [],
+            'total_amount' => $ready ? $services->sum('price') : 0,
+        ]]);
+    }
+
+    /**
+     * One idempotent operation creates all seven requests and charges for each in
+     * a single database transaction, preserving existing per-request wallet refunds.
+     * API calls run after commit so a remote service can never hold a DB lock.
+     */
+    public function submitSevenPackage(Request $request)
+    {
+        $data = $request->validate([
+            'batch_key' => ['required', 'string', 'min:16', 'max:64', 'regex:/^[A-Za-z0-9_-]+$/'],
+            'inputs' => ['required', 'array'],
+        ]);
+        $user = $request->user();
+        $existing = InquiryBatch::query()->where('user_id', $user->id)
+            ->where('idempotency_key', $data['batch_key'])->first();
+        if ($existing) return $this->sevenBatchResponse($existing);
+
+        if (InquirySetting::valueOf('inquiries_enabled', '1') !== '1'
+            || InquirySetting::valueOf('wallet_payment_enabled', '1') !== '1') {
+            return response()->json(['status' => false, 'message' => 'پرداخت بسته هفت‌گانه در حال حاضر فعال نیست.'], 422);
+        }
+        $services = $this->fixedSevenServices();
+        if ($services->count() !== 7) {
+            return response()->json(['status' => false, 'message' => 'مدیر هنوز هفت سرویس معتبر و فعال را تنظیم نکرده است.'], 422);
+        }
+        $rawInputs = (array) $data['inputs'];
+        $validated = [];
+        $slugs = $services->pluck('slug')->all();
+        if (count(array_diff(array_keys($rawInputs), $slugs)) > 0) {
+            return response()->json(['status' => false, 'message' => 'ترکیب سرویس‌های ارسالی معتبر نیست.'], 422);
+        }
+        foreach ($services as $service) {
+            $normalized = $service->normalizeSubmittedInputs(
+                isset($rawInputs[$service->slug]) && is_array($rawInputs[$service->slug])
+                    ? $rawInputs[$service->slug] : []
+            );
+            list($rules, $attributes) = $this->inputRules($service);
+            $validator = Validator::make($normalized, $rules, [], $attributes);
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => false,
+                    'message' => 'اطلاعات استعلام «' . $service->title . '» کامل یا معتبر نیست.',
+                    'errors' => $validator->errors()->toArray(),
+                ], 422);
+            }
+            $validated[$service->id] = $validator->validated();
+        }
+        $total = (int) $services->sum('price');
+        try {
+            $batch = DB::transaction(function () use ($user, $data, $services, $validated, $total) {
+                $batch = InquiryBatch::create([
+                    'user_id' => $user->id,
+                    'idempotency_key' => $data['batch_key'],
+                    'total_amount' => $total,
+                    'status' => 'submitted',
+                ]);
+                foreach ($services as $service) {
+                    $amount = (int) $service->price;
+                    $inquiry = InquiryRequest::create([
+                        'inquiry_batch_id' => $batch->id,
+                        'user_id' => $user->id,
+                        'inquiry_service_id' => $service->id,
+                        'reference' => 'INQ-' . now()->format('ymd') . '-' . strtoupper(Str::random(8)),
+                        'amount' => $amount,
+                        'partner_payout_amount' => $service->execution_type === 'manual'
+                            ? min((int) $service->partner_payout, $amount) : 0,
+                        'payment_method' => $amount > 0 ? 'wallet' : 'free',
+                        'payment_status' => $amount > 0 ? 'pending' : 'paid',
+                        'status' => $amount > 0 ? 'pending_payment' : 'processing',
+                        'input_data' => $validated[$service->id],
+                        'paid_at' => $amount > 0 ? null : now(),
+                        'expires_at' => now()->addMinutes(30),
+                    ]);
+                    if ($amount > 0) {
+                        $transaction = $this->wallets->debit($user, $amount, [
+                            'type' => 'purchase',
+                            'reference' => 'inquiry-payment:' . $inquiry->id,
+                            'source_type' => InquiryRequest::class,
+                            'source_id' => $inquiry->id,
+                            'title' => 'بسته هفت‌گانه استعلامات ملکی',
+                            'description' => 'پرداخت استعلام «' . $service->title . '»',
+                            'meta' => ['batch_id' => $batch->id, 'inquiry_reference' => $inquiry->reference],
+                        ]);
+                        $inquiry->update([
+                            'payment_status' => 'paid',
+                            'wallet_transaction_id' => $transaction->id,
+                            'paid_at' => now(),
+                        ]);
+                    }
+                    $this->executor->log($inquiry, 'seven_bundle_registered', 'ثبت در بسته هفت‌گانه ملکی');
+                    // Same transaction: a manual routing/assignment failure rolls back
+                    // all seven requests and all wallet debits.
+                    if ($service->execution_type === 'manual') {
+                        $this->executor->process($inquiry->fresh(['service']));
+                    }
+                }
+                return $batch;
+            }, 3);
+        } catch (\Throwable $e) {
+            // Duplicate idempotency key may race with a previous request.
+            $existing = InquiryBatch::query()->where('user_id', $user->id)
+                ->where('idempotency_key', $data['batch_key'])->first();
+            if ($existing) return $this->sevenBatchResponse($existing);
+
+            Log::error('Seven-inquiry batch transaction rolled back.', [
+                'user_id' => $user->id, 'error' => $e->getMessage(),
+            ]);
+            return response()->json(['status' => false,
+                'message' => 'ثبت گروهی انجام نشد؛ وجهی از کیف پول شما کسر نشده است. موجودی و تنظیمات را بررسی کنید.'], 422);
+        }
+
+        // Post-commit API execution; never repeat a batch for a client retry.
+        foreach ($batch->requests()->with('service')->get() as $inquiry) {
+            if ($inquiry->service && $inquiry->service->execution_type === 'api') {
+                try {
+                    $this->executor->process($inquiry);
+                } catch (\Throwable $e) {
+                    Log::error('Seven-inquiry API execution crashed.', [
+                        'inquiry_id' => $inquiry->id, 'error' => $e->getMessage(),
+                    ]);
+                    $inquiry->update(['status' => 'failed', 'failure_message' => 'خطای سیستمی در پردازش استعلام.']);
+                    if ($inquiry->payment_method === 'wallet') {
+                        $this->refundFailedWalletInquiry($inquiry, $user, $e->getMessage());
+                    }
+                }
+            }
+        }
+        return $this->sevenBatchResponse($batch);
+    }
+
+    protected function sevenBatchResponse(InquiryBatch $batch)
+    {
+        $items = $batch->requests()->with('service')->orderBy('id')->get()
+            ->map(function ($item) {
+                return [
+                    'reference' => $item->reference,
+                    'title' => optional($item->service)->title,
+                    'slug' => optional($item->service)->slug,
+                    'amount' => (int) $item->amount,
+                    'status' => $item->status,
+                    'payment_status' => $item->payment_status,
+                ];
+            })->values();
+        return response()->json(['status' => true, 'data' => [
+            'batch_id' => $batch->id,
+            'total_amount' => (int) $batch->total_amount,
+            'items' => $items,
+        ]]);
     }
 
     public function index(Request $request)

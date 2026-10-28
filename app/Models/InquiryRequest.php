@@ -10,7 +10,7 @@ class InquiryRequest extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 'inquiry_service_id', 'reference', 'amount', 'partner_payout_amount', 'payment_method', 'payment_status', 'status',
+        'user_id', 'inquiry_service_id', 'inquiry_batch_id', 'reference', 'amount', 'partner_payout_amount', 'payment_method', 'payment_status', 'status',
         'gateway_id', 'gateway_amount', 'gateway_currency', 'transaction_id', 'callback_token',
         'gateway_reference_id', 'wallet_transaction_id', 'partner_payout_transaction_id', 'assigned_admin_id', 'assigned_partner_panel_id', 'input_data', 'result_data',
         'result_text', 'result_file_path', 'result_file_name', 'result_file_mime', 'result_file_size', 'operator_note', 'partner_note', 'correction_note', 'failure_message', 'paid_at', 'partner_assigned_at', 'partner_accepted_at', 'correction_requested_at', 'correction_resubmitted_at', 'completed_at', 'expires_at',
