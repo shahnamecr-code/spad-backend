@@ -479,6 +479,7 @@ class InquiryController extends Controller
             'page_title' => InquirySetting::valueOf('page_title', 'استعلامات آنلاین SPAD'),
             'page_subtitle' => InquirySetting::valueOf('page_subtitle', 'استعلام‌های ملکی و ثبتی را سریع، امن و یکپارچه انجام دهید.'),
             'support_text' => InquirySetting::valueOf('support_text', 'در استعلام‌های دستی، نتیجه پس از بررسی اپراتور در پنل کاربری شما قرار می‌گیرد.'),
+            'seven_inquiry_service_ids' => $this->sevenServiceIds(),
         ]]);
     }
 
@@ -492,9 +493,31 @@ class InquiryController extends Controller
             'page_title' => ['nullable', 'string', 'max:190'],
             'page_subtitle' => ['nullable', 'string', 'max:1000'],
             'support_text' => ['nullable', 'string', 'max:2000'],
+            'seven_inquiry_service_ids' => ['sometimes', 'array'],
+            'seven_inquiry_service_ids.*' => ['integer', 'distinct', Rule::exists('inquiry_services', 'id')],
         ]);
+        if (array_key_exists('seven_inquiry_service_ids', $data)) {
+            $ids = array_map('intval', $data['seven_inquiry_service_ids']);
+            if (count($ids) !== 0 && count($ids) !== 7) {
+                return response()->json(['status' => false, 'message' => 'برای بسته هفت‌گانه دقیقاً ۷ سرویس انتخاب کنید.'], 422);
+            }
+            if ($ids && InquiryService::query()->whereIn('id', $ids)->where('enabled', true)->count() !== 7) {
+                return response()->json(['status' => false, 'message' => 'تمام هفت سرویس انتخاب‌شده باید فعال باشند.'], 422);
+            }
+            $data['seven_inquiry_service_ids'] = json_encode($ids);
+        }
         foreach ($data as $key => $value) InquirySetting::putValue($key, is_bool($value) ? ($value ? '1' : '0') : $value);
         return response()->json(['status' => true, 'message' => 'تنظیمات استعلامات ذخیره شد.']);
+    }
+
+    protected function sevenServiceIds()
+    {
+        $ids = json_decode((string) InquirySetting::valueOf('seven_inquiry_service_ids', '[]'), true);
+        if (!is_array($ids)) return [];
+        $ids = array_values(array_filter($ids, function ($id) {
+            return is_int($id) || ctype_digit((string) $id);
+        }));
+        return array_map('intval', $ids);
     }
 
     protected function ensureSuperAdmin()
