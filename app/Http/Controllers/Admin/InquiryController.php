@@ -469,6 +469,15 @@ class InquiryController extends Controller
         return response()->json(['status' => true, 'message' => 'برنامه ارجاع حذف شد.']);
     }
 
+    public function sevenOptions()
+    {
+        $this->ensureSuperAdmin();
+        return response()->json(['data' => InquiryService::query()
+            ->where('enabled', true)
+            ->orderBy('sort_order')->orderBy('id')
+            ->get(['id', 'title', 'price', 'execution_type', 'category'])]);
+    }
+
     public function settings()
     {
         $this->ensureSuperAdmin();
