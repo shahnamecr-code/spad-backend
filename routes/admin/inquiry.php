@@ -19,6 +19,7 @@ Route::prefix('inquiries')->group(function () {
     Route::post('requests/{inquiry}/retry-api', [InquiryController::class, 'retryApi']);
     Route::post('requests/{inquiry}/refund', [InquiryController::class, 'refund']);
 
+    Route::get('seven-options', [InquiryController::class, 'sevenOptions']);
     Route::get('settings', [InquiryController::class, 'settings']);
     Route::post('settings', [InquiryController::class, 'saveSettings']);
 });
