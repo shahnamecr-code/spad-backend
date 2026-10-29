@@ -64,6 +64,7 @@ const License = React.lazy(() => import(/* webpackChunkName: "license" */'./lice
 const Crm = React.lazy(() => import(/* webpackChunkName: "crm" */'./crm'));
 const Raffles = React.lazy(() => import(/* webpackChunkName: "raffles" */'./raffles'));
 const Wallets = React.lazy(() => import(/* webpackChunkName: "wallets" */'./wallets'));
+const MortgageAdmin = React.lazy(() => import("./mortgage"));
 const Inquiries = React.lazy(() => import(/* webpackChunkName: "inquiries" */'./inquiries'));
 const VirtualTours = React.lazy(() => import(/* webpackChunkName: "virtual-tours" */'./virtual-tours'));
 const PartnerPanels = React.lazy(() => import(/* webpackChunkName: "partner-panels" */'./partner-panels'));
@@ -164,6 +165,7 @@ const App = ({ match, step, location }) => {
                   path={`${match.url}/wallets`}
                   render={(props) => <Wallets {...props} />}
                 />
+                <Route path={`${match.url}/mortgage`} render={(props) => <MortgageAdmin {...props} />} />
                 <Route
                   path={`${match.url}/inquiries`}
                   render={(props) => <Inquiries {...props} />}
