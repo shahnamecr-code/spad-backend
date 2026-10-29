@@ -12,7 +12,7 @@ class CreateSpadMortgageTables extends Migration
             $table->unsignedBigInteger('id')->primary();
             $table->unsignedInteger('bond_price')->default(119200);
             $table->string('bond_updated_at', 60)->default('۲۷ مهر ۱۴۰۵');
-            $table->boolean('broker_enabled')->default(false);
+            $table->boolean('broker_enabled')->default(true);
             $table->timestamps();
         });
         Schema::create('mortgage_requests', function (Blueprint $table) {
