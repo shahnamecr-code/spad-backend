@@ -22,3 +22,5 @@ include 'wallet.php';
 include 'inquiry.php';
 
 include 'virtual-tour.php';
+
+include_once 'mortgage.php';
