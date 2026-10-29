@@ -12,7 +12,7 @@ class MortgageController extends Controller
     private function settings()
     {
         $defaults = ['bond_price' => 119200, 'bond_updated_at' => '۲۷ مهر ۱۴۰۵', 'broker_enabled' => true];
-        if (!Schema::hasTable('mortgage_settings')) return $defaults;
+        if (!Schema::hasTable('mortgage_settings')) return array_merge($defaults, ['broker_enabled' => false]);
         $row = DB::table('mortgage_settings')->where('id', 1)->first();
         if (!$row) return $defaults;
         return [
