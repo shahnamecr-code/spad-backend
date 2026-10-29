@@ -488,6 +488,9 @@ class InquiryController extends Controller
             'page_title' => InquirySetting::valueOf('page_title', 'استعلامات آنلاین SPAD'),
             'page_subtitle' => InquirySetting::valueOf('page_subtitle', 'استعلام‌های ملکی و ثبتی را سریع، امن و یکپارچه انجام دهید.'),
             'support_text' => InquirySetting::valueOf('support_text', 'در استعلام‌های دستی، نتیجه پس از بررسی اپراتور در پنل کاربری شما قرار می‌گیرد.'),
+            'contracts_page_title' => InquirySetting::valueOf('contracts_page_title', 'قولنامه آنلاین و کد رهگیری'),
+            'contracts_page_subtitle' => InquirySetting::valueOf('contracts_page_subtitle', 'از ثبت درخواست تا بررسی کارشناسی و پیگیری نتیجه، مراحل خدمات قراردادی ملک را در یک مسیر شفاف و منظم انجام دهید.'),
+            'contracts_support_text' => InquirySetting::valueOf('contracts_support_text', 'صدور قرارداد یا کد رهگیری پس از احراز شرایط و بررسی مدارک است.'),
             'seven_inquiry_service_ids' => $this->sevenServiceIds(),
         ]]);
     }
@@ -496,12 +499,15 @@ class InquiryController extends Controller
     {
         $this->ensureSuperAdmin();
         $data = $request->validate([
-            'inquiries_enabled' => ['required', 'boolean'],
-            'wallet_payment_enabled' => ['required', 'boolean'],
-            'gateway_payment_enabled' => ['required', 'boolean'],
+            'inquiries_enabled' => ['sometimes', 'boolean'],
+            'wallet_payment_enabled' => ['sometimes', 'boolean'],
+            'gateway_payment_enabled' => ['sometimes', 'boolean'],
             'page_title' => ['nullable', 'string', 'max:190'],
             'page_subtitle' => ['nullable', 'string', 'max:1000'],
             'support_text' => ['nullable', 'string', 'max:2000'],
+            'contracts_page_title' => ['nullable', 'string', 'max:190'],
+            'contracts_page_subtitle' => ['nullable', 'string', 'max:1000'],
+            'contracts_support_text' => ['nullable', 'string', 'max:1000'],
             'seven_inquiry_service_ids' => ['sometimes', 'array'],
             'seven_inquiry_service_ids.*' => ['integer', 'distinct', Rule::exists('inquiry_services', 'id')],
         ]);

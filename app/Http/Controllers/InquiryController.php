@@ -700,6 +700,9 @@ class InquiryController extends Controller
             'title' => InquirySetting::valueOf('page_title', 'استعلامات آنلاین SPAD'),
             'subtitle' => InquirySetting::valueOf('page_subtitle', 'استعلام‌های ملکی و ثبتی را سریع، امن و یکپارچه انجام دهید.'),
             'support_text' => InquirySetting::valueOf('support_text', 'در استعلام‌های دستی، نتیجه پس از بررسی اپراتور در پنل کاربری شما قرار می‌گیرد.'),
+            'contracts_page_title' => InquirySetting::valueOf('contracts_page_title', 'قولنامه آنلاین و کد رهگیری'),
+            'contracts_page_subtitle' => InquirySetting::valueOf('contracts_page_subtitle', 'از ثبت درخواست تا بررسی کارشناسی و پیگیری نتیجه، مراحل خدمات قراردادی ملک را در یک مسیر شفاف و منظم انجام دهید.'),
+            'contracts_support_text' => InquirySetting::valueOf('contracts_support_text', 'صدور قرارداد یا کد رهگیری پس از احراز شرایط و بررسی مدارک است.'),
         ];
     }
 }

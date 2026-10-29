@@ -14,6 +14,9 @@ const defaults = {
   page_subtitle: "استعلام‌های ملکی و ثبتی را سریع، امن و یکپارچه انجام دهید.",
   support_text: "در استعلام‌های دستی، نتیجه پس از بررسی اپراتور در پنل کاربری شما قرار می‌گیرد.",
   seven_inquiry_service_ids: [],
+  contracts_page_title: "قولنامه آنلاین و کد رهگیری",
+  contracts_page_subtitle: "از ثبت درخواست تا بررسی کارشناسی و پیگیری نتیجه، مراحل خدمات قراردادی ملک را در یک مسیر شفاف و منظم انجام دهید.",
+  contracts_support_text: "صدور قرارداد یا کد رهگیری پس از احراز شرایط و بررسی مدارک است.",
 };
 const money = (v) => new Intl.NumberFormat("fa-IR").format(Number(v || 0));
 
@@ -48,6 +51,24 @@ const InquirySettings = ({ match }) => {
     }));
   };
 
+  const [savingContracts, setSavingContracts] = useState(false);
+
+  const saveContracts = () => {
+    if (!form.contracts_page_title?.trim()) {
+      NotificationManager.warning("عنوان صفحه خدمات قرارداد را وارد کنید.", null, 2000, null, null, "filled");
+      return;
+    }
+    setSavingContracts(true);
+    axios.post(`${adminPathApi}/inquiries/settings`, {
+      contracts_page_title: form.contracts_page_title,
+      contracts_page_subtitle: form.contracts_page_subtitle,
+      contracts_support_text: form.contracts_support_text,
+    })
+      .then(() => NotificationManager.success("تنظیمات صفحه قرارداد ذخیره شد.", null, 1800, null, null, "filled"))
+      .catch(e => NotificationManager.error(e.response?.data?.message || "ذخیره تنظیمات قرارداد انجام نشد.", null, 2400, null, null, "filled"))
+      .finally(() => setSavingContracts(false));
+  };
+
   const save = () => {
     if (chosen.length !== 7) {
       NotificationManager.error("برای استعلامات هفت‌گانه دقیقاً ۷ سرویس فعال را انتخاب کنید.", null, 2300, null, null, "filled");
@@ -67,6 +88,21 @@ const InquirySettings = ({ match }) => {
       <h2>مرکز استعلامات SPAD</h2>
       <p>پیکربندی سرویس‌ها، نحوه نمایش و روش پرداخت استعلامات را مدیریت کنید.</p>
     </div></div>
+    <Row>
+      <Colxx xxs="12" className="mb-4">
+        <Card className="inq-card"><CardBody>
+          <div className="inq-card-title"><div><span>SPAD CONTRACTS</span><div>
+            <h3>تنظیمات صفحه قولنامه آنلاین و کد رهگیری</h3>
+            <p>عنوان و راهنمای صفحه قرارداد را در نسخه موبایل و دسکتاپ مدیریت کنید.</p>
+          </div></div></div>
+          <FormGroup><Label>عنوان صفحه قرارداد</Label><Input value={form.contracts_page_title || ""} onChange={e => setForm({...form,contracts_page_title:e.target.value})}/></FormGroup>
+          <FormGroup><Label>توضیحات زیرعنوان</Label><Input type="textarea" rows="2" value={form.contracts_page_subtitle || ""} onChange={e => setForm({...form,contracts_page_subtitle:e.target.value})}/></FormGroup>
+          <FormGroup><Label>متن راهنمای شرایط صدور</Label><Input type="textarea" rows="2" value={form.contracts_support_text || ""} onChange={e => setForm({...form,contracts_support_text:e.target.value})}/></FormGroup>
+          <p style={{fontSize:12,color:"#6b8095"}}>برای تعیین قیمت و فیلدهای الزامی هریک از دو خدمت، وارد بخش «سرویس‌های استعلام» شوید و سرویس‌های دسته «قولنامه و کد رهگیری» را ویرایش کنید. بارگذاری مدارک در هر دو فرم فعال است.</p>
+          <Button color="primary" disabled={savingContracts || loading} onClick={saveContracts}>{savingContracts ? "در حال ذخیره..." : "ذخیره تنظیمات صفحه قرارداد"}</Button>
+        </CardBody></Card>
+      </Colxx>
+    </Row>
     <Row>
       <Colxx xxs="12" lg="7" className="mb-4"><Card className="inq-card"><CardBody>
         <h3>محتوای صفحه عمومی</h3>
