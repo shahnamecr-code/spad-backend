@@ -8,9 +8,23 @@ import {NotificationManager} from "../../../components/common/react-notification
 const money=v=>new Intl.NumberFormat("fa-IR").format(Number(v||0));
 const pretty=v=>v?new Date(v).toLocaleString("fa-IR"):"—";
 const InquiryRequest=({match})=>{
- const id=match.params.id; const [item,setItem]=useState(); const [partnerOptions,setPartnerOptions]=useState([]); const [partnerId,setPartnerId]=useState(""); const [resultText,setResultText]=useState(""); const [resultJson,setResultJson]=useState("{}"); const [note,setNote]=useState(""); const [reason,setReason]=useState(""); const [busy,setBusy]=useState(false);
+ const id=match.params.id; const [item,setItem]=useState(); const [documents,setDocuments]=useState([]); const [loadingDocuments,setLoadingDocuments]=useState(false); const [partnerOptions,setPartnerOptions]=useState([]); const [partnerId,setPartnerId]=useState(""); const [resultText,setResultText]=useState(""); const [resultJson,setResultJson]=useState("{}"); const [note,setNote]=useState(""); const [reason,setReason]=useState(""); const [busy,setBusy]=useState(false);
  const load=()=>axios.get(`${adminPathApi}/inquiries/requests/${id}`).then(r=>{setItem(r.data.data);setPartnerOptions(r.data.partner_options||[]);setPartnerId(r.data.data.assigned_partner_panel_id||"");setResultText(r.data.data.result_text||"");setResultJson(JSON.stringify(r.data.data.result_data||{},null,2));setNote(r.data.data.operator_note||"");});
- useEffect(()=>{load();},[id]);
+ useEffect(()=>{
+   load();
+   setLoadingDocuments(true);
+   axios.get(`${adminPathApi}/inquiries/requests/${id}/contract-documents`)
+     .then(r=>setDocuments(r.data.data||[])).catch(()=>setDocuments([]))
+     .finally(()=>setLoadingDocuments(false));
+ },[id]);
+ const downloadDocument=(doc)=>{
+   axios.get(`${adminPathApi}/inquiries/requests/${id}/contract-documents/${doc.id}/download`,{responseType:"blob"})
+     .then(res=>{
+       const url=URL.createObjectURL(res.data);
+       const a=document.createElement("a");a.href=url;a.download=doc.name||"contract-document";document.body.appendChild(a);a.click();a.remove();
+       setTimeout(()=>URL.revokeObjectURL(url),1500);
+     }).catch(()=>NotificationManager.error("دریافت مدرک انجام نشد",null,2200,null,null,"filled"));
+ };
  const action=(url,payload={},msg)=>{setBusy(true);return axios.post(`${adminPathApi}/inquiries/requests/${id}/${url}`,payload).then(r=>{NotificationManager.success(r.data.message||msg,null,1800,null,null,"filled");load();}).catch(e=>NotificationManager.error(e.response?.data?.message||"عملیات انجام نشد",null,2500,null,null,"filled")).finally(()=>setBusy(false));};
  const complete=()=>{let json={};try{json=resultJson.trim()?JSON.parse(resultJson):{}}catch(e){return NotificationManager.error("JSON نتیجه معتبر نیست",null,2200,null,null,"filled")};action("complete",{result_text:resultText,result_data:json,operator_note:note});};
  if(!item)return <div className="spad-inquiry-admin"><div className="loading"/></div>;
@@ -23,6 +37,15 @@ const InquiryRequest=({match})=>{
     <Card className="inq-card"><CardBody>
       <div className="inq-card-title"><div><span>01</span><div><h3>اطلاعات درخواست</h3><p>ورودی‌هایی که کاربر برای استعلام ثبت کرده است</p></div></div><Badge color={item.payment_status==="paid"?"success":"secondary"}>{item.payment_status}</Badge></div>
       <div className="inq-detail-grid">{Object.entries(item.input_data||{}).map(([k,v])=><div key={k}><span>{k}</span><strong>{typeof v==="object"?JSON.stringify(v):String(v||"—")}</strong></div>)}</div>
+      {["online-agreement-request","tracking-code-request"].includes(item.service?.slug)&&<div className="mt-4">
+        <h4 style={{fontSize:14,marginBottom:12}}>مدارک ضمیمه درخواست</h4>
+        {loadingDocuments?<p>در حال دریافت فهرست مدارک...</p>:documents.length?
+          <div style={{display:"flex",flexWrap:"wrap",gap:8}}>{documents.map(doc=>
+            <Button outline color="primary" key={doc.id} onClick={()=>downloadDocument(doc)}>
+              {doc.name} ({Math.ceil(doc.size/1024)} کیلوبایت) · دریافت امن
+            </Button>
+          )}</div>:<p className="text-muted">مدرکی بارگذاری نشده است.</p>}
+      </div>}
     </CardBody></Card>
     <Card className="inq-card mt-4"><CardBody>
       <div className="inq-card-title"><div><span>02</span><div><h3>{isManual?"ثبت نتیجه توسط اپراتور":"نتیجه سرویس API"}</h3><p>{isManual?"نتیجه نهایی را ثبت کنید تا در پنل کاربر نمایش داده شود":"در صورت خطای موقت می‌توانید API را دوباره اجرا کنید"}</p></div></div>{!isPartnerRouted&&!item.assigned_admin_id&&isManual&&<Button size="sm" outline color="primary" onClick={()=>action("assign")}>تحویل گرفتن</Button>}</div>

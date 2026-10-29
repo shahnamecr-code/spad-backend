@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InquiryController;
+use App\Http\Controllers\ContractDocumentController;
 use App\Http\Controllers\InquiryPaymentController;
 
 Route::get('inquiries', [InquiryController::class, 'index']);
@@ -15,6 +16,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('inquiries/{service:slug}/submit', [InquiryController::class, 'store']);
     Route::get('my-inquiries', [InquiryController::class, 'myRequests']);
     Route::get('my-inquiries/{reference}', [InquiryController::class, 'requestStatus']);
+    Route::get('my-inquiries/{reference}/contract-documents', [ContractDocumentController::class, 'index']);
+    Route::post('my-inquiries/{reference}/contract-documents', [ContractDocumentController::class, 'store']);
     Route::post('my-inquiries/{reference}/correct', [InquiryController::class, 'correctInputs']);
     Route::get('my-inquiries/{reference}/result-file', [InquiryController::class, 'downloadResultFile']);
 });

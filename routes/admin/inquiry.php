@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Admin\InquiryController;
+use App\Http\Controllers\ContractDocumentController;
 
 Route::prefix('inquiries')->group(function () {
     Route::get('services', [InquiryController::class, 'services']);
@@ -12,6 +13,8 @@ Route::prefix('inquiries')->group(function () {
 
     Route::get('requests', [InquiryController::class, 'requests']);
     Route::get('requests/{inquiry}', [InquiryController::class, 'request']);
+    Route::get('requests/{inquiry}/contract-documents', [ContractDocumentController::class, 'adminIndex']);
+    Route::get('requests/{inquiry}/contract-documents/{document}/download', [ContractDocumentController::class, 'adminDownload']);
     Route::post('requests/{inquiry}/assign', [InquiryController::class, 'assign']);
     Route::post('requests/{inquiry}/assign-partner', [InquiryController::class, 'assignPartner']);
     Route::post('requests/{inquiry}/complete', [InquiryController::class, 'complete']);

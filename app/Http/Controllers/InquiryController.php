@@ -493,9 +493,15 @@ class InquiryController extends Controller
 
     public function myRequests(Request $request)
     {
-        $items = InquiryRequest::query()->where('user_id', $request->user()->id)
-            ->with('service')
-            ->latest()->paginate(min(50, max(5, (int) $request->get('per_page', 15))));
+        $query = InquiryRequest::query()->where('user_id', $request->user()->id)
+            ->with('service');
+        if ($request->filled('category')) {
+            $category = (string) $request->query('category');
+            $query->whereHas('service', function ($q) use ($category) {
+                $q->where('category', $category);
+            });
+        }
+        $items = $query->latest()->paginate(min(50, max(5, (int) $request->get('per_page', 15))));
         $items->getCollection()->transform(function ($item) { return $this->requestPayload($item); });
         return $items;
     }
