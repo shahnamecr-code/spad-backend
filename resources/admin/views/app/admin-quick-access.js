@@ -8,6 +8,7 @@ const icons = {
   raffles: "iconsminds-gift-box",
   "virtual-tours": "simple-icon-picture",
   inquiries: "iconsminds-search-people",
+  mortgage: "iconsminds-bank",
   wallets: "iconsminds-wallet",
   crm: "iconsminds-affiliate",
   customers: "simple-icon-people",
@@ -26,6 +27,7 @@ const fallback = [
   ["advertisement", "مدیریت آگهی‌ها", `${adminRoot}/advertisements/adver-list`],
   ["virtual-tours", "استودیو تور مجازی ۳۶۰°", `${adminRoot}/virtual-tours/create`],
   ["inquiries", "استعلامات", `${adminRoot}/inquiries/requests`],
+  ["mortgage", "مدیریت وام مسکن", `${adminRoot}/mortgage`],
   ["wallets", "کیف پول‌ها", `${adminRoot}/wallets/list`],
   ["raffles", "قرعه‌کشی املاک", `${adminRoot}/raffles/list`],
   ["crm", "CRM", `${adminRoot}/crm`],
@@ -48,7 +50,7 @@ const flatten = (items = []) => {
 
 const AdminQuickAccess = ({ menu = [] }) => {
   const source = flatten(menu);
-  const items = source.length ? source : fallback;
+  const items = source.length ? [...source, ["mortgage", "مدیریت وام مسکن", `${adminRoot}/mortgage`]] : fallback;
   const seen = new Set();
   const unique = items.filter((item) => {
     if (seen.has(item[2])) return false;
