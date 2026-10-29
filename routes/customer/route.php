@@ -93,3 +93,5 @@ include_once 'property-tools.php';
 include_once 'partner-panel.php';
 
 include_once 'virtual-tour.php';
+
+require_once __DIR__ . '/mortgage.php';
