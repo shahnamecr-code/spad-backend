@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class MortgageController extends Controller
@@ -38,16 +39,36 @@ class MortgageController extends Controller
             'purchase_million' => ['required', 'integer', 'min:50', 'max:2000'],
             'repair_million' => ['required', 'integer', 'min:0', 'max:400'],
             'term_years' => ['required', 'integer', 'in:5,8,10,12'],
+            'applicant_name' => ['required', 'string', 'max:150'],
+            'national_id' => ['required', 'digits:10'],
+            'contract_number' => ['required', 'string', 'max:100'],
+            'contract_date' => ['required', 'string', 'max:30'],
+            'buyer_name' => ['required', 'string', 'max:150'],
+            'seller_name' => ['required', 'string', 'max:150'],
+            'property_address' => ['required', 'string', 'max:1200'],
+            'postal_code' => ['nullable', 'digits:10'],
+            'deal_price_toman' => ['required', 'integer', 'min:1'],
+            'applicant_note' => ['nullable', 'string', 'max:2000'],
+            'contract_file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
         ]);
         $user = $request->user();
         $caps = ['tehran' => 1000, 'province' => 800, 'other' => 600];
         $max = $caps[$data['city']] * ($data['household'] === 'couple' ? 2 : 1);
         if ($data['purchase_million'] > $max) return response()->json(['message' => 'مبلغ وام از سقف انتخابی بیشتر است.'], 422);
         $reference = 'SPAD-M-' . now()->format('ymd') . '-' . strtoupper(Str::random(7));
-        DB::table('mortgage_requests')->insert(array_merge($data, [
+        $file = $request->file('contract_file');
+        unset($data['contract_file']);
+        // Stored on the private local disk; never expose a public storage URL.
+        $data['contract_attachment'] = $file->store('mortgage-contracts', 'local');
+        try {
+            DB::table('mortgage_requests')->insert(array_merge($data, [
             'user_id' => $user->id, 'reference' => $reference, 'status' => 'new',
             'created_at' => now(), 'updated_at' => now(),
-        ]));
+            ]));
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($data['contract_attachment']);
+            throw $e;
+        }
         return response()->json(['status' => true, 'reference' => $reference], 201);
     }
 
@@ -55,6 +76,15 @@ class MortgageController extends Controller
     {
         return response()->json(['data' => DB::table('mortgage_requests')
             ->where('user_id', $request->user()->id)->orderByDesc('id')->paginate(20)]);
+    }
+
+    public function contractFile($id)
+    {
+        $row = DB::table('mortgage_requests')->where('id', $id)->first();
+        abort_unless($row && $row->contract_attachment, 404);
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($row->contract_attachment), 404);
+        return $disk->download($row->contract_attachment, 'contract-' . $row->reference . '.' . pathinfo($row->contract_attachment, PATHINFO_EXTENSION));
     }
 
     public function adminSettings()
