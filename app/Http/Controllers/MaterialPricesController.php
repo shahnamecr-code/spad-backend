@@ -29,7 +29,7 @@ class MaterialPricesController extends Controller
     {
         return [
             'enabled'=>(bool)$settings->enabled, 'sync_enabled'=>(bool)$settings->sync_enabled,
-            'provider'=>$settings->provider, 'api_connected'=>!empty($settings->encrypted_api_token),
+            'provider'=>$settings->provider, 'api_connected'=>$settings->provider==='public_steel' || !empty($settings->encrypted_api_token),
             'refresh_minutes'=>(int)$settings->refresh_minutes, 'stale_minutes'=>(int)$settings->stale_minutes,
             'provider_price_divisor'=>(int)$settings->provider_price_divisor,
             'title'=>$settings->title,'subtitle'=>$settings->subtitle,'notice'=>$settings->notice,
@@ -52,8 +52,8 @@ class MaterialPricesController extends Controller
               'change_percent'=>$item->change_percent===null?null:(float)$item->change_percent,
               'source_type'=>$item->source_type,'source_url'=>$item->source_url,'source_updated_at'=>$item->source_updated_at,
               'featured'=>(bool)$item->featured,
-              'is_fresh'=>$item->price_toman!==null && $item->source_type==='api' &&
-                $item->last_checked_at && Carbon::parse($item->last_checked_at)->diffInMinutes($now)<=(int)$settings->stale_minutes
+              'is_fresh'=>$item->price_toman!==null && in_array($item->source_type,['api','public'],true) &&
+                $item->source_updated_at && Carbon::parse($item->source_updated_at)->diffInMinutes($now)<=(int)$settings->stale_minutes
             ];
         });
         $categories=[];
@@ -84,13 +84,14 @@ class MaterialPricesController extends Controller
             'refresh_minutes'=>'required|integer|min:15|max:1440',
             'stale_minutes'=>'required|integer|min:15|max:10080',
             'provider_price_divisor'=>'required|integer|in:1,10',
+            'provider'=>'required|string|in:public_steel,persianapi',
             'title'=>'required|string|max:160','subtitle'=>'nullable|string|max:1500',
             'notice'=>'nullable|string|max:2000',
             'api_token'=>'nullable|string|max:2048',
             'clear_api_token'=>'nullable|boolean'
         ]);
         $settings=$this->settings();
-        if(($data['sync_enabled']??false) && empty($settings->encrypted_api_token) && empty($data['api_token']))
+        if(($data['sync_enabled']??false) && $data['provider']==='persianapi' && empty($settings->encrypted_api_token) && empty($data['api_token']))
             return response()->json(['message'=>'برای همگام‌سازی خودکار، کلید API ارائه‌دهنده الزامی است.'],422);
         $write=collect($data)->except(['api_token','clear_api_token'])->all();
         if(!empty($data['clear_api_token'])){
@@ -167,8 +168,11 @@ class MaterialPricesController extends Controller
     public function sync()
     {
         $settings=$this->settings();
-        if(!$settings->sync_enabled || empty($settings->encrypted_api_token))
-            return ['ok'=>false,'not_configured'=>true,'message'=>'اتصال API فعال نیست یا توکن تنظیم نشده است.'];
+        if(!$settings->sync_enabled)
+            return ['ok'=>false,'not_configured'=>true,'message'=>'به‌روزرسانی خودکار توسط مدیر غیرفعال شده است.'];
+        if($settings->provider==='public_steel') return $this->syncPublicSteel();
+        if(empty($settings->encrypted_api_token))
+            return ['ok'=>false,'not_configured'=>true,'message'=>'کلید API ارائه‌دهنده تنظیم نشده است.'];
         try{
             $token=Crypt::decryptString($settings->encrypted_api_token);
             $response=Http::timeout(18)->withToken($token)->acceptJson()->get(self::URL);
@@ -221,6 +225,134 @@ class MaterialPricesController extends Controller
             return ['ok'=>false,'message'=>'دریافت یا اعتبارسنجی داده قیمت مصالح انجام نشد؛ قیمت‌های قبلی بدون تغییر ماندند.'];
         }
     }
+
+    /**
+     * Token-free, limited public source for precisely specified factory rebar.
+     * Never assumes a price for the generic unbranded material catalog.
+     * Rates refer to the source's own dated factory prices, not a national average.
+     */
+    private function syncPublicSteel()
+    {
+        $url='https://ahanmelal.com/rebar/ribbed-rebar-price';
+        try {
+            $response=Http::timeout(24)->withHeaders([
+                'User-Agent'=>'Mozilla/5.0 (compatible; SPADMaterials/1.0)',
+                'Accept'=>'text/html',
+            ])->get($url);
+            if(!$response->successful()) throw new \RuntimeException('Source HTTP '.$response->status());
+            $html=$response->body();
+            if(strlen($html)<40000 || strlen($html)>2500000 || strpos($html,'ذوب آهن اصفهان')===false)
+                throw new \RuntimeException('Unrecognized steel price document');
+            // The exact Isfahan plant group header delimits all its price rows.
+            $from=strpos($html,'esfahan-zobahan-rebar');
+            if($from===false)throw new \RuntimeException('Factory group missing');
+            $next=strpos($html,'class="box-table-price filterTable"',$from+80);
+            $block=substr($html,$from,$next===false?90000:min(90000,$next-$from));
+            if(!preg_match('/آخرین بروزرسانی:\s*<span>\s*([۰-۹0-9\/]+)\s*<\/span>\s*<span>\s*ساعت\s*([۰-۹0-9:]+)\s*<\/span>/u',$block,$stamp))
+                throw new \RuntimeException('Market timestamp missing');
+            $fa=['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9'];
+            $jalali=strtr($stamp[1],$fa);
+            $clock=strtr($stamp[2],$fa);
+            if(!preg_match('/^(14[0-9]{2})\/([0-9]{1,2})\/([0-9]{1,2})$/D',$jalali,$dt)
+                || !preg_match('/^[0-2][0-9]:[0-5][0-9]:[0-5][0-9]$/D',$clock))
+                throw new \RuntimeException('Unrecognized market date');
+            $gregorian=$this->jalaliToGregorian((int)$dt[1],(int)$dt[2],(int)$dt[3]);
+            $quoted=Carbon::createFromFormat('Y-m-d H:i:s',$gregorian.' '.$clock,'Asia/Tehran')->utc();
+            if($quoted->greaterThan(now()->addMinutes(10)) || $quoted->lessThan(now()->subDays(5)))
+                throw new \RuntimeException('Source market timestamp stale or future-dated');
+            $matches=[];
+            preg_match_all('/<div class="tr trbody tr-row">\s*<div class=td>\s*میلگرد\s+(12|14|16|18)\s+ذوب آهن اصفهان\s*<\/div>(.{0,550}?)<div data-price=\d+ data-price2=(\d+) class="td price priceText">/su',$block,$matches,PREG_SET_ORDER|PREG_OFFSET_CAPTURE);
+            $quotes=[];
+            foreach($matches as $row) {
+                $size=(int)$row[1][0];
+                $middle=$row[2][0];
+                $price=(int)$row[3][0];
+                $position=$row[0][1];
+                $details=substr($block,$position,3400);
+                if(!preg_match('/<div class=td>\s*A3\s*<\/div>/u',$middle))continue;
+                if(!preg_match('/<span>\s*کیلوگرم\s*<\/span>\s*<br>\s*<hr>\s*<span>\s*کارخانه\s*<\/span>/u',$details))continue;
+                if($price<50000 || $price>500000)continue;
+                if(isset($quotes[$size]) && $quotes[$size]!==$price)throw new \RuntimeException('Ambiguous plant quote');
+                $quotes[$size]=$price;
+            }
+            if(count($quotes)<3)throw new \RuntimeException('Not enough validated rebar prices');
+            $updated=0;
+            foreach($quotes as $size=>$price) {
+                DB::transaction(function()use($size,$price,$url,$quoted,&$updated) {
+                    $sku='public-ahanmelal-rebar-'.$size;
+                    $old=DB::table('material_price_products')->where('sku',$sku)->lockForUpdate()->first();
+                    if(!$old) {
+                        $id=DB::table('material_price_products')->insertGetId([
+                            'sku'=>$sku,'name'=>'میلگرد آجدار A3 سایز '.$size.' ذوب آهن اصفهان (کارخانه)',
+                            'category'=>'آهن‌آلات و فولاد','brand'=>'ذوب آهن اصفهان',
+                            'unit'=>'کیلوگرم','enabled'=>true,'featured'=>true,
+                            'sort_order'=>12+$size,'created_at'=>now(),'updated_at'=>now()
+                        ]);
+                        $old=DB::table('material_price_products')->where('id',$id)->first();
+                    }
+                    // Historical records refer to the provider's timestamp, not the fetch time.
+                    $different=$old->price_toman===null || (int)$old->price_toman!==$price;
+                    $write=[
+                        'source_type'=>'public','source_url'=>$url,
+                        'source_updated_at'=>$quoted,'last_checked_at'=>now(),
+                        'updated_at'=>now(),
+                    ];
+                    if($different) {
+                        $previous=$old->price_toman===null?null:(int)$old->price_toman;
+                        $write['price_toman']=$price;
+                        $write['previous_price_toman']=$previous;
+                        $write['change_percent']=$previous>0?round(100*($price-$previous)/$previous,2):null;
+                        DB::table('material_price_history')->insert([
+                            'product_id'=>$old->id,'price_toman'=>$price,'source_type'=>'public',
+                            'quoted_at'=>$quoted,'created_at'=>now(),'updated_at'=>now()
+                        ]);
+                    }
+                    DB::table('material_price_products')->where('id',$old->id)->update($write);
+                    $updated++;
+                });
+            }
+            DB::table('material_price_settings')->where('id',1)->update([
+                'last_sync_at'=>now(),'last_sync_status'=>'موفق: '.$updated.' نرخ کارخانه‌ای تاریخ‌دار',
+                'updated_at'=>now()
+            ]);
+            return ['ok'=>true,'updated'=>$updated,'message'=>'نرخ‌های کارخانه‌ای معتبر دریافت شدند.'];
+        }catch(\Throwable $e){
+            DB::table('material_price_settings')->where('id',1)->update([
+                'last_sync_at'=>now(),'last_sync_status'=>'منبع عمومی موقتاً نامعتبر یا در دسترس نیست',
+                'updated_at'=>now()
+            ]);
+            \Log::warning('SPAD public steel quote validation failed',['error_type'=>get_class($e)]);
+            return ['ok'=>false,'message'=>'دریافت نرخ عمومی تأیید نشد. آخرین قیمت‌های معتبر بدون تغییر باقی ماندند.'];
+        }
+    }
+
+    private function jalaliToGregorian(int $jy,int $jm,int $jd): string
+    {
+        if($jy<1300 || $jy>1550 || $jm<1 || $jm>12 || $jd<1 || $jd>31)
+            throw new \RuntimeException('Invalid Jalali date');
+        $jy+=1595;
+        $days=-355668+365*$jy+intdiv($jy,33)*8+intdiv(($jy%33)+3,4)+$jd
+            +($jm<7?($jm-1)*31:($jm-7)*30+186);
+        $gy=400*intdiv($days,146097);
+        $days=$days%146097;
+        if($days>36524){
+            $gy+=100*intdiv($days-1,36524);
+            $days=($days-1)%36524;
+            if($days>=365)$days++;
+        }
+        $gy+=4*intdiv($days,1461);
+        $days=$days%1461;
+        if($days>365){
+            $gy+=intdiv($days-1,365);
+            $days=($days-1)%365;
+        }
+        $gd=$days+1;
+        $months=[0,31,($gy%4===0 && ($gy%100!==0 || $gy%400===0))?29:28,31,30,31,30,31,31,30,31,30,31];
+        $gm=1;
+        while($gm<=12 && $gd>$months[$gm]){$gd-=$months[$gm];$gm++;}
+        return sprintf('%04d-%02d-%02d',$gy,$gm,$gd);
+    }
+
     private function parsePrice($raw,int $divisor)
     {
         if(is_int($raw))$str=(string)$raw;
