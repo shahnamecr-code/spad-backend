@@ -49,8 +49,8 @@ export const servicePath = "https://api.coloredstrategies.com";
 export const adminPathApi = "/api/admin";
 
 export const themeColorStorageKey = "__theme_selected_color";
-export const isMultiColorActive = true;
-export const defaultColor = "light.purplemonster";
+export const isMultiColorActive = false;
+export const defaultColor = "light.spad";
 export const isDarkSwitchActive = false;
 export const defaultDirection = "rtl";
 export const themeRadiusStorageKey = "__theme_radius";
