@@ -261,7 +261,7 @@ class MaterialPricesController extends Controller
             if($quoted->greaterThan(now()->addMinutes(10)) || $quoted->lessThan(now()->subDays(5)))
                 throw new \RuntimeException('Source market timestamp stale or future-dated');
             $matches=[];
-            preg_match_all('/<div class="tr trbody tr-row">\s*<div class=td>\s*میلگرد\s+(12|14|16|18)\s+ذوب آهن اصفهان\s*<\/div>(.{0,550}?)<div data-price=\d+ data-price2=(\d+) class="td price priceText">/su',$block,$matches,PREG_SET_ORDER|PREG_OFFSET_CAPTURE);
+            preg_match_all('/<div class="tr trbody tr-row">\s*<div class=td>\s*میلگرد\s+(12|14|16|18|20|22)\s+ذوب آهن اصفهان\s*<\/div>(.{0,550}?)<div data-price=\d+ data-price2=(\d+) class="td price priceText">/su',$block,$matches,PREG_SET_ORDER|PREG_OFFSET_CAPTURE);
             $quotes=[];
             foreach($matches as $row) {
                 $size=(int)$row[1][0];
