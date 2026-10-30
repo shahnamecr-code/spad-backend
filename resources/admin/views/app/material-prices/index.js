@@ -4,7 +4,7 @@ import {Button,Card,CardBody,FormGroup,Input,Label,Table,Row,Col} from "reactstr
 import {adminPathApi} from "../../../constants/defaultValues";
 import {NotificationManager} from "../../../components/common/react-notifications";
 const API=adminPathApi+"/materials/prices";
-const defaults={enabled:true,sync_enabled:false,provider:"persianapi",api_connected:false,refresh_minutes:30,stale_minutes:120,provider_price_divisor:1,title:"قیمت روز مصالح ساختمانی",subtitle:"",notice:"",api_token:"",clear_api_token:false};
+const defaults={enabled:true,sync_enabled:false,provider:"public_steel",api_connected:false,refresh_minutes:30,stale_minutes:120,provider_price_divisor:1,title:"قیمت روز مصالح ساختمانی",subtitle:"",notice:"",api_token:"",clear_api_token:false};
 const blank={name:"",sku:"",category:"آهن‌آلات و فولاد",brand:"",unit:"کیلوگرم",price_toman:"",external_id:"",sort_order:100,featured:false,enabled:true};
 const fmt=(v)=>Number(v||0).toLocaleString("fa-IR");
 const date=(v)=>v?new Date(v).toLocaleString("fa-IR"):"—";
@@ -14,17 +14,27 @@ const MaterialPricesAdmin=()=>{
  const reload=async()=>{try{const r=await axios.get(API);setItems(r.data.data.materials||[]);setCats(r.data.data.categories||[]);setSettings({...defaults,...r.data.data.settings,api_token:""});}catch(e){notice(e.response?.data?.message||"دریافت مدیریت مصالح ناموفق بود",true)}};
  useEffect(()=>{reload()},[]);
  const set=(k,v)=>setSettings(s=>({...s,[k]:v}));
- const saveSettings=async()=>{setBusy(true);try{const {api_connected,last_sync_at,last_sync_status,provider,...payload}=settings;const r=await axios.post(API+"/settings",payload);setSettings({...defaults,...r.data.data});notice("تنظیمات ذخیره شد");}catch(e){notice(e.response?.data?.message||"ذخیره تنظیمات ناموفق بود",true)}finally{setBusy(false)}};
+ const saveSettings=async()=>{setBusy(true);try{const {api_connected,last_sync_at,last_sync_status,...payload}=settings;const r=await axios.post(API+"/settings",payload);setSettings({...defaults,...r.data.data});notice("تنظیمات ذخیره شد");}catch(e){notice(e.response?.data?.message||"ذخیره تنظیمات ناموفق بود",true)}finally{setBusy(false)}};
  const save=async()=>{setBusy(true);try{const p={...form,price_toman:form.price_toman===""?null:Number(form.price_toman),sort_order:Number(form.sort_order||100),enabled:!!form.enabled,featured:!!form.featured};if(id)await axios.put(API+"/items/"+id,p);else await axios.post(API+"/items",p);notice("کالا و نرخ ذخیره شد");setId(null);setForm(blank);setHistory([]);await reload();}catch(e){notice(e.response?.data?.message||"ثبت کالا ناموفق بود",true)}finally{setBusy(false)}};
  const edit=(x)=>{setId(x.id);setForm({...blank,...x,price_toman:x.price_toman??""});setHistory([]);axios.get(API+"/items/"+x.id+"/history").then(r=>setHistory(r.data.data||[])).catch(()=>{});document.getElementById("materials-edit")?.scrollIntoView({behavior:"smooth"})};
  const sync=async()=>{setSyncing(true);try{const r=await axios.post(API+"/sync");notice(r.data.data?.message||"دریافت قیمت کامل شد");await reload()}catch(e){notice(e.response?.data?.data?.message||e.response?.data?.message||"دریافت API انجام نشد",true)}finally{setSyncing(false)}};
  const visible=useMemo(()=>items.filter(x=>(filter==="all"||x.category===filter)&&(!q||[x.name,x.sku,x.brand,x.category].join(" ").includes(q))),[items,q,filter]);
  return <div className="container-fluid" dir="rtl">
   <div style={{background:"linear-gradient(120deg,#075399,#0b9ddd)",borderRadius:20,padding:24,color:"#fff",marginBottom:20}}><small>SPAD MATERIALS COMMAND CENTER</small><h2 style={{color:"#fff"}}>مدیریت قیمت مصالح</h2><p>تنظیمات نمایش، اتصال امن به API، ویرایش نرخ و مشاهده تاریخچه مصالح</p></div>
-  <Row className="mb-4"><Col md="4"><Card><CardBody>کل مصالح: <b>{fmt(items.length)}</b></CardBody></Card></Col><Col md="4"><Card><CardBody>دارای نرخ: <b>{fmt(items.filter(x=>x.price_toman!==null).length)}</b></CardBody></Card></Col><Col md="4"><Card><CardBody>وضعیت API: <b>{settings.api_connected?"کلید تنظیم شده":"بدون کلید"}</b></CardBody></Card></Col></Row>
+  <Row className="mb-4"><Col md="4"><Card><CardBody>کل مصالح: <b>{fmt(items.length)}</b></CardBody></Card></Col><Col md="4"><Card><CardBody>دارای نرخ: <b>{fmt(items.filter(x=>x.price_toman!==null).length)}</b></CardBody></Card></Col><Col md="4"><Card><CardBody>منبع قیمت: <b>{settings.provider==="public_steel"?"بازار عمومی آهن ملل":settings.api_connected?"API اختصاصی":"بدون اتصال"}</b></CardBody></Card></Col></Row>
   <Card className="mb-4"><CardBody><h3>تنظیمات صفحه و همگام‌سازی</h3><Row>
    <Col md="6"><FormGroup><Label>عنوان صفحه</Label><Input value={settings.title} onChange={e=>set("title",e.target.value)}/></FormGroup><FormGroup><Label>زیرعنوان</Label><Input type="textarea" value={settings.subtitle||""} onChange={e=>set("subtitle",e.target.value)}/></FormGroup><FormGroup><Label>متن هشدار قیمت</Label><Input type="textarea" value={settings.notice||""} onChange={e=>set("notice",e.target.value)}/></FormGroup></Col>
-   <Col md="6"><FormGroup><Label>توکن PersianAPI (پس از ذخیره قابل نمایش نیست)</Label><Input type="password" autoComplete="new-password" value={settings.api_token||""} placeholder={settings.api_connected?"کلید ذخیره شده است؛ برای تغییر وارد کنید":"توکن API را وارد کنید"} onChange={e=>set("api_token",e.target.value)}/></FormGroup>
+   <Col md="6">
+    <FormGroup><Label>منبع قیمت مصالح</Label>
+      <Input type="select" value={settings.provider||"public_steel"} onChange={e=>set("provider",e.target.value)}>
+        <option value="public_steel">آهن ملل — رایگان و خودکار (میلگرد کارخانه ذوب آهن اصفهان)</option>
+        <option value="persianapi">PersianAPI — نیازمند کلید دسترسی</option>
+      </Input>
+      <small style={{color:"#6c8195"}}>منبع رایگان فعلاً فقط اقلام دقیق میلگرد را به‌روزرسانی می‌کند؛ بقیه محصولات بدون قیمت ساختگی باقی می‌مانند.</small>
+    </FormGroup>
+    {settings.provider==="persianapi"&&<FormGroup><Label>توکن PersianAPI (رمزنگاری‌شده در سرور)</Label>
+      <Input type="password" autoComplete="new-password" value={settings.api_token||""} placeholder={settings.api_connected?"کلید ذخیره شده است؛ برای تغییر وارد کنید":"توکن API را وارد کنید"} onChange={e=>set("api_token",e.target.value)}/>
+    </FormGroup>}
     <Row><Col md="4"><FormGroup><Label>فاصله دریافت (دقیقه)</Label><Input type="number" min={15} max={1440} value={settings.refresh_minutes} onChange={e=>set("refresh_minutes",Number(e.target.value))}/></FormGroup></Col>
     <Col md="4"><FormGroup><Label>اعتبار نرخ (دقیقه)</Label><Input type="number" min={15} max={10080} value={settings.stale_minutes} onChange={e=>set("stale_minutes",Number(e.target.value))}/></FormGroup></Col>
     <Col md="4"><FormGroup><Label>ارز ورودی API</Label><Input type="select" value={settings.provider_price_divisor} onChange={e=>set("provider_price_divisor",Number(e.target.value))}><option value={1}>تومان</option><option value={10}>ریال</option></Input></FormGroup></Col></Row>
