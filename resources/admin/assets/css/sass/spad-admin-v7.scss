@@ -231,7 +231,7 @@
 }
 .spad-v7-hero__text, .spad-v7-hero__actions { position: relative; z-index: 1; }
 .spad-v7-eyebrow { display: block; font-size: 10px; letter-spacing: 1.4px; font-weight: 700; opacity: .82; direction: ltr; text-align: right; }
-.spad-v7-hero h1 { color: #fff !important; font-size: clamp(21px, 2.1vw, 31px) !important; font-weight: 800 !important; margin: 12px 0 9px !important; }
+.spad-v7-hero h1 { color: #fff !important; font-size: 28px !important; font-weight: 800 !important; margin: 12px 0 9px !important; }
 .spad-v7-hero p { margin: 0; color: #d7ebff; font-size: 12px; line-height: 2; }
 .spad-v7-hero__actions { display: flex; flex-wrap: wrap; gap: 9px; }
 .spad-v7-hero__actions a {
@@ -296,7 +296,7 @@
 .spad-v7-bars { min-height: 236px; display: flex; align-items: end; justify-content: space-around; gap: 12px; padding: 13px 4px 0; border-bottom: 1px solid #e2edf7; }
 .spad-v7-bar-item { flex: 1; min-width: 0; text-align: center; }
 .spad-v7-bar-track { display: flex; align-items: end; justify-content: center; height: 180px; background: linear-gradient(180deg, transparent, #f8fbfe); border-radius: 8px 8px 0 0; overflow: hidden; }
-.spad-v7-bar-fill { display: block; width: min(64%, 50px); min-height: 2px; border-radius: 9px 9px 0 0; background: linear-gradient(180deg,#27b0f2,#086dcf); }
+.spad-v7-bar-fill { display: block; width: 64%; max-width: 50px; min-height: 2px; border-radius: 9px 9px 0 0; background: linear-gradient(180deg,#27b0f2,#086dcf); }
 .spad-v7-bar-count { display: block; font-size: 10px; margin-bottom: 6px; font-weight: 700; color: #35618c; }
 .spad-v7-bar-label { display: block; margin: 12px -2px 0; color: #70869d; font-size: 10px; line-height: 1.6; overflow-wrap: anywhere; }
 .spad-v7-empty { display: flex; align-items: center; justify-content: center; min-height: 160px; color: #8da1b4; text-align: center; font-size: 12px; }
@@ -329,7 +329,7 @@
 }
 @media (max-width: 991px) {
   .spad-admin-topbar.navbar { top: 10px !important; right: 12px !important; left: 12px !important; height: 68px !important; }
-  .spad-admin-shell .spad-admin-sidebar { top: 0 !important; right: -310px !important; bottom: 0 !important; border-radius: 0 !important; width: min(310px, 90vw) !important; transition: right .2s ease !important; }
+  .spad-admin-shell .spad-admin-sidebar { top: 0 !important; right: -310px !important; bottom: 0 !important; border-radius: 0 !important; width: 310px !important; max-width: 90vw; transition: right .2s ease !important; }
   .spad-admin-shell .spad-admin-sidebar.open { right: 0 !important; }
   .spad-admin-shell > main.spad-admin-main,
   .spad-admin-shell .spad-admin-main { margin: 0 12px !important; padding-top: 94px !important; }
