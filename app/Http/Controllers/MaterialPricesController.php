@@ -168,7 +168,7 @@ class MaterialPricesController extends Controller
     {
         $settings=$this->settings();
         if(!$settings->sync_enabled || empty($settings->encrypted_api_token))
-            return ['ok'=>false,'message'=>'اتصال API فعال نیست یا توکن تنظیم نشده است.'];
+            return ['ok'=>false,'not_configured'=>true,'message'=>'اتصال API فعال نیست یا توکن تنظیم نشده است.'];
         try{
             $token=Crypt::decryptString($settings->encrypted_api_token);
             $response=Http::timeout(18)->withToken($token)->acceptJson()->get(self::URL);

@@ -14,7 +14,8 @@ class SyncMaterialPrices extends Command
         try {
             $result=(new MaterialPricesController())->sync();
             $this->info(($result['ok']?'SYNC_OK':'SYNC_NOT_CONNECTED').': '.($result['message']??''));
-            return $result['ok']?0:1;
+            // An unset provider key is a configuration state, not a broken scheduled run.
+            return ($result['ok'] || !empty($result['not_configured'])) ? 0 : 1;
         }finally{$lock->release();}
     }
 }
