@@ -268,7 +268,8 @@ class MaterialPricesController extends Controller
                 $middle=$row[2][0];
                 $price=(int)$row[3][0];
                 $position=$row[0][1];
-                $details=substr($block,$position,3400);
+                $nextRow=strpos($block,'<div class="tr trbody tr-row">',$position+50);
+                $details=substr($block,$position,$nextRow===false?3000:min(3000,$nextRow-$position));
                 if(!preg_match('/<div class=td>\s*A3\s*<\/div>/u',$middle))continue;
                 if(!preg_match('/<span>\s*کیلوگرم\s*<\/span>\s*<br>\s*<hr>\s*<span>\s*کارخانه\s*<\/span>/u',$details))continue;
                 if($price<50000 || $price>500000)continue;
