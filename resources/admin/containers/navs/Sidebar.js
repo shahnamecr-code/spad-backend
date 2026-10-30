@@ -4,6 +4,7 @@ import {connect} from 'react-redux';
 import {NavLink, withRouter} from 'react-router-dom';
 import PerfectScrollbar from 'react-perfect-scrollbar';
 import classnames from 'classnames';
+import {injectIntl} from 'react-intl';
 
 import IntlMessages from '../../helpers/IntlMessages';
 import menuItems from '../../constants/menu';
@@ -14,6 +15,7 @@ class Sidebar extends Component {
     this.state = {
       openGroups: this.getInitialOpenGroups(props.location.pathname),
       mobileOpen: false,
+      searchQuery: '',
     };
   }
 
@@ -78,6 +80,21 @@ class Sidebar extends Component {
     });
   };
 
+  translatedLabel = (item) => {
+    const {intl} = this.props;
+    if (!item || !item.label) return '';
+    return intl.formatMessage({id: item.label, defaultMessage: item.label});
+  };
+
+  searchItems = (items, query) => this.filteredList(items).reduce((found, item) => {
+    const matches = this.translatedLabel(item).toLocaleLowerCase().includes(query);
+    const subs = item.subs ? this.searchItems(item.subs, query) : [];
+    if (matches || subs.length) {
+      found.push({...item, ...(item.subs ? {subs: matches ? this.filteredList(item.subs) : subs} : {})});
+    }
+    return found;
+  }, []);
+
   routeBelongsTo = (item, pathname) => {
     if (!item) return false;
     if (item.to && (pathname === item.to || pathname.startsWith(`${item.to}/`))) return true;
@@ -107,7 +124,7 @@ class Sidebar extends Component {
     this.filteredList(items).map((item, index) => {
       const key = `${parentKey}:${index}`;
       const hasChildren = !!(item.subs && item.subs.length);
-      const open = this.state.openGroups.includes(key) || this.routeBelongsTo(item, this.props.location.pathname);
+      const open = !!this.state.searchQuery.trim() || this.state.openGroups.includes(key) || this.routeBelongsTo(item, this.props.location.pathname);
 
       if (hasChildren) {
         return (
@@ -150,8 +167,9 @@ class Sidebar extends Component {
     });
 
   render() {
-    const {mobileOpen, openGroups} = this.state;
-    const visibleItems = this.filteredList(menuItems);
+    const {mobileOpen, openGroups, searchQuery} = this.state;
+    const query = searchQuery.trim().toLocaleLowerCase();
+    const visibleItems = query ? this.searchItems(menuItems, query) : this.filteredList(menuItems);
 
     return (
       <>
@@ -173,12 +191,23 @@ class Sidebar extends Component {
             </button>
           </div>
 
+          <div className="spad-admin-sidebar__search">
+            <i className="simple-icon-magnifier" aria-hidden="true"/>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(event) => this.setState({searchQuery: event.target.value})}
+              placeholder="جستجو در منوی مدیریت..."
+              aria-label="جستجو در منوی مدیریت"
+            />
+          </div>
           <div className="spad-admin-sidebar__scroll">
             <PerfectScrollbar options={{suppressScrollX: true, wheelPropagation: false}}>
               <nav className="spad-admin-nav">
+                {visibleItems.length === 0 && <div className="spad-admin-nav-empty">بخشی با این عنوان پیدا نشد</div>}
                 {visibleItems.map((item) => {
                   const hasChildren = !!(item.subs && item.subs.length);
-                  const open = openGroups.includes(item.id) || this.routeBelongsTo(item, this.props.location.pathname);
+                  const open = !!query || openGroups.includes(item.id) || this.routeBelongsTo(item, this.props.location.pathname);
 
                   if (!hasChildren) {
                     return item.newWindow ? (
@@ -217,7 +246,7 @@ class Sidebar extends Component {
 
           <div className="spad-admin-sidebar__footer">
             <span className="spad-admin-sidebar__status"/>
-            <div><strong>سامانه فعال است</strong><small>SPAD Admin Console</small></div>
+            <div><strong>مدیریت یکپارچه اسپاد</strong><small>SPAD Admin Console</small></div>
           </div>
         </aside>
       </>
@@ -227,4 +256,4 @@ class Sidebar extends Component {
 
 const mapStateToProps = ({authUser}) => ({currentUser: authUser.currentUser});
 
-export default withRouter(connect(mapStateToProps)(Sidebar));
+export default withRouter(connect(mapStateToProps)(injectIntl(Sidebar)));
