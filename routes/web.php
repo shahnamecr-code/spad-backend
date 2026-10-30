@@ -118,6 +118,12 @@ Route::get('spad-login/{path?}', function ($path = null) {
 |
 */
 
+// The panel bare domain must open its own login, not the public website.
+// No privileged data is served here; admin API authentication is unchanged.
+Route::get('/', function () {
+    return redirect('/spad-login/login');
+});
+
 Route::get('{path?}', function () {
 
     return \Illuminate\Support\Facades\Redirect::to(
