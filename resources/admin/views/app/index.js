@@ -5,9 +5,9 @@ import { connect } from "react-redux";
 import AppLayout from "../../layout/AppLayout";
 import Shop from "./shops/shop";
 import AxiosInterceptor from "../../helpers/AxiosInterceptor";
-import AdminQuickAccess from "./admin-quick-access";
 import "../../assets/css/sass/spad-admin-modern.scss";
 import "../../assets/css/sass/spad-admin-modernize-v6.scss";
+import "../../assets/css/sass/spad-admin-v7.scss";
 
 // import { ProtectedRoute, UserRole } from '../../helpers/authHelper';
 
@@ -97,10 +97,7 @@ const App = ({ match, step, location }) => {
                 <Route
                   path={`${match.url}/dashboards`}
                   render={(props) => (
-                    <>
-                      <AdminQuickAccess />
-                      <Dashboards {...props} />
-                    </>
+                    <Dashboards {...props} />
                   )}
                 />
                 <Route
