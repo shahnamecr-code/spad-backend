@@ -14,8 +14,8 @@ class SyncMaterialPrices extends Command
         try {
             // Honor the administrator's refresh cadence even though GitHub
             // dispatches the scheduler every 15 minutes.
-            if (\Illuminate\Support\\Facades\\Schema::hasTable('material_price_settings')) {
-                $config=\Illuminate\Support\\Facades\\DB::table('material_price_settings')->where('id',1)->first();
+            if (\Illuminate\Support\Facades\Schema::hasTable('material_price_settings')) {
+                $config=\Illuminate\Support\Facades\DB::table('material_price_settings')->where('id',1)->first();
                 if ($config && $config->sync_enabled && $config->last_sync_at) {
                     $age=now()->diffInMinutes(\Carbon\Carbon::parse($config->last_sync_at));
                     if ($age < max(15,(int)$config->refresh_minutes)) {
