@@ -5,7 +5,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 class SyncMaterialPrices extends Command
 {
-    protected $signature='materials:sync';
+    protected $signature='materials:sync {--force : Bypass configured interval for a controlled one-off run}';
     protected $description='Safely sync verified SPAD building material quotes';
     public function handle()
     {
@@ -18,7 +18,7 @@ class SyncMaterialPrices extends Command
                 $config=\Illuminate\Support\Facades\DB::table('material_price_settings')->where('id',1)->first();
                 if ($config && $config->sync_enabled && $config->last_sync_at) {
                     $age=now()->diffInMinutes(\Carbon\Carbon::parse($config->last_sync_at));
-                    if ($age < max(15,(int)$config->refresh_minutes)) {
+                    if (!$this->option('force') && $age < max(15,(int)$config->refresh_minutes)) {
                         $this->info('SYNC_NOT_DUE age='.$age.'m');
                         return 0;
                     }
