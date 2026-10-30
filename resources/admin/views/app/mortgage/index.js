@@ -34,9 +34,28 @@ const MortgageAdmin = () => {
   <Card><CardBody>
    <h3>درخواست‌های وام با کارپرداز</h3>
    {loading ? <p>در حال بارگذاری...</p> : <div style={{overflowX:"auto"}}><Table responsive striped>
-    <thead><tr><th>کد پیگیری</th><th>موبایل</th><th>کاربر</th><th>مبلغ خرید (میلیون)</th><th>وضعیت</th><th>یادداشت داخلی</th><th>عملیات</th></tr></thead>
+    <thead><tr><th>کد پیگیری</th><th>موبایل</th><th>کاربر</th><th>مبلغ خرید (میلیون)</th><th>مشخصات قرارداد</th><th>وضعیت</th><th>یادداشت داخلی</th><th>عملیات</th></tr></thead>
     <tbody>{requests.map(item=><tr key={item.id}>
      <td>{item.reference}</td><td>{item.phone}</td><td>{item.user_id}</td><td>{item.purchase_million}</td>
+     <td style={{minWidth:260,lineHeight:2,fontSize:12}}>
+       <div><b>متقاضی:</b> {item.applicant_name || "—"} / <b>کد ملی:</b> {item.national_id || "—"}</div>
+       <div><b>قولنامه:</b> {item.contract_number || "—"} / {item.contract_date || "—"}</div>
+       <div><b>خریدار:</b> {item.buyer_name || "—"} / <b>فروشنده:</b> {item.seller_name || "—"}</div>
+       <div><b>مبلغ معامله:</b> {Number(item.deal_price_toman || 0).toLocaleString("fa-IR")} تومان</div>
+       <div><b>کد پستی:</b> {item.postal_code || "—"}</div>
+       <div><b>آدرس ملک:</b> {item.property_address || "—"}</div>
+       {item.applicant_note && <div><b>توضیحات:</b> {item.applicant_note}</div>}
+       {item.contract_attachment && <Button size="sm" outline color="info" onClick={async()=>{
+         try {
+           const res = await axios.get(adminPathApi + "/mortgage/requests/" + item.id + "/contract-file", {responseType:"blob"});
+           const url = URL.createObjectURL(res.data);
+           const link = document.createElement("a");
+           link.href = url; link.download = "contract-" + item.reference;
+           document.body.appendChild(link); link.click(); link.remove();
+           setTimeout(() => URL.revokeObjectURL(url), 30000);
+         } catch(e) { NotificationManager.error("دریافت فایل قولنامه ناموفق بود"); }
+       }}>دریافت فایل قولنامه</Button>}
+     </td>
      <td><Input type="select" value={item.status} onChange={e=>setRequests(old=>old.map(x=>x.id===item.id?{...x,status:e.target.value}:x))}>{Object.keys(statusNames).map(key=><option key={key} value={key}>{statusNames[key]}</option>)}</Input></td>
      <td><Input value={item.admin_note||""} onChange={e=>setRequests(old=>old.map(x=>x.id===item.id?{...x,admin_note:e.target.value}:x))}/></td>
      <td><Button size="sm" color="primary" onClick={()=>change(item,item.status)}>ثبت</Button></td>
