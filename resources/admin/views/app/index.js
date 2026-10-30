@@ -66,6 +66,7 @@ const Raffles = React.lazy(() => import(/* webpackChunkName: "raffles" */'./raff
 const Wallets = React.lazy(() => import(/* webpackChunkName: "wallets" */'./wallets'));
 const MortgageAdmin = React.lazy(() => import("./mortgage"));
 const MaterialsAdmin = React.lazy(() => import("./material-prices"));
+const CommunityAdmin = React.lazy(() => import("./community"));
 const Inquiries = React.lazy(() => import(/* webpackChunkName: "inquiries" */'./inquiries'));
 const VirtualTours = React.lazy(() => import(/* webpackChunkName: "virtual-tours" */'./virtual-tours'));
 const PartnerPanels = React.lazy(() => import(/* webpackChunkName: "partner-panels" */'./partner-panels'));
@@ -168,6 +169,9 @@ const App = ({ match, step, location }) => {
                 />
                 <Route path={`${match.url}/mortgage`} render={(props) => <MortgageAdmin {...props} />} />
                 <Route path={`${match.url}/material-prices`} render={(props) => <MaterialsAdmin {...props} />} />
+                <Route path={`${match.url}/building-management`} render={(props) => <CommunityAdmin {...props} mode="buildings" />} />
+                <Route path={`${match.url}/top-builders`} render={(props) => <CommunityAdmin {...props} mode="builders" />} />
+                <Route path={`${match.url}/property-auctions`} render={(props) => <CommunityAdmin {...props} mode="auctions" />} />
                 <Route
                   path={`${match.url}/inquiries`}
                   render={(props) => <Inquiries {...props} />}

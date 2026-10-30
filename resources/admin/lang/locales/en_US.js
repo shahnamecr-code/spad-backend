@@ -822,4 +822,7 @@ module.exports = {
   "menu.virtual-tours.list": "مدیریت تورهای مجازی",
   "menu.virtual-tours.create": "ساخت تور جدید",
   "menu.material-prices": "مدیریت قیمت مصالح",
+  "menu.building-management": "مدیریت ساختمان",
+  "menu.top-builders": "سازندگان برتر",
+  "menu.property-auctions": "مزایده ملک",
 };

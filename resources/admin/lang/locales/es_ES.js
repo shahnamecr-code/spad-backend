@@ -648,4 +648,7 @@ module.exports = {
   'wizard.registered': '¡Su registro se completó con éxito!',
   'wizard.async': '¡Ahorro asíncrono durante 3 segundos!',
   "menu.material-prices": "مدیریت قیمت مصالح",
+  "menu.building-management": "مدیریت ساختمان",
+  "menu.top-builders": "سازندگان برتر",
+  "menu.property-auctions": "مزایده ملک",
 };
