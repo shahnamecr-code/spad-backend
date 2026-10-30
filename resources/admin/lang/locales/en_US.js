@@ -821,4 +821,5 @@ module.exports = {
   "menu.virtual-tours": "استودیو تور مجازی ۳۶۰°",
   "menu.virtual-tours.list": "مدیریت تورهای مجازی",
   "menu.virtual-tours.create": "ساخت تور جدید",
+  "menu.material-prices": "مدیریت قیمت مصالح",
 };

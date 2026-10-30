@@ -109,6 +109,10 @@ const data = [
     ],
   },
   {
+    id: "material-prices", icon: "iconsminds-coins",
+    label: "menu.material-prices", to: `${adminRoot}/material-prices`, roles: [UserRole.Admin]
+  },
+  {
     id: "wallets",
     icon: "iconsminds-wallet",
     label: "menu.wallets",

@@ -647,4 +647,5 @@ module.exports = {
   'wizard.prev': 'Anterior',
   'wizard.registered': '¡Su registro se completó con éxito!',
   'wizard.async': '¡Ahorro asíncrono durante 3 segundos!',
+  "menu.material-prices": "مدیریت قیمت مصالح",
 };
