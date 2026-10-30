@@ -97,6 +97,9 @@ const TopNav = ({history, logoutUserAction, user}) => {
         </div>
 
         <div className="spad-admin-icon-actions">
+          <a href="https://spad.estate" target="_blank" rel="noopener noreferrer" className="spad-admin-icon-btn" title="نمایش سایت" aria-label="نمایش سایت اسپاد">
+            <i className="simple-icon-globe"/>
+          </a>
           <UserCan>
             <Link to={`${adminRoot}/settings/main`} className="spad-admin-icon-btn" title="تنظیمات">
               <i className="simple-icon-settings"/>
