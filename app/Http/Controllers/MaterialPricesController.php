@@ -49,6 +49,8 @@ class MaterialPricesController extends Controller
               'id'=>$item->id, 'sku'=>$item->sku,'name'=>$item->name,'category'=>$item->category,
               'brand'=>$item->brand,'unit'=>$item->unit,'price_toman'=>$item->price_toman===null?null:(int)$item->price_toman,
               'previous_price_toman'=>$item->previous_price_toman===null?null:(int)$item->previous_price_toman,
+              'price_max_toman'=>$item->price_max_toman===null?null:(int)$item->price_max_toman,
+              'last_checked_at'=>$item->last_checked_at,
               'change_percent'=>$item->change_percent===null?null:(float)$item->change_percent,
               'source_type'=>$item->source_type,'source_url'=>$item->source_url,'source_updated_at'=>$item->source_updated_at,
               'featured'=>(bool)$item->featured,
