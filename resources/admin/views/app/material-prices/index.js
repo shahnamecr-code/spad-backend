@@ -8,6 +8,15 @@ const defaults={enabled:true,sync_enabled:false,provider:"public_steel",api_conn
 const blank={name:"",sku:"",category:"آهن‌آلات و فولاد",brand:"",unit:"کیلوگرم",price_toman:"",external_id:"",sort_order:100,featured:false,enabled:true};
 const fmt=(v)=>Number(v||0).toLocaleString("fa-IR");
 const date=(v)=>v?new Date(v).toLocaleString("fa-IR"):"—";
+const sourceName=(type)=>({
+  public:"نرخ کارخانه‌ای آهن ملل",listing:"پیشنهاد فروشنده سازورا",
+  reference:"نرخ مرجع برآوردیار",api:"سرویس API",
+  manual:"ثبت دستی مدیریت",pending:"هنوز منبع قیمت ثبت نشده"
+}[type]||"منبع نامشخص");
+const PriceSource=({item})=><div style={{display:"flex",flexDirection:"column",alignItems:"flex-start",gap:4}}>
+  <strong style={{fontSize:11,color:"#285778"}}>{sourceName(item.source_type)}</strong>
+  {item.source_url&&item.source_url.startsWith("https://")?<a href={item.source_url} target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#0787c9",wordBreak:"break-all"}}>مشاهده منبع اصلی</a>:null}
+</div>;
 const MaterialPricesAdmin=()=>{
  const [settings,setSettings]=useState(defaults),[items,setItems]=useState([]),[cats,setCats]=useState([]),[form,setForm]=useState(blank),[id,setId]=useState(null),[q,setQ]=useState(""),[filter,setFilter]=useState("all"),[history,setHistory]=useState([]),[busy,setBusy]=useState(false),[syncing,setSyncing]=useState(false);
  const notice=(msg,fail=false)=>(fail?NotificationManager.error:NotificationManager.success)(msg);
@@ -57,10 +66,15 @@ const MaterialPricesAdmin=()=>{
    <Label check style={{marginLeft:20}}><Input type="checkbox" checked={!!form.enabled} onChange={e=>setForm(s=>({...s,enabled:e.target.checked}))}/> نمایش محصول</Label>
    <Label check><Input type="checkbox" checked={!!form.featured} onChange={e=>setForm(s=>({...s,featured:e.target.checked}))}/> محصول منتخب</Label>
    <div style={{marginTop:18}}><Button color="primary" disabled={busy} onClick={save}>{busy?"ذخیره...":"ذخیره کالا"}</Button>{" "}<Button outline onClick={()=>{setId(null);setForm(blank);setHistory([])}}>کالای جدید</Button></div>
+   {id&&<div style={{background:"#f1f9ff",border:"1px solid #cfebfa",borderRadius:12,padding:15,marginTop:18}}>
+     <h4 style={{fontSize:14,color:"#1b5884"}}>اطلاعات منبع قیمت این کالا (فقط مدیریت)</h4>
+     <PriceSource item={form}/>
+     <small style={{display:"block",marginTop:9,color:"#5c7790"}}>تاریخ اعلام قیمت: {date(form.source_updated_at)} · آخرین بررسی منبع: {date(form.last_checked_at)}</small>
+   </div>}
    {history.length>0&&<div className="mt-4"><h4>تاریخچه آخرین نرخ‌ها</h4><Table responsive size="sm"><thead><tr><th>زمان</th><th>قیمت (تومان)</th><th>منبع</th></tr></thead><tbody>{history.slice(0,20).map(x=><tr key={x.id}><td>{date(x.quoted_at)}</td><td>{fmt(x.price_toman)}</td><td>{x.source_type}</td></tr>)}</tbody></Table></div>}
   </CardBody></Card>
   <Card><CardBody><h3>فهرست کالاها ({fmt(visible.length)})</h3><Row className="mb-3"><Col md="7"><Input value={q} onChange={e=>setQ(e.target.value)} placeholder="جست‌وجو بر اساس نام، کد یا برند"/></Col><Col md="5"><Input type="select" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">همه گروه‌ها</option>{cats.map(c=><option key={c}>{c}</option>)}</Input></Col></Row>
-   <div style={{maxHeight:580,overflow:"auto"}}><Table responsive striped size="sm"><thead><tr><th>کالا</th><th>دسته</th><th>نرخ</th><th>تغییر</th><th>زمان</th><th>عملیات</th></tr></thead><tbody>{visible.slice(0,1000).map(x=><tr key={x.id}><td><b>{x.name}</b><small style={{display:"block"}}>{x.sku} · {x.brand||"—"} · هر {x.unit}</small></td><td>{x.category}</td><td>{x.price_toman===null?"—":fmt(x.price_toman)}</td><td>{x.change_percent===null?"—":x.change_percent+"٪"}</td><td>{date(x.source_updated_at)}</td><td><Button size="sm" color="info" outline onClick={()=>edit(x)}>ویرایش</Button></td></tr>)}</tbody></Table></div>
+   <div style={{maxHeight:580,overflow:"auto"}}><Table responsive striped size="sm"><thead><tr><th>کالا</th><th>دسته</th><th>نرخ</th><th>منبع قیمت</th><th>زمان</th><th>عملیات</th></tr></thead><tbody>{visible.slice(0,1000).map(x=><tr key={x.id}><td><b>{x.name}</b><small style={{display:"block"}}>{x.sku} · {x.brand||"—"} · هر {x.unit}</small></td><td>{x.category}</td><td>{x.price_toman===null?"—":fmt(x.price_toman)}</td><td><PriceSource item={x}/></td><td>{date(x.source_updated_at||x.last_checked_at)}</td><td><Button size="sm" color="info" outline onClick={()=>edit(x)}>ویرایش</Button></td></tr>)}</tbody></Table></div>
   </CardBody></Card>
  </div>;
 };
