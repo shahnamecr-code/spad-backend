@@ -36,6 +36,9 @@ export default function CommunityAdmin({mode="buildings"}){
  const section=mode;
  const [settings,setSettings]=useState(initial);
  const [buildings,setBuildings]=useState([]);
+ const [managerVerifications,setManagerVerifications]=useState([]);
+ const [reviewDetails,setReviewDetails]=useState({});
+ const [reviewNotes,setReviewNotes]=useState({});
  const [buildingManagers,setBuildingManagers]=useState([]);
  const [buildingEditing,setBuildingEditing]=useState(null);
  const [buildingFormOpen,setBuildingFormOpen]=useState(false);
@@ -73,6 +76,32 @@ export default function CommunityAdmin({mode="buildings"}){
  const [auctionAdLoading,setAuctionAdLoading]=useState(false);
  const [builderForm,setBuilderForm]=useState(blankBuilder);
  const [search,setSearch]=useState("");
+ const loadManagerVerifications=async()=>{
+  try{const r=await axios.get(api+"/building-manager-verifications");setManagerVerifications(r.data.data||[])}
+  catch(e){error(e)}
+ };
+ const openManagerVerification=async(v)=>{
+  try{const r=await axios.get(api+"/building-manager-verifications/"+v.id);
+   setReviewDetails(old=>({...old,[v.id]:r.data.data}));}
+  catch(e){error(e)}
+ };
+ const downloadManagerDocument=async(v,kind)=>{
+  try{
+   const r=await axios.get(api+"/building-manager-verifications/"+v.id+"/documents/"+kind,{responseType:"blob"});
+   const url=window.URL.createObjectURL(r.data);
+   const a=document.createElement("a");a.href=url;a.download=(kind==="identity"?"مدرک-هویتی-":"مدرک-تکمیلی-")+v.id;
+   document.body.appendChild(a);a.click();a.remove();
+   window.setTimeout(()=>window.URL.revokeObjectURL(url),60000);
+  }catch(e){error(e)}
+ };
+ const reviewManagerVerification=async(v,status)=>{
+  const note=(reviewNotes[v.id]||"").trim();
+  if(status==="rejected"&&note.length<5){NotificationManager.error("دلیل رد مدارک باید حداقل ۵ حرف باشد.");return;}
+  if(!window.confirm(status==="approved"?"پس از بررسی مدارک و تطبیق شبا، احراز هویت این مدیر تأیید شود؟":"آیا درخواست احراز هویت این مدیر رد شود؟"))return;
+  setBusy(true);
+  try{await axios.patch(api+"/building-manager-verifications/"+v.id,{status,review_note:note||null});ok("وضعیت احراز هویت ثبت شد.");await loadManagerVerifications()}
+  catch(e){error(e)}finally{setBusy(false)}
+ };
  const reload=async()=>{
   const sections=await Promise.allSettled([
    axios.get(api+"/settings"),
@@ -86,7 +115,7 @@ export default function CommunityAdmin({mode="buildings"}){
   if(section==="auctions"&&sections[3].status==="fulfilled")setAuctions(sections[3].value.data.data||[]);
   if(sections.some(x=>x.status==="rejected"))NotificationManager.error("بخشی از اطلاعات دریافت نشد؛ برای تلاش مجدد دکمه به‌روزرسانی را انتخاب کنید.");
  };
- useEffect(()=>{reload();if(section==="buildings")axios.get(adminPathApi+"/partner-panels",{params:{type:"building_manager",per_page:100}}).then(r=>setBuildingManagers(r.data.data?.data||[])).catch(()=>{});},[]);
+ useEffect(()=>{reload();if(section==="buildings")loadManagerVerifications();if(section==="buildings")axios.get(adminPathApi+"/partner-panels",{params:{type:"building_manager",per_page:100}}).then(r=>setBuildingManagers(r.data.data?.data||[])).catch(()=>{});},[]);
  useEffect(()=>{
   if(section!=="auctions"||!newAuction)return;
   let cancelled=false;
@@ -285,6 +314,36 @@ export default function CommunityAdmin({mode="buildings"}){
    <Button color="primary" onClick={saveSettings} disabled={busy}>ذخیره تنظیمات</Button>
   </CardBody></Card>}
   {<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
+  {section==="buildings"&&<Card style={{borderRadius:17,marginBottom:20,border:"1px solid #cde8f5",background:"linear-gradient(145deg,#f4fbff,#fff)"}}><CardBody>
+   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
+    <div><small style={{color:"#168ac3"}}>SPAD BUILDING MANAGER KYC</small><h3 style={{color:"#075f97",fontSize:19,margin:"6px 0"}}>بررسی احراز هویت مدیران ساختمان</h3>
+     <p style={{fontSize:12,color:"#7296ab",margin:0}}>مدارک صرفاً از مسیر مدیریت قابل دریافت‌اند. قبل از تأیید، هویت و مالکیت حساب شبای اعلام‌شده را بررسی کنید.</p>
+    </div><Button color="info" outline disabled={busy} onClick={loadManagerVerifications}>به‌روزرسانی درخواست‌ها</Button>
+   </div>
+   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(265px,1fr))",gap:13,marginTop:18}}>
+   {managerVerifications.map(v=><div key={v.id} style={{background:"#fff",border:"1px solid #dcecf6",borderRadius:13,padding:16}}>
+    <div style={{display:"flex",justifyContent:"space-between",gap:9}}><strong style={{fontSize:13,color:"#175e84"}}>{v.full_name}</strong>
+     <Badge color={v.status==="approved"?"success":v.status==="rejected"?"danger":"warning"}>{v.status==="approved"?"تأییدشده":v.status==="rejected"?"ردشده":"در انتظار بررسی"}</Badge></div>
+    <p style={{fontSize:11,color:"#648aa1",marginTop:9}}>پنل #{v.partner_panel_id} · کاربر #{v.user_id} · {v.mobile||"شماره نامشخص"}</p>
+    <p style={{fontSize:10,color:"#829eae"}}>ثبت: {dtime(v.created_at)}</p>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+     <Button color="info" outline size="sm" onClick={()=>openManagerVerification(v)}>مشخصات و شبا</Button>
+     <Button color="primary" outline size="sm" onClick={()=>downloadManagerDocument(v,"identity")}>دانلود مدرک هویتی</Button>
+     {v.support_document_present&&<Button color="secondary" outline size="sm" onClick={()=>downloadManagerDocument(v,"support")}>مدرک تکمیلی</Button>}
+    </div>
+    {reviewDetails[v.id]&&<div style={{marginTop:11,padding:10,borderRadius:9,background:"#eef9ff",fontSize:12,overflowWrap:"anywhere"}}><div>نام: {reviewDetails[v.id].full_name}</div><div dir="ltr" style={{textAlign:"right"}}>{reviewDetails[v.id].iban}</div></div>}
+    {v.status==="pending"&&<div style={{marginTop:12}}>
+     <Input type="textarea" rows={2} placeholder="دلیل رد یا توضیح بررسی" value={reviewNotes[v.id]||""} onChange={e=>setReviewNotes(p=>({...p,[v.id]:e.target.value}))}/>
+     <div style={{display:"flex",gap:8,marginTop:8}}>
+      <Button size="sm" color="success" disabled={busy||!reviewDetails[v.id]} onClick={()=>reviewManagerVerification(v,"approved")}>تأیید هویت</Button>
+      <Button size="sm" outline color="danger" disabled={busy} onClick={()=>reviewManagerVerification(v,"rejected")}>رد درخواست</Button>
+     </div>
+     {!reviewDetails[v.id]&&<small style={{color:"#b57b48"}}>ابتدا مشخصات و شماره شبا را بازبینی کنید.</small>}
+    </div>}
+   </div>)}
+   </div>
+   {!managerVerifications.length&&<p style={{fontSize:12,color:"#8298a9",marginTop:14}}>درخواستی برای بررسی ثبت نشده است.</p>}
+  </CardBody></Card>}
   {section==="buildings"&&<Card style={{borderRadius:16}}><CardBody>
    <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:15}}><div><h3 style={{color:"#086baf",fontSize:20}}>مدیریت ساختمان‌ها و واحدهای مسکونی</h3><p style={{fontSize:12}}>ایجاد ساختمان، تعیین مدیر همکاری، ثبت اطلاعات کامل مالکان و مستأجران و مدیریت وضعیت</p></div><Button color="primary" onClick={()=>openBuilding(null)}>+ افزودن ساختمان</Button></div>
    {buildingFormOpen&&<Card className="mb-3" style={{background:"#f5faff",border:"1px solid #d0e9fa"}}><CardBody><h4>{buildingEditing?"ویرایش ساختمان":"ثبت ساختمان جدید"}</h4>
