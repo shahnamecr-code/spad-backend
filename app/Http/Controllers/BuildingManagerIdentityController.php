@@ -55,7 +55,7 @@ class BuildingManagerIdentityController extends Controller {
   $iban=strtoupper(preg_replace('/\s+/','',$d['iban']));
   if(!$this->ibanValid($iban))throw ValidationException::withMessages(['iban'=>'شماره شبای بانکی معتبر نیست؛ ۲۴ رقم پس از IR را بررسی کنید.']);
   $existing=DB::table('spad_building_manager_verifications')->where('partner_panel_id',$p->id)->first();
-  abort_if($existing&&$existing->status==='approved',422,'پروفایل تأییدشده برای تغییر به بررسی پشتیبانی نیاز دارد.');
+  // Updating an approved identity reopens review and suspends privileged operations until approval.
   abort_if($existing&&$existing->status==='pending',422,'مدارک قبلاً ثبت و در انتظار بررسی هستند.');
   // Private local disk: documents must never be exposed by /storage or public URLs.
   $prefix='private/building-manager-verifications/'.$p->id;
