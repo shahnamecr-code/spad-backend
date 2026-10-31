@@ -12,6 +12,7 @@ Route::middleware('auth:sanctum')->group(function(){
  Route::get('building-management/mine',[Community::class,'myBuildings']);
  Route::post('building-management',[Community::class,'createBuilding'])->middleware('throttle:5,60');
  Route::get('building-management/{id}',[Community::class,'buildingDetail'])->whereNumber('id');
+ Route::patch('building-management/{id}/my-unit-payment-details',[Community::class,'updateMyUnitPaymentDetails'])->whereNumber('id')->middleware('throttle:10,1');
  Route::post('building-management/{id}/units',[Community::class,'addUnit'])->whereNumber('id');
  Route::post('building-management/{id}/join',[Community::class,'claimUnit'])->whereNumber('id')->middleware('throttle:5,60');
  Route::patch('building-management/{id}/units/{unitId}',[Community::class,'reviewUnit'])->whereNumber('id')->whereNumber('unitId');
