@@ -3,6 +3,10 @@ use App\Http\Controllers\SpadCommunityController as Community;
 use Illuminate\Support\Facades\Route;
 
 Route::get('community/settings',[Community::class,'adminSettings']);
+Route::get('community/building-manager-verifications',[\App\Http\Controllers\BuildingManagerIdentityController::class,'adminList']);
+Route::get('community/building-manager-verifications/{id}',[\App\Http\Controllers\BuildingManagerIdentityController::class,'adminShow'])->whereNumber('id');
+Route::get('community/building-manager-verifications/{id}/documents/{kind}',[\App\Http\Controllers\BuildingManagerIdentityController::class,'adminDocument'])->whereNumber('id')->where('kind','identity|support');
+Route::patch('community/building-manager-verifications/{id}',[\App\Http\Controllers\BuildingManagerIdentityController::class,'adminReview'])->whereNumber('id');
 Route::post('community/settings',[Community::class,'updateSettings']);
 Route::get('community/buildings',[Community::class,'adminBuildings']);
 Route::patch('community/buildings/{id}',[Community::class,'adminBuildingStatus'])->whereNumber('id');
