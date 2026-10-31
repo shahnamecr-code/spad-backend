@@ -48,7 +48,13 @@ class OnlineRenovationController extends Controller {
  }
  public function mine(Request $r){$this->ready();$uid=$this->uid($r);
   return response()->json(['data'=>DB::table('spad_renovation_projects')->where('user_id',$uid)
-   ->orderByDesc('id')->limit(100)->get()->map(function($p){return $this->row($p);})]);
+   ->orderByDesc('id')->limit(100)->get()->map(function($p){
+    $p=$this->row($p);
+    $p->media=DB::table('spad_renovation_media')->where('project_id',$p->id)
+      ->where('kind','output')->orderByDesc('id')
+      ->get(['id','kind','room','mime','created_at']);
+    return $p;
+   })]);
  }
  public function show(Request $r,$id){$this->ready();$p=$this->project($r,$id);
   return response()->json(['data'=>$this->detail($p)]);
