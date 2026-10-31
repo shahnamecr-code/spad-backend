@@ -67,6 +67,7 @@ const Wallets = React.lazy(() => import(/* webpackChunkName: "wallets" */'./wall
 const MortgageAdmin = React.lazy(() => import("./mortgage"));
 const MaterialsAdmin = React.lazy(() => import("./material-prices"));
 const CommunityAdmin = React.lazy(() => import("./community"));
+const PropertyAffairsAdmin = React.lazy(() => import("./property-affairs"));
 class CommunityPageErrorBoundary extends React.Component {
  constructor(props){super(props);this.state={hasError:false};}
  static getDerivedStateFromError(){return {hasError:true};}
