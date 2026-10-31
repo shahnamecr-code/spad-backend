@@ -37,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function(){
 Route::middleware('auth:sanctum')->prefix('building-partner')->group(function(){
  Route::get('{panelId}/buildings',[\App\Http\Controllers\BuildingManagerController::class,'index'])->whereNumber('panelId');
  Route::post('{panelId}/buildings',[\App\Http\Controllers\BuildingManagerController::class,'create'])->whereNumber('panelId');
+ Route::put('{panelId}/buildings/{id}',[\App\Http\Controllers\BuildingManagerController::class,'update'])->whereNumber('panelId')->whereNumber('id')->middleware('throttle:10,1');
+ Route::get('{panelId}/verification',[\App\Http\Controllers\BuildingManagerIdentityController::class,'status'])->whereNumber('panelId')->middleware('throttle:20,1');
+ Route::post('{panelId}/verification',[\App\Http\Controllers\BuildingManagerIdentityController::class,'submit'])->whereNumber('panelId')->middleware('throttle:4,60');
  Route::get('{panelId}/buildings/{id}',[\App\Http\Controllers\BuildingManagerController::class,'detail'])->whereNumber('panelId')->whereNumber('id');
  Route::post('{panelId}/buildings/{id}/units',[\App\Http\Controllers\BuildingManagerController::class,'addUnit'])->whereNumber('panelId')->whereNumber('id');
  Route::put('{panelId}/buildings/{id}/units/{unitId}',[\App\Http\Controllers\BuildingManagerController::class,'updateUnit'])->whereNumber('panelId')->whereNumber('id')->whereNumber('unitId');
