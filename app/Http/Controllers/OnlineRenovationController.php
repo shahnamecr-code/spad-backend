@@ -14,7 +14,7 @@ class OnlineRenovationController extends Controller {
   abort_unless(Schema::hasTable('spad_renovation_projects')&&Schema::hasTable('spad_renovation_media')&&Schema::hasTable('spad_renovation_rates'),503,'سرویس بازسازی در حال راه‌اندازی است.');
  }
  private function uid(Request $r){$id=optional($r->user())->id;abort_unless($id,401,'ابتدا وارد حساب شوید.');return (int)$id;}
- private function admin(){abort_unless(auth('admin')->check()&&in_array((string)(auth('admin')->user()->role??''),['1','admin','superadmin',''],true),403);}
+ private function admin(){abort_unless(auth('admin')->check(),403,'دسترسی ادمین لازم است.');}
  private function project(Request $r,$id,$admin=false){
   $q=DB::table('spad_renovation_projects')->where('id',$id);
   if(!$admin)$q->where('user_id',$this->uid($r));
@@ -163,6 +163,23 @@ class OnlineRenovationController extends Controller {
     'kind'=>'output','room'=>$d['room']??'خروجی نهایی','path'=>$path,'mime'=>'image/jpeg',
     'bytes'=>strlen($rendered),'created_at'=>now(),'updated_at'=>now()]);
   return response()->json(['data'=>['id'=>$idOut,'url'=>url('/api/online-renovation/'.$p->id.'/media/'.$idOut)]],201);
+ }
+ public function adminMedia($id,$mediaId){
+  $this->ready();$this->admin();
+  $m=DB::table('spad_renovation_media')->where('id',$mediaId)->where('project_id',$id)->first();
+  abort_unless($m&&Storage::disk('local')->exists($m->path),404);
+  return Storage::disk('local')->download($m->path,'SPAD-'.((int)$id).'-'.((int)$mediaId).'.'.($m->mime==='image/png'?'png':'jpg'),[
+   'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff'
+  ]);
+ }
+ public function adminProject(Request $r,$id){
+  $this->ready();$this->admin();
+  $p=$this->project($r,$id,true);
+  $p=$this->detail($p);
+  $p->media=$p->media->map(function($m)use($id){
+    $m->url=url('/api/admin/online-renovation/projects/'.$id.'/media/'.$m->id);return $m;
+  });
+  return response()->json(['data'=>$p]);
  }
  public function adminProjects(Request $r){$this->ready();$this->admin();
   $items=DB::table('spad_renovation_projects')->orderByDesc('id')->limit(250)->get()
