@@ -347,6 +347,73 @@ class SpadCommunityController extends Controller
   abort_unless(DB::table('spad_buildings')->where('id',$id)->update(array_merge($d,['updated_at'=>now()])),404);
   return response()->json(['message'=>'وضعیت ساختمان ثبت شد.']);
  }
+ public function adminCreateBuilder(Request $r)
+ {
+  $this->admin();
+  $d=$r->validate([
+   'name'=>'required|string|min:3|max:180','city'=>'required|string|max:110',
+   'headline'=>'nullable|string|max:220','biography'=>'nullable|string|max:7000',
+   'experience_years'=>'required|integer|min:0|max:90',
+   'completed_projects'=>'required|integer|min:0|max:10000',
+   'logo_url'=>$this->urlRule(),'activity_area'=>'nullable|string|max:250',
+   'building_names'=>'nullable|string|max:2000',
+   'rank_priority'=>'required|integer|min:1|max:10000',
+   'published'=>'required|boolean'
+  ]);
+  $id=DB::table('spad_builder_profiles')->insertGetId(array_merge($d,[
+   'user_id'=>null,'verified'=>false,'created_at'=>now(),'updated_at'=>now()
+  ]));
+  return response()->json(['id'=>$id,'message'=>'سازنده ایجاد شد.'],201);
+ }
+ public function adminEditBuilder(Request $r,$id)
+ {
+  $this->admin();
+  $d=$r->validate([
+   'name'=>'required|string|min:3|max:180','city'=>'required|string|max:110',
+   'headline'=>'nullable|string|max:220','biography'=>'nullable|string|max:7000',
+   'experience_years'=>'required|integer|min:0|max:90',
+   'completed_projects'=>'required|integer|min:0|max:10000',
+   'logo_url'=>$this->urlRule(),'activity_area'=>'nullable|string|max:250',
+   'building_names'=>'nullable|string|max:2000',
+   'rank_priority'=>'required|integer|min:1|max:10000',
+   'published'=>'required|boolean','verified'=>'required|boolean'
+  ]);
+  abort_unless(DB::table('spad_builder_profiles')->where('id',$id)->update(array_merge($d,['updated_at'=>now()])),404);
+  return response()->json(['message'=>'اطلاعات سازنده ذخیره شد.']);
+ }
+ public function adminDeleteBuilder($id)
+ {
+  $this->admin();
+  DB::transaction(function()use($id){
+   $b=DB::table('spad_builder_profiles')->where('id',$id)->lockForUpdate()->first();
+   abort_unless($b,404);
+   DB::table('spad_builder_projects')->where('builder_id',$id)->delete();
+   DB::table('spad_builder_profiles')->where('id',$id)->delete();
+  });
+  return response()->json(['message'=>'رزومه و نمونه‌کارها حذف شدند.']);
+ }
+ public function adminAddBuilderProject(Request $r,$id)
+ {
+  $this->admin();
+  abort_unless(DB::table('spad_builder_profiles')->where('id',$id)->exists(),404);
+  $d=$r->validate(['title'=>'required|string|max:180','city'=>'required|string|max:110',
+   'description'=>'nullable|string|max:3000','image_url'=>$this->urlRule(),
+   'completed_year'=>'nullable|integer|min:1300|max:2200']);
+  abort_if(DB::table('spad_builder_projects')->where('builder_id',$id)->count()>=40,422,'سقف ۴۰ پروژه تکمیل شده است.');
+  DB::table('spad_builder_projects')->insert(array_merge($d,['builder_id'=>$id,'created_at'=>now(),'updated_at'=>now()]));
+  return response()->json(['message'=>'نمونه‌کار افزوده شد.'],201);
+ }
+ public function adminDeleteBuilderProject($id,$projectId)
+ {
+  $this->admin();
+  abort_unless(DB::table('spad_builder_projects')->where('builder_id',$id)->where('id',$projectId)->delete(),404);
+  return response()->json(['message'=>'نمونه‌کار حذف شد.']);
+ }
+ public function adminBuilderProjects($id)
+ {
+  $this->admin();
+  return response()->json(['data'=>DB::table('spad_builder_projects')->where('builder_id',$id)->orderByDesc('id')->get()]);
+ }
  public function adminBuilders()
  {
   $this->admin();
@@ -360,6 +427,22 @@ class SpadCommunityController extends Controller
   ]);
   abort_unless(DB::table('spad_builder_profiles')->where('id',$id)->update(array_merge($d,['updated_at'=>now()])),404);
   return response()->json(['message'=>'تأیید، انتشار و اولویت نمایش سازنده ذخیره شد.']);
+ }
+ public function adminCreateAuction(Request $r)
+ {
+  $this->admin();
+  $d=$r->validate([
+   'title'=>'required|string|min:8|max:220','city'=>'required|string|max:110',
+   'district'=>'nullable|string|max:180','description'=>'required|string|min:30|max:7000',
+   'image_url'=>$this->urlRule(),'opening_bid_toman'=>'required|integer|min:1000000|max:999999999999999',
+   'minimum_increment_toman'=>'required|integer|min:1000000|max:999999999999',
+   'advertisement_id'=>'nullable|integer|exists:advertisements,id'
+  ]);
+  // New auctions are held for owner-document verification before publishing.
+  $id=DB::table('spad_property_auctions')->insertGetId(array_merge($d,[
+   'owner_user_id'=>null,'status'=>'review','created_at'=>now(),'updated_at'=>now()
+  ]));
+  return response()->json(['id'=>$id,'message'=>'مزایده به صورت پیش‌نویس ثبت شد؛ پیش از انتشار مدارک مالکیت را کنترل کنید.'],201);
  }
  public function adminAuctions()
  {
