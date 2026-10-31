@@ -29,3 +29,17 @@ Route::middleware('auth:sanctum')->group(function(){
  Route::post('property-auctions',[Community::class,'proposeAuction'])->middleware('throttle:4,60');
  Route::post('property-auctions/{id}/bids',[Community::class,'bid'])->whereNumber('id')->middleware('throttle:8,1');
 });
+
+Route::middleware('auth:sanctum')->prefix('building-partner')->group(function(){
+ Route::get('{panelId}/buildings',[\App\Http\Controllers\BuildingManagerController::class,'index'])->whereNumber('panelId');
+ Route::post('{panelId}/buildings',[\App\Http\Controllers\BuildingManagerController::class,'create'])->whereNumber('panelId');
+ Route::get('{panelId}/buildings/{id}',[\App\Http\Controllers\BuildingManagerController::class,'detail'])->whereNumber('panelId')->whereNumber('id');
+ Route::post('{panelId}/buildings/{id}/units',[\App\Http\Controllers\BuildingManagerController::class,'addUnit'])->whereNumber('panelId')->whereNumber('id');
+ Route::put('{panelId}/buildings/{id}/units/{unitId}',[\App\Http\Controllers\BuildingManagerController::class,'updateUnit'])->whereNumber('panelId')->whereNumber('id')->whereNumber('unitId');
+ Route::delete('{panelId}/buildings/{id}/units/{unitId}',[\App\Http\Controllers\BuildingManagerController::class,'deleteUnit'])->whereNumber('panelId')->whereNumber('id')->whereNumber('unitId');
+ Route::post('{panelId}/buildings/{id}/charges',[\App\Http\Controllers\BuildingManagerController::class,'charge'])->whereNumber('panelId')->whereNumber('id');
+ Route::patch('{panelId}/buildings/{id}/charges/{chargeId}',[\App\Http\Controllers\BuildingManagerController::class,'chargeStatus'])->whereNumber('panelId')->whereNumber('id');
+ Route::post('{panelId}/buildings/{id}/expenses',[\App\Http\Controllers\BuildingManagerController::class,'expense'])->whereNumber('panelId')->whereNumber('id');
+ Route::post('{panelId}/buildings/{id}/bills',[\App\Http\Controllers\BuildingManagerController::class,'bill'])->whereNumber('panelId')->whereNumber('id');
+ Route::patch('{panelId}/buildings/{id}/bills/{billId}',[\App\Http\Controllers\BuildingManagerController::class,'billStatus'])->whereNumber('panelId')->whereNumber('id');
+});
