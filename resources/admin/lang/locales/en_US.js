@@ -825,4 +825,5 @@ module.exports = {
   "menu.building-management": "مدیریت ساختمان",
   "menu.top-builders": "سازندگان برتر",
   "menu.property-auctions": "مزایده ملک",
+  "menu.property-affairs": "امور ملکی",
 };
