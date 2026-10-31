@@ -14,6 +14,7 @@ class PartnerPanel extends Model
     const TYPE_DEVELOPER = 'developer';
     const TYPE_ENGINEERING_ORGANIZATION = 'engineering_organization';
     const TYPE_INVESTOR = 'investor';
+    const TYPE_BUILDING_MANAGER = 'building_manager';
 
     const STATUS_ACTIVE = 'active';
     const STATUS_SUSPENDED = 'suspended';
@@ -44,6 +45,7 @@ class PartnerPanel extends Model
             self::TYPE_DEVELOPER => 'سازندگان',
             self::TYPE_ENGINEERING_ORGANIZATION => 'دفاتر نظام مهندسی',
             self::TYPE_INVESTOR => 'سرمایه‌گذاران',
+            self::TYPE_BUILDING_MANAGER => 'مدیر ساختمان',
         ];
     }
 
