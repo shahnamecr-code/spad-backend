@@ -421,7 +421,7 @@ export default function CommunityAdmin({mode="buildings"}){
         {p.status==="held"&&<Button size="sm" outline color="success" disabled={busy} onClick={()=>refundAuctionDeposit(x,p)}>بازگشت به کیف پول</Button>}
         {p.status==="refunded"&&<small>{p.refund_reason||"بازپرداخت ثبت‌شده"}</small>}
        </div>):<p style={{fontSize:11}}>ودیعه‌ای برای این مزایده ثبت نشده است.</p>}
-      </div>
+      </div>}
       {bids[x.id]&&<div style={{marginTop:8,minWidth:180,maxHeight:190,overflowY:"auto",fontSize:11}}>{bids[x.id].length?bids[x.id].map(b=><div key={b.id}>{money(b.amount_toman)} | کاربر {b.user_id} | {dtime(b.created_at)}</div>):"پیشنهادی ثبت نشده"}</div>}
     </td>
    </tr>})}
