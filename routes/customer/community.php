@@ -30,6 +30,8 @@ Route::middleware('auth:sanctum')->group(function(){
  Route::get('property-auctions/{id}/my-bids',[Community::class,'myAuctionBids'])->whereNumber('id')->middleware('throttle:30,1');
  Route::post('property-auctions',[Community::class,'proposeAuction'])->middleware('throttle:4,60');
  Route::post('property-auctions/{id}/bids',[Community::class,'bid'])->whereNumber('id')->middleware('throttle:8,1');
+ Route::get('property-auctions/{id}/participation',[\App\Http\Controllers\AuctionParticipationController::class,'status'])->whereNumber('id')->middleware('throttle:30,1');
+ Route::post('property-auctions/{id}/participation',[\App\Http\Controllers\AuctionParticipationController::class,'join'])->whereNumber('id')->middleware('throttle:4,1');
 });
 
 Route::middleware('auth:sanctum')->prefix('building-partner')->group(function(){
