@@ -10,7 +10,7 @@ const dtime=(v)=>v?String(v).replace("T"," ").slice(0,19):"—";
 const statuses={pending:"در انتظار بررسی",approved:"فعال",rejected:"رد شده",suspended:"تعلیق",review:"نیازمند بررسی",published:"منتشر شده",paused:"متوقف",closed:"پایان یافته"};
 const money=(v)=>fmt(v)+" تومان";
 const initial={buildings_enabled:true,builders_enabled:true,auctions_enabled:true,minimum_bid_increment:10000000,auction_notice:"ثبت پیشنهاد صرفاً اعلام علاقه‌مندی است و انتقال مالکیت نیازمند قرارداد قانونی جداگانه است."};
-const error=(e)=>NotificationManager.error(e.response?.data?.message||"خطا در ارتباط با سرور");
+const error=(e)=>{const details=e.response?.data?.errors;const first=details&&Object.values(details).flat()[0];NotificationManager.error(first||e.response?.data?.message||"خطا در ارتباط با سرور");};
 const ok=(msg)=>NotificationManager.success(msg);
 const timeInput=(x)=>x?String(x).slice(0,19).replace("T"," "):"";
 const CommonHeading=({title,desc})=><div style={{background:"linear-gradient(110deg,#075995,#0d9bcf)",borderRadius:18,padding:"20px 24px",color:"#fff",marginBottom:20}}>
@@ -89,13 +89,13 @@ export default function CommunityAdmin({mode="buildings"}){
    ok("وضعیت مزایده ذخیره شد");await reload();
   }catch(e){error(e)}finally{setBusy(false)}
  };
- const openBuilder=(b)=>{setEditBuilder(b?b.id:null);setBuilderForm(b?{...blankBuilder,...b}:blankBuilder);setNewBuilder(true)};
- const saveBuilder=async()=>{setBusy(true);try {
+ const openBuilder=(b)=>{setEditBuilder(b?b.id:null);setBuilderForm(b?{...blankBuilder,...b}:{...blankBuilder});setNewBuilder(true);window.requestAnimationFrame(()=>document.getElementById("builder-editor")?.scrollIntoView({behavior:"smooth",block:"start"}));};
+ const saveBuilder=async()=>{if(!builderForm.name.trim()){NotificationManager.error("نام سازنده را وارد کنید.");return;}setBusy(true);try {
   const p={...builderForm,experience_years:Number(builderForm.experience_years),completed_projects:Number(builderForm.completed_projects),
    rank_priority:Number(builderForm.rank_priority),published:!!builderForm.published,verified:!!builderForm.verified};
   if(editBuilder)await axios.put(api+"/builders/"+editBuilder,p);
   else await axios.post(api+"/builders",p);
-  ok("اطلاعات سازنده ذخیره شد");setNewBuilder(false);await reload();
+  ok(editBuilder?"اطلاعات سازنده ویرایش شد":"سازنده جدید با موفقیت اضافه شد");setNewBuilder(false);setEditBuilder(null);await reload();
  }catch(e){error(e)}finally{setBusy(false)}};
  const uploadBuilderPhoto=async(file)=>{
   if(!file)return;
@@ -110,8 +110,8 @@ export default function CommunityAdmin({mode="buildings"}){
    ok("تصویر بارگذاری شد");
   }catch(e){error(e)}finally{setUploading(false)}
  };
- const deleteBuilder=async(b)=>{if(!window.confirm("سازنده و همه نمونه‌کارهای او حذف شوند؟"))return;
-  try{await axios.delete(api+"/builders/"+b.id);ok("سازنده حذف شد");await reload()}catch(e){error(e)}
+ const deleteBuilder=async(b)=>{if(!window.confirm(`آیا از حذف «${b.name}» و تمام نمونه‌کارهای او مطمئن هستید؟ این عملیات قابل بازگشت نیست.`))return;
+  setBusy(true);try{await axios.delete(api+"/builders/"+b.id);if(editBuilder===b.id){setNewBuilder(false);setEditBuilder(null);}if(projectFor?.id===b.id)setProjectFor(null);ok("سازنده و نمونه‌کارهای او حذف شدند");await reload()}catch(e){error(e)}finally{setBusy(false)}
  };
  const openProjects=async(b)=>{setProjectFor(b);setProjectDraft({title:"",city:b.city||"",description:"",image_url:"",completed_year:""});
   try{const r=await axios.get(api+"/builders/"+b.id+"/projects");setProjects(r.data.data||[])}catch(e){error(e)}
@@ -137,6 +137,7 @@ export default function CommunityAdmin({mode="buildings"}){
  return <div className="container-fluid" dir="rtl" style={{paddingBottom:60}}>
   <CommonHeading title={section==="buildings"?"مدیریت ساختمان‌های اسپاد":section==="builders"?"باشگاه سازندگان برتر اسپاد":"مرکز مدیریت مزایده ملک"}
    desc="تأیید محتوا، مدیریت فعالیت‌ها و کنترل تنظیمات از سامانه یکپارچه اسپاد"/>
+  {section==="builders"&&<Card style={{borderRadius:16,border:"1px solid #cee8f8",marginBottom:18}}><CardBody style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><h3 style={{fontSize:18,color:"#075c98",marginBottom:5}}>افزودن و مدیریت سازندگان برتر</h3><p style={{margin:0,fontSize:12,color:"#5f7c94"}}>از این قسمت سازنده جدید ثبت کنید یا از فهرست پایین، سازندگان را ویرایش و حذف کنید. نمایش عمومی فقط پس از انتشار فعال می‌شود.</p></div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}><Button color="primary" disabled={busy} onClick={()=>openBuilder(null)}>+ افزودن سازنده جدید</Button><Button color="light" disabled={busy} onClick={reload}>به‌روزرسانی فهرست</Button></div></CardBody></Card>}
   <Row><Kpi title="ساختمان‌های ثبت‌شده" value={buildings.length}/><Kpi title="رزومه‌های سازندگان" value={builders.length}/><Kpi title="مزایده‌های ثبت‌شده" value={auctions.length}/></Row>
   {<Card style={{borderRadius:16,marginBottom:18}}><CardBody>
    <h3 style={{fontSize:17}}>تنظیمات اختصاصی {section==="buildings"?"مدیریت ساختمان":section==="builders"?"سازندگان برتر":"مزایده ملک"}</h3>
@@ -166,13 +167,13 @@ export default function CommunityAdmin({mode="buildings"}){
   </CardBody></Card>}
   {section==="builders"&&<Card><CardBody>
    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:18}}><div><h3 style={{margin:0,fontSize:19,color:"#075c98"}}>مدیریت سازندگان برتر شیراز</h3><small>ثبت سازنده، رزومه، تصویر و نمونه‌کارها</small></div><div><Button color="primary" onClick={()=>openBuilder(null)}>+ افزودن سازنده جدید</Button>{" "}<Button color="light" onClick={reload}>به‌روزرسانی</Button></div></div>
-   {newBuilder&&<Card className="mb-3"><CardBody><h4>{editBuilder?"ویرایش رزومه سازنده":"ثبت سازنده جدید"}</h4>
+   {newBuilder&&<Card id="builder-editor" className="mb-3" style={{border:"1px solid #b6ddf2",borderRadius:14}}><CardBody><h4>{editBuilder?"ویرایش رزومه سازنده":"ثبت سازنده جدید"}</h4>
     <Row>{[["name","نام و نام خانوادگی"],["city","شهر"],["activity_area","محدوده فعالیت"],["building_names","نام ساختمان‌ها و پروژه‌ها"],["experience_years","سال‌های فعالیت"],["completed_projects","تعداد پروژه"],["headline","عنوان حرفه‌ای"],["logo_url","آدرس HTTPS تصویر / لوگو"],["rank_priority","اولویت نمایش"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input type={["experience_years","completed_projects","rank_priority"].includes(key)?"number":"text"} value={builderForm[key]||""} onChange={e=>setBuilderForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
     <FormGroup><Label>عکس یا لوگوی سازنده</Label><Input type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading} onChange={e=>uploadBuilderPhoto(e.target.files&&e.target.files[0])}/><small>{uploading?"در حال آپلود تصویر...":"عکس را از دستگاه انتخاب کنید (حداکثر ۵ مگابایت) یا آدرس HTTPS تصویر را در بالا وارد کنید."}</small>{builderForm.logo_url&&<div style={{marginTop:10}}><img src={builderForm.logo_url} alt="پیش‌نمایش عکس سازنده" style={{width:110,height:110,objectFit:"cover",borderRadius:15}}/></div>}</FormGroup>
     <FormGroup><Label>رزومه و سوابق تخصصی</Label><Input type="textarea" rows={5} value={builderForm.biography||""} onChange={e=>setBuilderForm(v=>({...v,biography:e.target.value}))}/></FormGroup>
     <Label check className="mr-3"><Input type="checkbox" checked={!!builderForm.published} onChange={e=>setBuilderForm(v=>({...v,published:e.target.checked}))}/> انتشار عمومی</Label>
     {editBuilder&&<Label check className="mr-3"><Input type="checkbox" checked={!!builderForm.verified} onChange={e=>setBuilderForm(v=>({...v,verified:e.target.checked}))}/> تأیید مدیریت</Label>}
-    <div className="mt-3"><Button color="primary" disabled={busy||uploading} onClick={saveBuilder}>ذخیره رزومه</Button>{" "}<Button color="light" onClick={()=>setNewBuilder(false)}>انصراف</Button></div>
+    <div className="mt-3"><Button color="primary" disabled={busy||uploading} onClick={saveBuilder}>{busy?"در حال ذخیره...":editBuilder?"ذخیره تغییرات سازنده":"ثبت سازنده جدید"}</Button>{" "}<Button color="light" onClick={()=>setNewBuilder(false)}>انصراف</Button></div>
    </CardBody></Card>}
    {projectFor&&<Card className="mb-3"><CardBody><h4>نمونه‌کارهای {projectFor.name}</h4>
      {projects.map(p=><p key={p.id}><strong>{p.title}</strong> — {p.city} <Button size="sm" color="danger" outline onClick={()=>removeProject(p)}>حذف</Button></p>)}
@@ -191,7 +192,7 @@ export default function CommunityAdmin({mode="buildings"}){
     <td><Button size="sm" color="primary" disabled={busy} onClick={()=>updateBuilder(x)}>ذخیره وضعیت</Button>{" "}
      <Button size="sm" color="info" outline onClick={()=>openBuilder(x)}>ویرایش</Button>{" "}
      <Button size="sm" color="secondary" outline onClick={()=>openProjects(x)}>نمونه‌کارها</Button>{" "}
-     <Button size="sm" color="danger" outline onClick={()=>deleteBuilder(x)}>حذف</Button>
+     <Button size="sm" color="danger" outline disabled={busy} onClick={()=>deleteBuilder(x)}>حذف</Button>
      <a className="d-block mt-1" href={"https://spad.estate/top-builders/"+x.id} target="_blank" rel="noopener noreferrer">صفحه اختصاصی</a></td>
    </tr>})}
    </tbody></Table>{!builders.length&&<p>هنوز رزومه‌ای ثبت نشده است.</p>}
