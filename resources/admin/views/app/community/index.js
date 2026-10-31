@@ -28,26 +28,30 @@ export default function CommunityAdmin({mode="buildings"}){
  const [auctionDrafts,setAuctionDrafts]=useState({});
  const [builderDrafts,setBuilderDrafts]=useState({});
  const [busy,setBusy]=useState(false);
+ const [uploading,setUploading]=useState(false);
  const [editBuilder,setEditBuilder]=useState(null);
  const [newBuilder,setNewBuilder]=useState(false);
  const [projectFor,setProjectFor]=useState(null);
  const [projects,setProjects]=useState([]);
  const [projectDraft,setProjectDraft]=useState({title:"",city:"",description:"",image_url:"",completed_year:""});
  const [newAuction,setNewAuction]=useState(false);
- const blankBuilder={name:"",city:"",headline:"",biography:"",activity_area:"",building_names:"",experience_years:0,completed_projects:0,logo_url:"",published:false,verified:false,rank_priority:1000};
+ const blankBuilder={name:"",city:"شیراز",headline:"",biography:"",activity_area:"",building_names:"",experience_years:0,completed_projects:0,logo_url:"",published:false,verified:false,rank_priority:1000};
  const blankAuction={title:"",city:"",district:"",description:"",image_url:"",opening_bid_toman:"",minimum_increment_toman:10000000,advertisement_id:""};
  const [auctionForm,setAuctionForm]=useState(blankAuction);
  const [builderForm,setBuilderForm]=useState(blankBuilder);
  const [search,setSearch]=useState("");
  const reload=async()=>{
-  try{
-   const [cfg,b,br,a]=await Promise.all([
-    axios.get(api+"/settings"),axios.get(api+"/buildings"),
-    axios.get(api+"/builders"),axios.get(api+"/auctions")
-   ]);
-   setSettings({...initial,...(cfg.data.data||{})});
-   setBuildings(b.data.data||[]);setBuilders(br.data.data||[]);setAuctions(a.data.data||[]);
-  }catch(e){error(e)}
+  const sections=await Promise.allSettled([
+   axios.get(api+"/settings"),
+   section==="buildings"?axios.get(api+"/buildings"):Promise.resolve(null),
+   section==="builders"?axios.get(api+"/builders"):Promise.resolve(null),
+   section==="auctions"?axios.get(api+"/auctions"):Promise.resolve(null)
+  ]);
+  if(sections[0].status==="fulfilled")setSettings({...initial,...(sections[0].value.data.data||{})});
+  if(section==="buildings"&&sections[1].status==="fulfilled")setBuildings(sections[1].value.data.data||[]);
+  if(section==="builders"&&sections[2].status==="fulfilled")setBuilders(sections[2].value.data.data||[]);
+  if(section==="auctions"&&sections[3].status==="fulfilled")setAuctions(sections[3].value.data.data||[]);
+  if(sections.some(x=>x.status==="rejected"))NotificationManager.error("بخشی از اطلاعات دریافت نشد؛ برای تلاش مجدد دکمه به‌روزرسانی را انتخاب کنید.");
  };
  useEffect(()=>{reload()},[]);
 
@@ -93,6 +97,19 @@ export default function CommunityAdmin({mode="buildings"}){
   else await axios.post(api+"/builders",p);
   ok("اطلاعات سازنده ذخیره شد");setNewBuilder(false);await reload();
  }catch(e){error(e)}finally{setBusy(false)}};
+ const uploadBuilderPhoto=async(file)=>{
+  if(!file)return;
+  if(!["image/jpeg","image/png","image/webp"].includes(file.type)||file.size>5*1024*1024){
+   NotificationManager.error("فقط تصویر JPG، PNG یا WebP تا ۵ مگابایت مجاز است.");return;
+  }
+  setUploading(true);
+  try{
+   const body=new FormData();body.append("image",file);
+   const result=await axios.post(api+"/builders/upload-image",body,{headers:{"Content-Type":"multipart/form-data"}});
+   setBuilderForm(v=>({...v,logo_url:result.data.url}));
+   ok("تصویر بارگذاری شد");
+  }catch(e){error(e)}finally{setUploading(false)}
+ };
  const deleteBuilder=async(b)=>{if(!window.confirm("سازنده و همه نمونه‌کارهای او حذف شوند؟"))return;
   try{await axios.delete(api+"/builders/"+b.id);ok("سازنده حذف شد");await reload()}catch(e){error(e)}
  };
@@ -139,7 +156,7 @@ export default function CommunityAdmin({mode="buildings"}){
   {section==="buildings"&&<Card><CardBody><h4>بررسی درخواست‌های ساختمان</h4><Table responsive hover>
    <thead><tr><th>شناسه</th><th>ساختمان و شهر</th><th>مدیر کاربر</th><th>تعداد واحد</th><th>وضعیت</th><th>تغییر وضعیت</th></tr></thead>
    <tbody>{filtered(buildings).map(x=><tr key={x.id}>
-    <td>{x.id}</td><td><strong>{x.name}</strong><div style={{fontSize:11,color:"#779"}}>{x.city} - {x.address}</div></td>
+    <td>{x.id}</td><td><div style={{display:"flex",gap:9,alignItems:"center"}}>{x.logo_url&&<img src={x.logo_url} alt="" style={{width:38,height:38,borderRadius:10,objectFit:"cover"}}/>}<strong>{x.name}</strong></div><div style={{fontSize:11,color:"#779"}}>{x.city} - {x.address}</div></td>
     <td>{x.owner_user_id}</td><td>{fmt(x.unit_count)}</td><td>{statuses[x.status]||x.status}</td>
     <td><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
      {["approved","suspended","rejected"].map(st=><Button key={st} size="sm" color={st==="approved"?"primary":"secondary"} outline={x.status!==st} onClick={()=>updateBuilding(x,st)}>{statuses[st]}</Button>)}
@@ -148,13 +165,14 @@ export default function CommunityAdmin({mode="buildings"}){
    {!buildings.length&&<p>هنوز ساختمانی ثبت نشده است.</p>}
   </CardBody></Card>}
   {section==="builders"&&<Card><CardBody>
-   <Button color="primary" className="mb-3" onClick={()=>openBuilder(null)}>+ افزودن سازنده</Button>
+   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:18}}><div><h3 style={{margin:0,fontSize:19,color:"#075c98"}}>مدیریت سازندگان برتر شیراز</h3><small>ثبت سازنده، رزومه، تصویر و نمونه‌کارها</small></div><div><Button color="primary" onClick={()=>openBuilder(null)}>+ افزودن سازنده جدید</Button>{" "}<Button color="light" onClick={reload}>به‌روزرسانی</Button></div></div>
    {newBuilder&&<Card className="mb-3"><CardBody><h4>{editBuilder?"ویرایش رزومه سازنده":"ثبت سازنده جدید"}</h4>
     <Row>{[["name","نام و نام خانوادگی"],["city","شهر"],["activity_area","محدوده فعالیت"],["building_names","نام ساختمان‌ها و پروژه‌ها"],["experience_years","سال‌های فعالیت"],["completed_projects","تعداد پروژه"],["headline","عنوان حرفه‌ای"],["logo_url","آدرس HTTPS تصویر / لوگو"],["rank_priority","اولویت نمایش"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input type={["experience_years","completed_projects","rank_priority"].includes(key)?"number":"text"} value={builderForm[key]||""} onChange={e=>setBuilderForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    <FormGroup><Label>عکس یا لوگوی سازنده</Label><Input type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading} onChange={e=>uploadBuilderPhoto(e.target.files&&e.target.files[0])}/><small>{uploading?"در حال آپلود تصویر...":"عکس را از دستگاه انتخاب کنید (حداکثر ۵ مگابایت) یا آدرس HTTPS تصویر را در بالا وارد کنید."}</small>{builderForm.logo_url&&<div style={{marginTop:10}}><img src={builderForm.logo_url} alt="پیش‌نمایش عکس سازنده" style={{width:110,height:110,objectFit:"cover",borderRadius:15}}/></div>}</FormGroup>
     <FormGroup><Label>رزومه و سوابق تخصصی</Label><Input type="textarea" rows={5} value={builderForm.biography||""} onChange={e=>setBuilderForm(v=>({...v,biography:e.target.value}))}/></FormGroup>
     <Label check className="mr-3"><Input type="checkbox" checked={!!builderForm.published} onChange={e=>setBuilderForm(v=>({...v,published:e.target.checked}))}/> انتشار عمومی</Label>
     {editBuilder&&<Label check className="mr-3"><Input type="checkbox" checked={!!builderForm.verified} onChange={e=>setBuilderForm(v=>({...v,verified:e.target.checked}))}/> تأیید مدیریت</Label>}
-    <div className="mt-3"><Button color="primary" disabled={busy} onClick={saveBuilder}>ذخیره رزومه</Button>{" "}<Button color="light" onClick={()=>setNewBuilder(false)}>انصراف</Button></div>
+    <div className="mt-3"><Button color="primary" disabled={busy||uploading} onClick={saveBuilder}>ذخیره رزومه</Button>{" "}<Button color="light" onClick={()=>setNewBuilder(false)}>انصراف</Button></div>
    </CardBody></Card>}
    {projectFor&&<Card className="mb-3"><CardBody><h4>نمونه‌کارهای {projectFor.name}</h4>
      {projects.map(p=><p key={p.id}><strong>{p.title}</strong> — {p.city} <Button size="sm" color="danger" outline onClick={()=>removeProject(p)}>حذف</Button></p>)}
