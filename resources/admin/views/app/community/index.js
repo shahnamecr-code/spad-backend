@@ -1,6 +1,7 @@
 import React,{useEffect,useState} from "react";
 import axios from "axios";
-import {Card,CardBody,Button,Input,Label,FormGroup,Row,Col,Table,Badge} from "reactstrap";
+import {Card,CardBody,Button,Input,Label,FormGroup,Row,Col,Table,Badge,Modal,ModalHeader,ModalBody,ModalFooter} from "reactstrap";
+import AuctionDateTimeFields,{normalizeAuctionTime,persianAuctionTime,validAuctionTimeRange} from "./AuctionDateTimeFields";
 import {adminPathApi} from "../../../constants/defaultValues";
 import {NotificationManager} from "../../../components/common/react-notifications";
 
@@ -25,7 +26,7 @@ const unitDeedFields=[
 const initial={buildings_enabled:true,builders_enabled:true,auctions_enabled:true,minimum_bid_increment:10000000,auction_notice:"ثبت پیشنهاد صرفاً اعلام علاقه‌مندی است و انتقال مالکیت نیازمند قرارداد قانونی جداگانه است."};
 const error=(e)=>{const details=e.response?.data?.errors;const first=details&&Object.values(details).flat()[0];NotificationManager.error(first||e.response?.data?.message||"خطا در ارتباط با سرور");};
 const ok=(msg)=>NotificationManager.success(msg);
-const timeInput=(x)=>x?String(x).slice(0,19).replace("T"," "):"";
+const timeInput=normalizeAuctionTime;
 const CommonHeading=({title,desc})=><div style={{background:"linear-gradient(110deg,#075995,#0d9bcf)",borderRadius:18,padding:"20px 24px",color:"#fff",marginBottom:20}}>
  <small style={{opacity:.8}}>SPAD OPERATIONS COMMAND CENTER</small>
  <h2 style={{color:"#fff",fontSize:22,margin:"8px 0"}}>{title}</h2>
@@ -59,8 +60,10 @@ export default function CommunityAdmin({mode="buildings"}){
  const [projectDraft,setProjectDraft]=useState({title:"",city:"",description:"",image_url:"",completed_year:""});
  const [newAuction,setNewAuction]=useState(false);
  const blankBuilder={name:"",city:"شیراز",headline:"",biography:"",activity_area:"",building_names:"",experience_years:0,completed_projects:0,logo_url:"",published:false,verified:false,rank_priority:1000};
- const blankAuction={title:"",city:"",district:"",description:"",image_url:"",opening_bid_toman:"",minimum_increment_toman:10000000,advertisement_id:""};
+ const blankAuction={title:"",city:"",district:"",description:"",image_url:"",opening_bid_toman:"",minimum_increment_toman:10000000,advertisement_id:"",starts_at:"",ends_at:""};
  const [auctionForm,setAuctionForm]=useState(blankAuction);
+ const [scheduleFor,setScheduleFor]=useState(null);
+ const [scheduleValues,setScheduleValues]=useState({starts_at:"",ends_at:""});
  const [auctionAdSearch,setAuctionAdSearch]=useState("");
  const [eligibleAuctionAds,setEligibleAuctionAds]=useState([]);
  const [auctionLinkedAd,setAuctionLinkedAd]=useState(null);
@@ -149,18 +152,34 @@ export default function CommunityAdmin({mode="buildings"}){
    ok("وضعیت و اولویت نمایش سازنده ذخیره شد");await reload();
   }catch(e){error(e)}finally{setBusy(false)}
  };
- const updateAuction=async(item)=>{
-  const draft=auctionDrafts[item.id]||item;
+ const updateAuction=async(item,datesOverride=null)=>{
+  const draft={...item,...auctionDrafts[item.id],...(datesOverride||{})};
+  const start=timeInput(draft.starts_at),end=timeInput(draft.ends_at);
+  if((start||end)&&!validAuctionTimeRange(start,end)){
+   NotificationManager.error("ابتدا تاریخ و ساعت شروع و پایان را انتخاب کنید؛ پایان باید بعد از شروع باشد.");return;
+  }
+  if(draft.status==="published"&&!validAuctionTimeRange(start,end)){
+   NotificationManager.error("برای انتشار مزایده انتخاب تاریخ و ساعت شروع و پایان الزامی است.");return;
+  }
   setBusy(true);
   try{
    await axios.patch(api+"/auctions/"+item.id,{
-    status:draft.status,starts_at:timeInput(draft.starts_at)||null,
-    ends_at:timeInput(draft.ends_at)||null,
+    status:draft.status,starts_at:start||null,
+    ends_at:end||null,
     minimum_increment_toman:Number(draft.minimum_increment_toman)
    });
-   ok("وضعیت مزایده ذخیره شد");await reload();
+   ok("وضعیت و زمان‌بندی مزایده ذخیره شد");
+   setScheduleFor(null);
+   setAuctionDrafts(previous=>{const updated={...previous};delete updated[item.id];return updated;});
+   await reload();
   }catch(e){error(e)}finally{setBusy(false)}
  };
+ const openAuctionSchedule=(auction)=>{
+  const draft={...auction,...auctionDrafts[auction.id]};
+  setScheduleValues({starts_at:timeInput(draft.starts_at),ends_at:timeInput(draft.ends_at)});
+  setScheduleFor(auction);
+ };
+ const changeSchedule=(key,value)=>setScheduleValues(previous=>({...previous,[key]:value}));
  const openBuilder=(b)=>{setEditBuilder(b?b.id:null);setBuilderForm(b?{...blankBuilder,...b}:{...blankBuilder});setNewBuilder(true);window.requestAnimationFrame(()=>document.getElementById("builder-editor")?.scrollIntoView({behavior:"smooth",block:"start"}));};
  const saveBuilder=async()=>{if(!builderForm.name.trim()){NotificationManager.error("نام سازنده را وارد کنید.");return;}setBusy(true);try {
   const p={...builderForm,experience_years:Number(builderForm.experience_years),completed_projects:Number(builderForm.completed_projects),
@@ -193,8 +212,12 @@ export default function CommunityAdmin({mode="buildings"}){
  }catch(e){error(e)}finally{setBusy(false)}};
  const removeProject=async(p)=>{if(!window.confirm("نمونه‌کار حذف شود؟"))return;
   try{await axios.delete(api+"/builders/"+projectFor.id+"/projects/"+p.id);await openProjects(projectFor)}catch(e){error(e)}};
- const createAuction=async()=>{setBusy(true);try{
-  const p={...auctionForm,opening_bid_toman:Number(auctionForm.opening_bid_toman),minimum_increment_toman:Number(auctionForm.minimum_increment_toman),
+ const createAuction=async()=>{
+  if((auctionForm.starts_at||auctionForm.ends_at)&&!validAuctionTimeRange(auctionForm.starts_at,auctionForm.ends_at)){
+   NotificationManager.error("برای زمان‌بندی، شروع و پایان را انتخاب کنید؛ زمان پایان باید بعد از شروع باشد.");return;
+  }
+  setBusy(true);try{
+  const p={...auctionForm,starts_at:timeInput(auctionForm.starts_at)||null,ends_at:timeInput(auctionForm.ends_at)||null,opening_bid_toman:Number(auctionForm.opening_bid_toman),minimum_increment_toman:Number(auctionForm.minimum_increment_toman),
    advertisement_id:auctionForm.advertisement_id?Number(auctionForm.advertisement_id):null};
   await axios.post(api+"/auctions",p);ok("پیش‌نویس مزایده ثبت شد؛ قبل از انتشار مجوز مالکیت بررسی شود.");
   setNewAuction(false);setAuctionForm({...blankAuction});setAuctionLinkedAd(null);setAuctionAdSearch("");await reload();
