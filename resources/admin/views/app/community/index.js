@@ -9,6 +9,19 @@ const fmt=(v)=>Number(v||0).toLocaleString("fa-IR");
 const dtime=(v)=>v?String(v).replace("T"," ").slice(0,19):"—";
 const statuses={pending:"در انتظار بررسی",approved:"فعال",rejected:"رد شده",suspended:"تعلیق",review:"نیازمند بررسی",published:"منتشر شده",paused:"متوقف",closed:"پایان یافته"};
 const money=(v)=>fmt(v)+" تومان";
+const unitPaymentFields=[
+ ["water_bill_id","شناسه قبض آب"],["water_subscription_no","شماره اشتراک آب"],
+ ["electricity_bill_id","شناسه قبض برق"],["electricity_subscription_no","شماره اشتراک برق"],
+ ["gas_bill_id","شناسه قبض گاز"],["gas_subscription_no","شماره اشتراک گاز"],
+ ["landline_number","شماره تلفن ثابت با کد شهر"],["landline_bill_id","شناسه قبض تلفن"],
+ ["municipal_renovation_code","کد نوسازی شهرداری"],["municipal_property_code","شناسه ملک در شهرداری"]
+];
+const unitDeedFields=[
+ ["deed_main_no","پلاک ثبتی اصلی"],["deed_sub_no","پلاک ثبتی فرعی"],
+ ["deed_registration_section","بخش ثبتی"],["deed_area_sqm","مساحت مندرج در سند (متر مربع)"],
+ ["deed_unique_id","شناسه یکتای سند (در صورت نیاز)"],["tax_file_reference","شماره پرونده / ارجاع مالیاتی"]
+];
+
 const initial={buildings_enabled:true,builders_enabled:true,auctions_enabled:true,minimum_bid_increment:10000000,auction_notice:"ثبت پیشنهاد صرفاً اعلام علاقه‌مندی است و انتقال مالکیت نیازمند قرارداد قانونی جداگانه است."};
 const error=(e)=>{const details=e.response?.data?.errors;const first=details&&Object.values(details).flat()[0];NotificationManager.error(first||e.response?.data?.message||"خطا در ارتباط با سرور");};
 const ok=(msg)=>NotificationManager.success(msg);
@@ -30,7 +43,7 @@ export default function CommunityAdmin({mode="buildings"}){
  const [unitsBuilding,setUnitsBuilding]=useState(null);
  const [buildingUnits,setBuildingUnits]=useState([]);
  const [unitEditing,setUnitEditing]=useState(null);
- const emptyUnit={floor_number:0,unit_number:"",postal_code:"",owner_name:"",owner_phone:"",is_rented:false,tenant_first_name:"",tenant_last_name:"",tenant_phone:"",tenant_move_out_date:""};
+ const emptyUnit={floor_number:0,unit_number:"",postal_code:"",owner_name:"",owner_phone:"",is_rented:false,tenant_first_name:"",tenant_last_name:"",tenant_phone:"",tenant_move_out_date:"",...Object.fromEntries([...unitPaymentFields,...unitDeedFields].map(([key])=>[key,""]))};
  const [unitForm,setUnitForm]=useState(emptyUnit);
  const [builders,setBuilders]=useState([]);
  const [auctions,setAuctions]=useState([]);
@@ -206,6 +219,18 @@ export default function CommunityAdmin({mode="buildings"}){
     <Row>{[["floor_number","طبقه","number"],["unit_number","شماره واحد","text"],["postal_code","کد پستی ده‌رقمی","text"],["owner_name","نام و نام خانوادگی مالک","text"],["owner_phone","شماره تماس مالک","tel"]].map(([k,label,type])=><Col md="4" key={k}><FormGroup><Label>{label}</Label><Input type={type} value={unitForm[k]??""} onChange={e=>setUnitForm(v=>({...v,[k]:e.target.value}))}/></FormGroup></Col>)}</Row>
     <FormGroup check style={{marginBottom:15}}><Label check><Input type="checkbox" checked={!!unitForm.is_rented} onChange={e=>setUnitForm(v=>({...v,is_rented:e.target.checked}))}/> ملک در اختیار مستأجر است</Label></FormGroup>
     {unitForm.is_rented&&<Row>{[["tenant_first_name","نام مستأجر","text"],["tenant_last_name","نام خانوادگی مستأجر","text"],["tenant_phone","شماره تماس مستأجر","tel"],["tenant_move_out_date","تاریخ تخلیه (میلادی)","date"]].map(([k,label,type])=><Col md="3" key={k}><FormGroup><Label>{label}</Label><Input type={type} value={unitForm[k]||""} onChange={e=>setUnitForm(v=>({...v,[k]:e.target.value}))}/></FormGroup></Col>)}</Row>}
+    <div style={{background:"#eff8ff",borderRadius:13,padding:"16px 18px",margin:"18px 0"}}>
+     <h5 style={{color:"#0766a1"}}>اطلاعات قبوض آب، برق، گاز و تلفن</h5>
+     <small>شناسه قبض و شماره اشتراک معمولاً ثابت‌اند؛ شناسه پرداخت و مبلغ هر دوره را جداگانه برای همان قبض ثبت کنید.</small>
+     <Row style={{marginTop:12}}>{unitPaymentFields.map(([key,label])=><Col md="4" key={key}><FormGroup><Label>{label}</Label>
+      <Input type="text" inputMode={key.includes("bill_id")||key==="landline_number"?"numeric":"text"} value={unitForm[key]||""} maxLength={50}
+       onChange={e=>setUnitForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    </div>
+    <div style={{background:"#f6f9fc",borderRadius:13,padding:"16px 18px",margin:"18px 0"}}>
+     <h5 style={{color:"#0766a1"}}>عوارض شهرداری و اطلاعات شناسایی سند برای امور مالیاتی</h5>
+     <p style={{fontSize:12}}>کد نوسازی برای عوارض شیراز مهم است؛ مشخصات ثبتی برای پیگیری پرونده مالیاتی قابل استفاده‌اند و به‌تنهایی قبض مالیاتی صادر نمی‌کنند. اطلاعات سند فقط برای مدیریت مجاز نگهداری می‌شود.</p>
+     <Row>{unitDeedFields.map(([key,label])=><Col md="4" key={key}><FormGroup><Label>{label}</Label><Input type={key==="deed_area_sqm"?"number":"text"} min={key==="deed_area_sqm"?0:undefined} value={unitForm[key]??""} onChange={e=>setUnitForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    </div>
     <Button color="primary" disabled={busy} onClick={saveUnit}>{unitEditing?"ذخیره ویرایش واحد":"افزودن آپارتمان"}</Button>{" "}{unitEditing&&<Button color="light" onClick={()=>{setUnitEditing(null);setUnitForm({...emptyUnit})}}>انصراف از ویرایش</Button>}
     <Table responsive hover style={{marginTop:20}}><thead><tr><th>طبقه / واحد</th><th>کد پستی</th><th>مالک و تماس</th><th>مستأجر / تخلیه</th><th>عملیات</th></tr></thead><tbody>{buildingUnits.map(u=><tr key={u.id}>
      <td>{u.floor_number} / {u.unit_number}</td><td>{u.postal_code||"—"}</td><td>{u.owner_name}<small className="d-block">{u.owner_phone}</small></td>
