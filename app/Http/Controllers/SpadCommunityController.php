@@ -536,6 +536,8 @@ class SpadCommunityController extends Controller
    'district'=>'nullable|string|max:180','description'=>'required|string|min:30|max:7000',
    'image_url'=>$this->urlRule(),'opening_bid_toman'=>'required|integer|min:1000000|max:999999999999999',
    'minimum_increment_toman'=>'required|integer|min:1000000|max:999999999999',
+   'starts_at'=>'nullable|required_with:ends_at|date_format:Y-m-d H:i:s',
+   'ends_at'=>'nullable|required_with:starts_at|date_format:Y-m-d H:i:s|after:starts_at',
    'advertisement_id'=>['nullable','integer',Rule::exists('advertisements','id')->where('status',\App\Models\Advertisement::APPROVED)]
   ]);
   // New auctions are held for owner-document verification before publishing.
@@ -554,7 +556,8 @@ class SpadCommunityController extends Controller
   $this->admin();
   $d=$r->validate([
    'status'=>'required|in:review,published,paused,closed,rejected',
-   'starts_at'=>'nullable|date_format:Y-m-d H:i:s','ends_at'=>'nullable|date_format:Y-m-d H:i:s',
+   'starts_at'=>'nullable|required_with:ends_at|date_format:Y-m-d H:i:s',
+   'ends_at'=>'nullable|required_with:starts_at|date_format:Y-m-d H:i:s|after:starts_at',
    'minimum_increment_toman'=>'required|integer|min:1000000|max:999999999999'
   ]);
   return DB::transaction(function()use($r,$id,$d){
