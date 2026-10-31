@@ -18,7 +18,23 @@ trait BuildingUnitActions
             'tenant_first_name'=>'required_if:is_rented,1|nullable|string|max:100',
             'tenant_last_name'=>'required_if:is_rented,1|nullable|string|max:100',
             'tenant_phone'=>['required_if:is_rented,1','nullable','string','max:20','regex:/^[0-9+ -]{7,20}$/'],
-            'tenant_move_out_date'=>'required_if:is_rented,1|nullable|date_format:Y-m-d'
+            'tenant_move_out_date'=>'required_if:is_rented,1|nullable|date_format:Y-m-d',
+            'water_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+            'water_subscription_no'=>'nullable|string|max:50',
+            'electricity_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+            'electricity_subscription_no'=>'nullable|string|max:50',
+            'gas_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+            'gas_subscription_no'=>'nullable|string|max:50',
+            'landline_number'=>['nullable','regex:/^[0-9]{8,15}$/'],
+            'landline_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+            'municipal_renovation_code'=>'nullable|string|max:50',
+            'municipal_property_code'=>'nullable|string|max:50',
+            'deed_main_no'=>'nullable|string|max:50',
+            'deed_sub_no'=>'nullable|string|max:50',
+            'deed_registration_section'=>'nullable|string|max:50',
+            'deed_area_sqm'=>'nullable|numeric|min:0.01|max:9999999999',
+            'deed_unique_id'=>'nullable|string|max:60',
+            'tax_file_reference'=>'nullable|string|max:80'
         ]);
         $d['label']='طبقه '.$d['floor_number'].' واحد '.$d['unit_number'];
         $d['resident_name']=$d['is_rented']
