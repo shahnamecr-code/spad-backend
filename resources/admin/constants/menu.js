@@ -115,6 +115,7 @@ const data = [
   {id:"building-management",icon:"iconsminds-building",label:"menu.building-management",to:`${adminRoot}/building-management`,roles:[UserRole.Admin]},
   {id:"top-builders",icon:"iconsminds-business-man",label:"menu.top-builders",to:`${adminRoot}/top-builders`,roles:[UserRole.Admin]},
   {id:"property-auctions",icon:"iconsminds-gavel",label:"menu.property-auctions",to:`${adminRoot}/property-auctions`,roles:[UserRole.Admin]},
+   {id:"property-affairs",icon:"iconsminds-file",label:"menu.property-affairs",to:`${adminRoot}/property-affairs`,roles:[UserRole.Admin]},
   {
     id: "wallets",
     icon: "iconsminds-wallet",
