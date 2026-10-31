@@ -106,9 +106,21 @@ class BuildingManagerController extends Controller
     public function bill(Request $r,$panelId,$id)
     {
         $b=$this->building($r,$panelId,$id);$this->approved($b);
-        $d=$r->validate(['kind'=>'required|in:water,electricity,gas,other',
-            'title'=>'required|string|max:180','bill_reference'=>'nullable|string|max:100',
-            'amount_toman'=>'required|integer|min:1|max:999999999999','due_date'=>'nullable|date_format:Y-m-d']);
+        $d=$r->validate([
+            'kind'=>'required|in:water,electricity,gas,phone,municipal,tax,other',
+            'title'=>'required|string|max:180',
+            'bill_reference'=>'nullable|string|max:100',
+            'payment_identifier'=>'nullable|string|max:60',
+            'tax_category'=>'required_if:kind,tax|nullable|in:transfer,rental,other',
+            'unit_id'=>'nullable|integer',
+            'amount_toman'=>'required|integer|min:1|max:999999999999',
+            'due_date'=>'nullable|date_format:Y-m-d'
+        ]);
+        if(!empty($d['unit_id'])){
+            abort_unless(DB::table('spad_building_units')->where('building_id',$id)
+                ->where('id',$d['unit_id'])->exists(),422,'واحد متعلق به ساختمان نیست.');
+        } else { $d['unit_id']=null; }
+        if($d['kind']!=='tax')$d['tax_category']=null;
         DB::table('spad_building_bills')->insert(array_merge($d,[
             'building_id'=>$id,'status'=>'unpaid','recorded_by'=>$r->user()->id,
             'created_at'=>now(),'updated_at'=>now()
