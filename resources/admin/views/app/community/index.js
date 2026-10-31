@@ -61,6 +61,11 @@ export default function CommunityAdmin({mode="buildings"}){
  const blankBuilder={name:"",city:"شیراز",headline:"",biography:"",activity_area:"",building_names:"",experience_years:0,completed_projects:0,logo_url:"",published:false,verified:false,rank_priority:1000};
  const blankAuction={title:"",city:"",district:"",description:"",image_url:"",opening_bid_toman:"",minimum_increment_toman:10000000,advertisement_id:""};
  const [auctionForm,setAuctionForm]=useState(blankAuction);
+ const [auctionAdSearch,setAuctionAdSearch]=useState("");
+ const [eligibleAuctionAds,setEligibleAuctionAds]=useState([]);
+ const [auctionLinkedAd,setAuctionLinkedAd]=useState(null);
+ const [auctionAdLookupError,setAuctionAdLookupError]=useState("");
+ const [auctionAdLoading,setAuctionAdLoading]=useState(false);
  const [builderForm,setBuilderForm]=useState(blankBuilder);
  const [search,setSearch]=useState("");
  const reload=async()=>{
@@ -77,6 +82,28 @@ export default function CommunityAdmin({mode="buildings"}){
   if(sections.some(x=>x.status==="rejected"))NotificationManager.error("بخشی از اطلاعات دریافت نشد؛ برای تلاش مجدد دکمه به‌روزرسانی را انتخاب کنید.");
  };
  useEffect(()=>{reload();if(section==="buildings")axios.get(adminPathApi+"/partner-panels",{params:{type:"building_manager",per_page:100}}).then(r=>setBuildingManagers(r.data.data?.data||[])).catch(()=>{});},[]);
+ useEffect(()=>{
+  if(section!=="auctions"||!newAuction)return;
+  let cancelled=false;
+  const timer=setTimeout(async()=>{
+   setAuctionAdLoading(true);setAuctionAdLookupError("");
+   try{
+    const response=await axios.get(api+"/auctions/eligible-advertisements",{params:{q:auctionAdSearch.trim()}});
+    if(!cancelled)setEligibleAuctionAds(response.data.data||[]);
+   }catch(e){
+    if(!cancelled){setEligibleAuctionAds([]);setAuctionAdLookupError("دریافت آگهی‌های تأییدشده انجام نشد. بدون اتصال به آگهی هم می‌توان پیش‌نویس ثبت کرد.");}
+   }finally{if(!cancelled)setAuctionAdLoading(false)}
+  },300);
+  return()=>{cancelled=true;clearTimeout(timer);};
+ },[section,newAuction,auctionAdSearch]);
+ const pickAuctionAd=(ad)=>{
+  setAuctionLinkedAd(ad);
+  setAuctionForm(old=>({...old,advertisement_id:String(ad.id),
+   title:old.title||ad.title||"",
+   city:old.city||ad.city||"شیراز"}));
+ };
+ const clearAuctionAd=()=>{setAuctionLinkedAd(null);setAuctionForm(old=>({...old,advertisement_id:""}));};
+
 
  const saveSettings=async()=>{
   setBusy(true);
@@ -170,7 +197,7 @@ export default function CommunityAdmin({mode="buildings"}){
   const p={...auctionForm,opening_bid_toman:Number(auctionForm.opening_bid_toman),minimum_increment_toman:Number(auctionForm.minimum_increment_toman),
    advertisement_id:auctionForm.advertisement_id?Number(auctionForm.advertisement_id):null};
   await axios.post(api+"/auctions",p);ok("پیش‌نویس مزایده ثبت شد؛ قبل از انتشار مجوز مالکیت بررسی شود.");
-  setNewAuction(false);await reload();
+  setNewAuction(false);setAuctionForm({...blankAuction});setAuctionLinkedAd(null);setAuctionAdSearch("");await reload();
  }catch(e){error(e)}finally{setBusy(false)}};
  const fetchBids=async(id)=>{
   try{const r=await axios.get(api+"/auctions/"+id+"/bids");setBids(o=>({...o,[id]:r.data.data||[]}))}
