@@ -281,7 +281,7 @@ export default function CommunityAdmin({mode="buildings"}){
     </FormGroup>
     <a href="/spad-admin/wallets" style={{fontSize:12,color:"#0a80b7"}}>مدیریت درگاه‌های پرداخت و کیف پول اسپاد</a>
     <p style={{fontSize:11,color:"#7c92a5",margin:"10px 0 0"}}>بدون فعال‌سازی و تنظیم مبلغ، هیچ ودیعه‌ای کسر نمی‌شود.</p>
-   </div></>
+   </div></>}
    <Button color="primary" onClick={saveSettings} disabled={busy}>ذخیره تنظیمات</Button>
   </CardBody></Card>}
   {<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
