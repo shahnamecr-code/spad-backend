@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 use App\Models\PartnerPanel;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BuildingManagerController extends Controller
 {
@@ -17,9 +18,18 @@ class BuildingManagerController extends Controller
         abort_unless($panel,403,'پنل مدیر ساختمان برای شما فعال نشده است.');
         return $panel;
     }
+    private function ensureVerified($panel)
+    {
+        abort_unless(Schema::hasTable('spad_building_manager_verifications'),503,'احراز هویت مدیر ساختمان در حال راه‌اندازی است.');
+        $verified=DB::table('spad_building_manager_verifications')
+            ->where('partner_panel_id',$panel->id)->where('user_id',$panel->user_id)
+            ->where('status','approved')->exists();
+        abort_unless($verified,403,'ابتدا احراز هویت مدیر ساختمان را انجام دهید و منتظر تأیید مدیریت اسپاد بمانید.');
+    }
     private function building(Request $r,$panelId,$id)
     {
         $p=$this->panel($r,$panelId);
+        $this->ensureVerified($p);
         $b=DB::table('spad_buildings')->where('id',$id)
             ->where('partner_panel_id',$p->id)->where('owner_user_id',$p->user_id)->first();
         abort_unless($b,404);return $b;
@@ -37,6 +47,7 @@ class BuildingManagerController extends Controller
     public function create(Request $r,$panelId)
     {
         $p=$this->panel($r,$panelId);
+        $this->ensureVerified($p);
         $d=$r->validate(['name'=>'required|string|min:3|max:180','city'=>'required|string|max:110',
             'address'=>'required|string|min:10|max:600','unit_count'=>'required|integer|min:1|max:500',
             'default_charge_toman'=>'nullable|integer|min:0|max:999999999999']);
@@ -45,6 +56,26 @@ class BuildingManagerController extends Controller
             'partner_panel_id'=>$p->id,'status'=>'pending','created_at'=>now(),'updated_at'=>now()
         ]));
         return response()->json(['id'=>$id,'message'=>'ساختمان برای تأیید مدیریت اسپاد ثبت شد.'],201);
+    }
+    public function update(Request $r,$panelId,$id)
+    {
+        $b=$this->building($r,$panelId,$id);
+        $d=$r->validate([
+            'name'=>'required|string|min:3|max:180',
+            'city'=>'required|string|max:110',
+            'address'=>'required|string|min:10|max:600',
+            'unit_count'=>'required|integer|min:1|max:500',
+            'default_charge_toman'=>'nullable|integer|min:0|max:999999999999'
+        ]);
+        $used=DB::table('spad_building_units')->where('building_id',$id)->count();
+        abort_if((int)$d['unit_count']<$used,422,'ظرفیت جدید از تعداد واحدهای ثبت‌شده کمتر است.');
+        // Admin review required again if address, city, or unit capacity changes.
+        $structural=$b->name!==$d['name']||$b->city!==$d['city']||
+            $b->address!==$d['address']||(int)$b->unit_count!==(int)$d['unit_count'];
+        $d['default_charge_toman']=$d['default_charge_toman']??0;
+        $d['status']=$structural?'pending':$b->status;
+        DB::table('spad_buildings')->where('id',$id)->update(array_merge($d,['updated_at'=>now()]));
+        return response()->json(['message'=>$structural?'تغییرات ساختمان ثبت و برای تأیید مجدد ارسال شد.':'اطلاعات مالی ساختمان به‌روزرسانی شد.']);
     }
     public function detail(Request $r,$panelId,$id)
     {
