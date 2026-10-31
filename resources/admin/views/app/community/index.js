@@ -411,6 +411,17 @@ export default function CommunityAdmin({mode="buildings"}){
     </td>
     <td><Button color="primary" size="sm" disabled={busy} onClick={()=>updateAuction(x)}>ثبت</Button>
       <Button size="sm" color="info" outline className="mt-2" onClick={()=>fetchBids(x.id)}>پیشنهادها</Button>
+      <Button size="sm" color="secondary" outline className="mt-2" onClick={()=>fetchAuctionParticipants(x.id)}>ودیعه کاربران</Button>
+      {auctionParticipants[x.id]&&<div style={{marginTop:10,padding:9,minWidth:260,maxHeight:300,overflowY:"auto",border:"1px solid #d7e9f3",borderRadius:10,background:"#f8fcff"}}>
+       <strong style={{color:"#136c96",fontSize:12}}>ودیعه‌های نگهداری‌شده: {money(auctionHeldTotals[x.id]||0)}</strong>
+       {auctionParticipants[x.id].length?auctionParticipants[x.id].map(p=><div key={p.id} style={{borderBottom:"1px solid #e1edf5",padding:"9px 0",fontSize:11}}>
+        <div>{[p.first_name,p.last_name].filter(Boolean).join(" ")||"کاربر"} · #{p.user_id}</div>
+        <small>{p.mobile||"—"} · {p.status==="held"?"ودیعه نگهداری‌شده":"بازگشت‌داده‌شده"}</small>
+        <div style={{color:"#0b77a7"}}>{money(p.amount_toman)}</div>
+        {p.status==="held"&&<Button size="sm" outline color="success" disabled={busy} onClick={()=>refundAuctionDeposit(x,p)}>بازگشت به کیف پول</Button>}
+        {p.status==="refunded"&&<small>{p.refund_reason||"بازپرداخت ثبت‌شده"}</small>}
+       </div>):<p style={{fontSize:11}}>ودیعه‌ای برای این مزایده ثبت نشده است.</p>}
+      </div>
       {bids[x.id]&&<div style={{marginTop:8,minWidth:180,maxHeight:190,overflowY:"auto",fontSize:11}}>{bids[x.id].length?bids[x.id].map(b=><div key={b.id}>{money(b.amount_toman)} | کاربر {b.user_id} | {dtime(b.created_at)}</div>):"پیشنهادی ثبت نشده"}</div>}
     </td>
    </tr>})}
