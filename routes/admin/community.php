@@ -3,6 +3,13 @@ use App\Http\Controllers\SpadCommunityController as Community;
 use Illuminate\Support\Facades\Route;
 
 Route::get('community/settings',[Community::class,'adminSettings']);
+Route::get('property-affairs/services',[\App\Http\Controllers\PropertyAffairsController::class,'adminServices']);
+Route::post('property-affairs/services',[\App\Http\Controllers\PropertyAffairsController::class,'adminCreateService']);
+Route::put('property-affairs/services/{id}',[\App\Http\Controllers\PropertyAffairsController::class,'adminUpdateService'])->whereNumber('id');
+Route::get('property-affairs/requests',[\App\Http\Controllers\PropertyAffairsController::class,'adminRequests']);
+Route::get('property-affairs/requests/{id}',[\App\Http\Controllers\PropertyAffairsController::class,'adminRequest'])->whereNumber('id');
+Route::patch('property-affairs/requests/{id}',[\App\Http\Controllers\PropertyAffairsController::class,'adminReview'])->whereNumber('id');
+Route::get('property-affairs/requests/{id}/documents/{documentId}',[\App\Http\Controllers\PropertyAffairsController::class,'adminDocument'])->whereNumber('id')->whereNumber('documentId');
 Route::get('community/building-manager-verifications',[\App\Http\Controllers\BuildingManagerIdentityController::class,'adminList']);
 Route::get('community/building-manager-verifications/{id}',[\App\Http\Controllers\BuildingManagerIdentityController::class,'adminShow'])->whereNumber('id');
 Route::get('community/building-manager-verifications/{id}/documents/{kind}',[\App\Http\Controllers\BuildingManagerIdentityController::class,'adminDocument'])->whereNumber('id')->where('kind','identity|support');
