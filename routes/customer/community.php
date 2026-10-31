@@ -3,6 +3,14 @@ use App\Http\Controllers\SpadCommunityController as Community;
 use Illuminate\Support\Facades\Route;
 
 Route::get('community/settings',[Community::class,'settings']);
+Route::get('property-affairs/services',[\App\Http\Controllers\PropertyAffairsController::class,'services']);
+Route::get('property-affairs/services/{slug}',[\App\Http\Controllers\PropertyAffairsController::class,'show'])->where('slug','[a-z0-9-]+');
+Route::middleware('auth:sanctum')->prefix('property-affairs')->group(function(){
+ Route::get('my-requests',[\App\Http\Controllers\PropertyAffairsController::class,'mine']);
+ Route::get('my-requests/{id}',[\App\Http\Controllers\PropertyAffairsController::class,'myRequest'])->whereNumber('id');
+ Route::post('services/{slug}/requests',[\App\Http\Controllers\PropertyAffairsController::class,'submit'])->where('slug','[a-z0-9-]+')->middleware('throttle:5,60');
+ Route::post('my-requests/{id}/documents',[\App\Http\Controllers\PropertyAffairsController::class,'upload'])->whereNumber('id')->middleware('throttle:12,60');
+});
 Route::get('builders',[Community::class,'builders']);
 Route::get('builders/{id}',[Community::class,'builder'])->whereNumber('id');
 Route::get('property-auctions',[Community::class,'auctions']);
