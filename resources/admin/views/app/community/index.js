@@ -301,7 +301,26 @@ export default function CommunityAdmin({mode="buildings"}){
   {section==="auctions"&&<Card><CardBody>
    <Button color="primary" className="mb-3" onClick={()=>setNewAuction(v=>!v)}>+ ایجاد پیش‌نویس مزایده</Button>
    {newAuction&&<Card className="mb-3"><CardBody><h4>ثبت پیش‌نویس مزایده ملک</h4><p>فقط پس از تأیید مالکیت و اجازه کتبی مالک منتشر کنید.</p>
-    <Row>{[["title","عنوان مزایده"],["city","شهر"],["district","محله"],["image_url","تصویر HTTPS"],["advertisement_id","شناسه آگهی تأییدشده (اختیاری)"],["opening_bid_toman","قیمت شروع (تومان)"],["minimum_increment_toman","حداقل گام پیشنهاد (تومان)"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input value={auctionForm[key]||""} type={["opening_bid_toman","minimum_increment_toman","advertisement_id"].includes(key)?"number":"text"} onChange={e=>setAuctionForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    <div style={{background:"#f1f9ff",padding:"15px 17px",border:"1px solid #d4e9f8",borderRadius:13,marginBottom:18}}>
+     <Label style={{fontWeight:600,color:"#11628e"}}>ارتباط با آگهی موجود اسپاد (اختیاری)</Label>
+     <p style={{fontSize:12,color:"#507b98",marginBottom:9}}>به‌جای واردکردن شناسه دستی، آگهی تأییدشده را انتخاب کنید؛ ثبت پیش‌نویس بدون ارتباط با آگهی نیز امکان‌پذیر است.</p>
+     {auctionLinkedAd?<div style={{display:"flex",gap:12,alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
+      <strong style={{fontSize:13}}>آگهی انتخاب‌شده: #{auctionLinkedAd.id} · {auctionLinkedAd.title||"ملک اسپاد"} {auctionLinkedAd.city?" · "+auctionLinkedAd.city:""}</strong>
+      <Button outline color="secondary" size="sm" type="button" onClick={clearAuctionAd}>حذف ارتباط با آگهی</Button>
+     </div>:<>
+      <Input type="text" placeholder="جستجوی آگهی تأییدشده با عنوان یا شناسه داخلی" value={auctionAdSearch} onChange={e=>setAuctionAdSearch(e.target.value)}/>
+      {auctionAdLoading&&<small style={{display:"block",marginTop:7}}>در حال دریافت آگهی‌ها...</small>}
+      {auctionAdLookupError&&<small style={{display:"block",marginTop:7,color:"#bd673a"}}>{auctionAdLookupError}</small>}
+      <div style={{maxHeight:190,overflowY:"auto",marginTop:8,display:"grid",gap:5}}>
+       {eligibleAuctionAds.map(ad=><button key={ad.id} type="button" onClick={()=>pickAuctionAd(ad)}
+        style={{width:"100%",border:"1px solid #d7e8f4",background:"#fff",borderRadius:8,padding:"9px 12px",fontSize:12,textAlign:"right",cursor:"pointer",color:"#145d86"}}>
+        کد {ad.id} · {ad.title||"ملک بدون عنوان"} {ad.city?" · "+ad.city:""}
+       </button>)}
+      </div>
+      {!auctionAdLoading&&!eligibleAuctionAds.length&&!auctionAdLookupError&&<small style={{display:"block",marginTop:8}}>آگهی تأییدشده‌ای پیدا نشد؛ می‌توانید بدون انتخاب آگهی ثبت کنید.</small>}
+     </>}
+    </div>
+    <Row>{[["title","عنوان مزایده"],["city","شهر"],["district","محله"],["image_url","تصویر HTTPS"],["opening_bid_toman","قیمت شروع (تومان)"],["minimum_increment_toman","حداقل گام پیشنهاد (تومان)"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input value={auctionForm[key]||""} type={["opening_bid_toman","minimum_increment_toman"].includes(key)?"number":"text"} onChange={e=>setAuctionForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
     <FormGroup><Label>شرح کامل ملک، شرایط بازدید و مقررات مزایده</Label><Input type="textarea" rows={5} value={auctionForm.description} onChange={e=>setAuctionForm(v=>({...v,description:e.target.value}))}/></FormGroup>
     <Button color="primary" disabled={busy} onClick={createAuction}>ثبت در وضعیت بررسی</Button>
    </CardBody></Card>}
