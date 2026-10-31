@@ -21,6 +21,8 @@ Route::get('community/builders/{id}/projects',[Community::class,'adminBuilderPro
 Route::post('community/builders/{id}/projects',[Community::class,'adminAddBuilderProject'])->whereNumber('id');
 Route::delete('community/builders/{id}/projects/{projectId}',[Community::class,'adminDeleteBuilderProject'])->whereNumber('id')->whereNumber('projectId');
 Route::post('community/auctions',[Community::class,'adminCreateAuction']);
+Route::get('community/auctions/{id}/participations',[\App\Http\Controllers\AuctionParticipationController::class,'adminList'])->whereNumber('id');
+Route::post('community/auctions/{id}/participations/{participantId}/refund',[\App\Http\Controllers\AuctionParticipationController::class,'adminRefund'])->whereNumber('id')->whereNumber('participantId');
 
 Route::post('community/buildings',[ \App\Http\Controllers\BuildingAdminController::class,'create']);
 Route::put('community/buildings/{id}',[ \App\Http\Controllers\BuildingAdminController::class,'update'])->whereNumber('id');
