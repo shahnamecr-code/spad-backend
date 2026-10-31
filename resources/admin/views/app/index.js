@@ -183,6 +183,7 @@ const App = ({ match, step, location }) => {
                 <Route path={`${match.url}/building-management`} render={(props) => <CommunityAdmin {...props} mode="buildings" />} />
                 <Route path={`${match.url}/top-builders`} render={(props) => <CommunityAdmin {...props} mode="builders" />} />
                 <Route path={`${match.url}/property-auctions`} render={(props) => <CommunityPageErrorBoundary><CommunityAdmin {...props} mode="auctions" /></CommunityPageErrorBoundary>} />
+                 <Route path={`${match.url}/property-affairs`} render={(props) => <CommunityPageErrorBoundary><PropertyAffairsAdmin {...props} /></CommunityPageErrorBoundary>} />
                 <Route
                   path={`${match.url}/inquiries`}
                   render={(props) => <Inquiries {...props} />}
