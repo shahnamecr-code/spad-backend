@@ -22,6 +22,16 @@ export default function CommunityAdmin({mode="buildings"}){
  const section=mode;
  const [settings,setSettings]=useState(initial);
  const [buildings,setBuildings]=useState([]);
+ const [buildingManagers,setBuildingManagers]=useState([]);
+ const [buildingEditing,setBuildingEditing]=useState(null);
+ const [buildingFormOpen,setBuildingFormOpen]=useState(false);
+ const emptyBuilding={name:"",city:"شیراز",address:"",unit_count:1,default_charge_toman:0,status:"pending",partner_panel_id:""};
+ const [buildingForm,setBuildingForm]=useState(emptyBuilding);
+ const [unitsBuilding,setUnitsBuilding]=useState(null);
+ const [buildingUnits,setBuildingUnits]=useState([]);
+ const [unitEditing,setUnitEditing]=useState(null);
+ const emptyUnit={floor_number:0,unit_number:"",postal_code:"",owner_name:"",owner_phone:"",is_rented:false,tenant_first_name:"",tenant_last_name:"",tenant_phone:"",tenant_move_out_date:""};
+ const [unitForm,setUnitForm]=useState(emptyUnit);
  const [builders,setBuilders]=useState([]);
  const [auctions,setAuctions]=useState([]);
  const [bids,setBids]=useState({});
@@ -53,7 +63,7 @@ export default function CommunityAdmin({mode="buildings"}){
   if(section==="auctions"&&sections[3].status==="fulfilled")setAuctions(sections[3].value.data.data||[]);
   if(sections.some(x=>x.status==="rejected"))NotificationManager.error("بخشی از اطلاعات دریافت نشد؛ برای تلاش مجدد دکمه به‌روزرسانی را انتخاب کنید.");
  };
- useEffect(()=>{reload()},[]);
+ useEffect(()=>{reload();if(section==="buildings")axios.get(adminPathApi+"/partner-panels",{params:{type:"building_manager",per_page:100}}).then(r=>setBuildingManagers(r.data.data?.data||[])).catch(()=>{});},[]);
 
  const saveSettings=async()=>{
   setBusy(true);
@@ -66,6 +76,28 @@ export default function CommunityAdmin({mode="buildings"}){
   if(!window.confirm("وضعیت این ساختمان تغییر کند؟"))return;
   try{await axios.patch(api+"/buildings/"+item.id,{status});ok("وضعیت ساختمان ثبت شد");await reload()}catch(e){error(e)}
  };
+ const openBuilding=(b)=>{setBuildingEditing(b?b.id:null);setBuildingForm(b?{...emptyBuilding,...b,partner_panel_id:b.partner_panel_id||""}:{...emptyBuilding});setBuildingFormOpen(true);};
+ const saveBuilding=async()=>{setBusy(true);try{
+  const payload={...buildingForm,unit_count:Number(buildingForm.unit_count),default_charge_toman:Number(buildingForm.default_charge_toman||0),
+   partner_panel_id:buildingForm.partner_panel_id?Number(buildingForm.partner_panel_id):null};
+  if(buildingEditing)await axios.put(api+"/buildings/"+buildingEditing,payload);
+  else await axios.post(api+"/buildings",payload);
+  ok(buildingEditing?"ساختمان ویرایش شد":"ساختمان ثبت شد");setBuildingFormOpen(false);await reload();
+ }catch(e){error(e)}finally{setBusy(false)}};
+ const removeBuilding=async(b)=>{if(!window.confirm("ساختمان «"+b.name+"» حذف شود؟ ساختمان دارای واحد یا سابقه مالی قابل حذف نیست."))return;
+  setBusy(true);try{await axios.delete(api+"/buildings/"+b.id);if(unitsBuilding?.id===b.id)setUnitsBuilding(null);ok("ساختمان حذف شد");await reload()}catch(e){error(e)}finally{setBusy(false)}};
+ const openUnits=async(b)=>{setUnitsBuilding(b);setUnitEditing(null);setUnitForm({...emptyUnit});
+  try{const res=await axios.get(api+"/buildings/"+b.id+"/units");setBuildingUnits(res.data.data||[])}catch(e){error(e)}};
+ const saveUnit=async()=>{if(!unitsBuilding)return;setBusy(true);try{
+  const payload={...unitForm,floor_number:Number(unitForm.floor_number),is_rented:!!unitForm.is_rented,
+   tenant_move_out_date:unitForm.is_rented?(unitForm.tenant_move_out_date||null):null};
+  if(unitEditing)await axios.put(api+"/buildings/"+unitsBuilding.id+"/units/"+unitEditing,payload);
+  else await axios.post(api+"/buildings/"+unitsBuilding.id+"/units",payload);
+  ok("مشخصات واحد ذخیره شد");setUnitEditing(null);setUnitForm({...emptyUnit});await openUnits(unitsBuilding);
+ }catch(e){error(e)}finally{setBusy(false)}};
+ const removeUnit=async(u)=>{if(!window.confirm("واحد «"+u.label+"» حذف شود؟"))return;setBusy(true);
+  try{await axios.delete(api+"/buildings/"+unitsBuilding.id+"/units/"+u.id);ok("واحد حذف شد");await openUnits(unitsBuilding)}
+  catch(e){error(e)}finally{setBusy(false)}};
  const updateBuilder=async(item)=>{
   const draft=builderDrafts[item.id]||item;
   setBusy(true);
@@ -154,16 +186,33 @@ export default function CommunityAdmin({mode="buildings"}){
    <Button color="primary" onClick={saveSettings} disabled={busy}>ذخیره تنظیمات</Button>
   </CardBody></Card>}
   {<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
-  {section==="buildings"&&<Card><CardBody><h4>بررسی درخواست‌های ساختمان</h4><Table responsive hover>
-   <thead><tr><th>شناسه</th><th>ساختمان و شهر</th><th>مدیر کاربر</th><th>تعداد واحد</th><th>وضعیت</th><th>تغییر وضعیت</th></tr></thead>
-   <tbody>{filtered(buildings).map(x=><tr key={x.id}>
-    <td>{x.id}</td><td><div style={{display:"flex",gap:9,alignItems:"center"}}>{x.logo_url&&<img src={x.logo_url} alt="" style={{width:38,height:38,borderRadius:10,objectFit:"cover"}}/>}<strong>{x.name}</strong></div><div style={{fontSize:11,color:"#779"}}>{x.city} - {x.address}</div></td>
-    <td>{x.owner_user_id}</td><td>{fmt(x.unit_count)}</td><td>{statuses[x.status]||x.status}</td>
-    <td><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-     {["approved","suspended","rejected"].map(st=><Button key={st} size="sm" color={st==="approved"?"primary":"secondary"} outline={x.status!==st} onClick={()=>updateBuilding(x,st)}>{statuses[st]}</Button>)}
-    </div></td>
-   </tr>)}</tbody></Table>
-   {!buildings.length&&<p>هنوز ساختمانی ثبت نشده است.</p>}
+  {section==="buildings"&&<Card style={{borderRadius:16}}><CardBody>
+   <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"center",flexWrap:"wrap",marginBottom:15}}><div><h3 style={{color:"#086baf",fontSize:20}}>مدیریت ساختمان‌ها و واحدهای مسکونی</h3><p style={{fontSize:12}}>ایجاد ساختمان، تعیین مدیر همکاری، ثبت اطلاعات کامل مالکان و مستأجران و مدیریت وضعیت</p></div><Button color="primary" onClick={()=>openBuilding(null)}>+ افزودن ساختمان</Button></div>
+   {buildingFormOpen&&<Card className="mb-3" style={{background:"#f5faff",border:"1px solid #d0e9fa"}}><CardBody><h4>{buildingEditing?"ویرایش ساختمان":"ثبت ساختمان جدید"}</h4>
+    <Row>{[["name","نام ساختمان"],["city","شهر"],["unit_count","تعداد کل واحدها"],["default_charge_toman","شارژ پیش‌فرض (تومان)"]].map(([k,title])=><Col md="6" key={k}><FormGroup><Label>{title}</Label><Input type={["unit_count","default_charge_toman"].includes(k)?"number":"text"} value={buildingForm[k]??""} onChange={e=>setBuildingForm(f=>({...f,[k]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    <FormGroup><Label>آدرس دقیق ساختمان (خیابان، کوچه، پلاک)</Label><Input type="textarea" rows={2} maxLength={600} value={buildingForm.address||""} onChange={e=>setBuildingForm(f=>({...f,address:e.target.value}))}/></FormGroup>
+    <Row><Col md="6"><FormGroup><Label>وضعیت ساختمان</Label><Input type="select" value={buildingForm.status} onChange={e=>setBuildingForm(f=>({...f,status:e.target.value}))}>{["pending","approved","suspended","rejected"].map(k=><option value={k} key={k}>{statuses[k]}</option>)}</Input></FormGroup></Col>
+    <Col md="6"><FormGroup><Label>پنل مدیر ساختمان (اختیاری)</Label><Input type="select" value={buildingForm.partner_panel_id||""} onChange={e=>setBuildingForm(f=>({...f,partner_panel_id:e.target.value}))}><option value="">بدون مدیر اختصاصی</option>{buildingManagers.map(p=><option key={p.id} value={p.id}>#{p.id} - {p.user?.first_name||""} {p.user?.last_name||""} - {p.user?.mobile||""}</option>)}</Input><small>ابتدا پنل «مدیر ساختمان» را از بخش پنل‌های همکاری برای شخص ایجاد کنید.</small></FormGroup></Col></Row>
+    <Button color="primary" disabled={busy} onClick={saveBuilding}>{busy?"در حال ذخیره...":"ذخیره ساختمان"}</Button>{" "}<Button color="light" onClick={()=>setBuildingFormOpen(false)}>انصراف</Button>
+   </CardBody></Card>}
+   <Table responsive hover><thead><tr><th>ساختمان</th><th>آدرس دقیق</th><th>واحدها</th><th>مدیر</th><th>وضعیت</th><th>عملیات</th></tr></thead><tbody>{filtered(buildings).map(b=><tr key={b.id}>
+    <td><strong>{b.name}</strong><small className="d-block">#{b.id} · {b.city}</small></td><td style={{minWidth:160}}>{b.address}</td>
+    <td>{fmt(b.unit_count)}</td><td>{b.partner_panel_id?"پنل #"+b.partner_panel_id:b.owner_user_id?"کاربر #"+b.owner_user_id:"تعیین نشده"}</td><td>{statuses[b.status]||b.status}</td>
+    <td style={{minWidth:245}}><Button size="sm" color="primary" outline onClick={()=>openUnits(b)}>آپارتمان‌ها</Button>{" "}<Button size="sm" color="info" outline onClick={()=>openBuilding(b)}>ویرایش</Button>{" "}<Button size="sm" color="danger" outline disabled={busy} onClick={()=>removeBuilding(b)}>حذف</Button>{" "}
+    <Button size="sm" color="secondary" outline onClick={()=>updateBuilding(b,b.status==="approved"?"suspended":"approved")}>{b.status==="approved"?"تعلیق":"تأیید"}</Button></td>
+   </tr>)}</tbody></Table>{!buildings.length&&<p>ساختمانی ثبت نشده است.</p>}
+   {unitsBuilding&&<Card style={{marginTop:20,border:"1px solid #bedff3",borderRadius:15}}><CardBody>
+    <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap"}}><h4>آپارتمان‌های {unitsBuilding.name}</h4><Button color="light" onClick={()=>setUnitsBuilding(null)}>بستن</Button></div>
+    <Row>{[["floor_number","طبقه","number"],["unit_number","شماره واحد","text"],["postal_code","کد پستی ده‌رقمی","text"],["owner_name","نام و نام خانوادگی مالک","text"],["owner_phone","شماره تماس مالک","tel"]].map(([k,label,type])=><Col md="4" key={k}><FormGroup><Label>{label}</Label><Input type={type} value={unitForm[k]??""} onChange={e=>setUnitForm(v=>({...v,[k]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    <FormGroup check style={{marginBottom:15}}><Label check><Input type="checkbox" checked={!!unitForm.is_rented} onChange={e=>setUnitForm(v=>({...v,is_rented:e.target.checked}))}/> ملک در اختیار مستأجر است</Label></FormGroup>
+    {unitForm.is_rented&&<Row>{[["tenant_first_name","نام مستأجر","text"],["tenant_last_name","نام خانوادگی مستأجر","text"],["tenant_phone","شماره تماس مستأجر","tel"],["tenant_move_out_date","تاریخ تخلیه (میلادی)","date"]].map(([k,label,type])=><Col md="3" key={k}><FormGroup><Label>{label}</Label><Input type={type} value={unitForm[k]||""} onChange={e=>setUnitForm(v=>({...v,[k]:e.target.value}))}/></FormGroup></Col>)}</Row>}
+    <Button color="primary" disabled={busy} onClick={saveUnit}>{unitEditing?"ذخیره ویرایش واحد":"افزودن آپارتمان"}</Button>{" "}{unitEditing&&<Button color="light" onClick={()=>{setUnitEditing(null);setUnitForm({...emptyUnit})}}>انصراف از ویرایش</Button>}
+    <Table responsive hover style={{marginTop:20}}><thead><tr><th>طبقه / واحد</th><th>کد پستی</th><th>مالک و تماس</th><th>مستأجر / تخلیه</th><th>عملیات</th></tr></thead><tbody>{buildingUnits.map(u=><tr key={u.id}>
+     <td>{u.floor_number} / {u.unit_number}</td><td>{u.postal_code||"—"}</td><td>{u.owner_name}<small className="d-block">{u.owner_phone}</small></td>
+     <td>{u.is_rented?((u.tenant_first_name||"")+" "+(u.tenant_last_name||"")+" | "+(u.tenant_phone||"")+" | "+(u.tenant_move_out_date||"")):"مالک‌نشین"}</td>
+     <td><Button color="info" outline size="sm" onClick={()=>{setUnitEditing(u.id);setUnitForm({...emptyUnit,...u,is_rented:!!u.is_rented})}}>ویرایش</Button>{" "}<Button color="danger" outline size="sm" onClick={()=>removeUnit(u)}>حذف</Button></td>
+    </tr>)}</tbody></Table>
+   </CardBody></Card>}
   </CardBody></Card>}
   {section==="builders"&&<Card><CardBody>
    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap",marginBottom:18}}><div><h3 style={{margin:0,fontSize:19,color:"#075c98"}}>مدیریت سازندگان برتر شیراز</h3><small>ثبت سازنده، رزومه، تصویر و نمونه‌کارها</small></div><div><Button color="primary" onClick={()=>openBuilder(null)}>+ افزودن سازنده جدید</Button>{" "}<Button color="light" onClick={reload}>به‌روزرسانی</Button></div></div>
