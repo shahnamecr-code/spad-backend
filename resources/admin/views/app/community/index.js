@@ -121,18 +121,18 @@ export default function CommunityAdmin({mode="buildings"}){
   <CommonHeading title={section==="buildings"?"مدیریت ساختمان‌های اسپاد":section==="builders"?"باشگاه سازندگان برتر اسپاد":"مرکز مدیریت مزایده ملک"}
    desc="تأیید محتوا، مدیریت فعالیت‌ها و کنترل تنظیمات از سامانه یکپارچه اسپاد"/>
   <Row><Kpi title="ساختمان‌های ثبت‌شده" value={buildings.length}/><Kpi title="رزومه‌های سازندگان" value={builders.length}/><Kpi title="مزایده‌های ثبت‌شده" value={auctions.length}/></Row>
-  {false&&section==="settings"&&<Card style={{borderRadius:16}}><CardBody>
-   <h3 style={{fontSize:17}}>تنظیمات ماژول‌های اختصاصی</h3>
+  {<Card style={{borderRadius:16,marginBottom:18}}><CardBody>
+   <h3 style={{fontSize:17}}>تنظیمات اختصاصی {section==="buildings"?"مدیریت ساختمان":section==="builders"?"سازندگان برتر":"مزایده ملک"}</h3>
    {[
     ["buildings_enabled","فعال‌بودن سامانه مدیریت ساختمان"],
     ["builders_enabled","نمایش سازندگان برتر و پذیرش رزومه"],
     ["auctions_enabled","نمایش مزایده‌ها و پذیرش پیشنهاد"]
-   ].map(([key,label])=><FormGroup check key={key} style={{marginBottom:14}}>
+   ].filter(([key])=>key===({buildings:"buildings_enabled",builders:"builders_enabled",auctions:"auctions_enabled"}[section])).map(([key,label])=><FormGroup check key={key} style={{marginBottom:14}}>
     <Label check><Input type="checkbox" checked={!!settings[key]} onChange={e=>setSettings(v=>({...v,[key]:e.target.checked}))}/>{label}</Label>
    </FormGroup>)}
-   <FormGroup><Label>حداقل گام مجاز مزایده (تومان)</Label><Input type="number" min={1000000} value={settings.minimum_bid_increment} onChange={e=>setSettings(v=>({...v,minimum_bid_increment:e.target.value}))}/></FormGroup>
+   {section==="auctions"&&<><FormGroup><Label>حداقل گام مجاز مزایده (تومان)</Label><Input type="number" min={1000000} value={settings.minimum_bid_increment} onChange={e=>setSettings(v=>({...v,minimum_bid_increment:e.target.value}))}/></FormGroup>
    <FormGroup><Label>اطلاعیه و شرایط شرکت در مزایده (نمایش عمومی)</Label><Input type="textarea" rows={3} maxLength={1500} value={settings.auction_notice||""} onChange={e=>setSettings(v=>({...v,auction_notice:e.target.value}))}/></FormGroup>
-   <p style={{fontSize:12,color:"#7b8998"}}>ثبت پیشنهاد مزایده به معنی دریافت وجه، ضمانت معامله یا انتقال سند نیست. دریافت وجه تضمین تا زمان اتصال درگاه و تأیید مقررات فعال نشده است.</p>
+   <p style={{fontSize:12,color:"#7b8998"}}>ثبت پیشنهاد مزایده به معنی دریافت وجه، ضمانت معامله یا انتقال سند نیست. دریافت وجه تضمین تا زمان اتصال درگاه و تأیید مقررات فعال نشده است.</p></>}
    <Button color="primary" onClick={saveSettings} disabled={busy}>ذخیره تنظیمات</Button>
   </CardBody></Card>}
   {<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
