@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function(){
  Route::post('my-builder-profile/projects',[Community::class,'addMyProject'])->middleware('throttle:10,60');
  Route::delete('my-builder-profile/projects/{id}',[Community::class,'deleteMyProject'])->whereNumber('id');
  Route::get('my-property-auctions',[Community::class,'myAuctions']);
+ Route::get('property-auctions/{id}/my-bids',[Community::class,'myAuctionBids'])->whereNumber('id')->middleware('throttle:30,1');
  Route::post('property-auctions',[Community::class,'proposeAuction'])->middleware('throttle:4,60');
  Route::post('property-auctions/{id}/bids',[Community::class,'bid'])->whereNumber('id')->middleware('throttle:8,1');
 });
