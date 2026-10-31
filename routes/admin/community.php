@@ -9,6 +9,7 @@ Route::patch('community/buildings/{id}',[Community::class,'adminBuildingStatus']
 Route::get('community/builders',[Community::class,'adminBuilders']);
 Route::patch('community/builders/{id}',[Community::class,'adminBuilderStatus'])->whereNumber('id');
 Route::get('community/auctions',[Community::class,'adminAuctions']);
+Route::get('community/auctions/eligible-advertisements',[Community::class,'adminEligibleAuctionAdvertisements']);
 Route::patch('community/auctions/{id}',[Community::class,'adminAuctionStatus'])->whereNumber('id');
 Route::get('community/auctions/{id}/bids',[Community::class,'adminAuctionBids'])->whereNumber('id');
 
