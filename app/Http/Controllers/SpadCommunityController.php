@@ -351,6 +351,14 @@ class SpadCommunityController extends Controller
   abort_unless(DB::table('spad_buildings')->where('id',$id)->update(array_merge($d,['updated_at'=>now()])),404);
   return response()->json(['message'=>'وضعیت ساختمان ثبت شد.']);
  }
+ public function adminUploadBuilderImage(Request $r)
+ {
+  $this->admin();
+  $d=$r->validate(['image'=>'required|image|mimes:jpeg,jpg,png,webp|max:5120']);
+  $path=$d['image']->store('spad-builders','public');
+  abort_unless($path,500,'ذخیره تصویر انجام نشد.');
+  return response()->json(['url'=>url('/storage/'.$path),'message'=>'تصویر سازنده بارگذاری شد.'],201);
+ }
  public function adminCreateBuilder(Request $r)
  {
   $this->admin();
