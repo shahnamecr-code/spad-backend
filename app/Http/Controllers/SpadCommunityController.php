@@ -509,6 +509,25 @@ class SpadCommunityController extends Controller
   abort_unless(DB::table('spad_builder_profiles')->where('id',$id)->update(array_merge($d,['updated_at'=>now()])),404);
   return response()->json(['message'=>'تأیید، انتشار و اولویت نمایش سازنده ذخیره شد.']);
  }
+ public function adminEligibleAuctionAdvertisements(Request $r)
+ {
+  $this->admin();
+  $queryText=trim((string)($r->validate(['q'=>'nullable|string|max:100'])['q']??''));
+  $query=DB::table('advertisements as ad')
+   ->leftJoin('advertisement_properties as prop',function($join){
+    $join->on('prop.advertisement_id','=','ad.id')->where('prop.property_slug','=','title');
+   })
+   ->leftJoin('cities as city','city.id','=','ad.city_id')
+   ->where('ad.status',\App\Models\Advertisement::APPROVED)
+   ->select('ad.id','prop.text_value as title','city.name as city');
+  if($queryText!==''){
+   $query->where(function($q)use($queryText){
+    if(ctype_digit($queryText))$q->orWhere('ad.id',(int)$queryText);
+    $q->orWhere('prop.text_value','like','%'.$queryText.'%');
+   });
+  }
+  return response()->json(['data'=>$query->orderByDesc('ad.id')->limit(40)->get()]);
+ }
  public function adminCreateAuction(Request $r)
  {
   $this->admin();
@@ -517,7 +536,7 @@ class SpadCommunityController extends Controller
    'district'=>'nullable|string|max:180','description'=>'required|string|min:30|max:7000',
    'image_url'=>$this->urlRule(),'opening_bid_toman'=>'required|integer|min:1000000|max:999999999999999',
    'minimum_increment_toman'=>'required|integer|min:1000000|max:999999999999',
-   'advertisement_id'=>'nullable|integer|exists:advertisements,id'
+   'advertisement_id'=>['nullable','integer',Rule::exists('advertisements','id')->where('status',\App\Models\Advertisement::APPROVED)]
   ]);
   // New auctions are held for owner-document verification before publishing.
   $id=DB::table('spad_property_auctions')->insertGetId(array_merge($d,[
