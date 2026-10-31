@@ -20,3 +20,11 @@ Route::get('community/builders/{id}/projects',[Community::class,'adminBuilderPro
 Route::post('community/builders/{id}/projects',[Community::class,'adminAddBuilderProject'])->whereNumber('id');
 Route::delete('community/builders/{id}/projects/{projectId}',[Community::class,'adminDeleteBuilderProject'])->whereNumber('id')->whereNumber('projectId');
 Route::post('community/auctions',[Community::class,'adminCreateAuction']);
+
+Route::post('community/buildings',[ \App\Http\Controllers\BuildingAdminController::class,'create']);
+Route::put('community/buildings/{id}',[ \App\Http\Controllers\BuildingAdminController::class,'update'])->whereNumber('id');
+Route::delete('community/buildings/{id}',[ \App\Http\Controllers\BuildingAdminController::class,'delete'])->whereNumber('id');
+Route::get('community/buildings/{id}/units',[ \App\Http\Controllers\BuildingAdminController::class,'units'])->whereNumber('id');
+Route::post('community/buildings/{id}/units',[ \App\Http\Controllers\BuildingAdminController::class,'addUnit'])->whereNumber('id');
+Route::put('community/buildings/{id}/units/{unitId}',[ \App\Http\Controllers\BuildingAdminController::class,'updateUnit'])->whereNumber('id')->whereNumber('unitId');
+Route::delete('community/buildings/{id}/units/{unitId}',[ \App\Http\Controllers\BuildingAdminController::class,'deleteUnit'])->whereNumber('id')->whereNumber('unitId');
