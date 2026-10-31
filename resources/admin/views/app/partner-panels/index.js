@@ -26,6 +26,7 @@ const partnerTypeFallback = {
   developer: 'سازندگان',
   engineering_organization: 'دفاتر نظام مهندسی',
   investor: 'سرمایه‌گذاران',
+  building_manager: 'مدیر ساختمان',
 };
 
 const emptyForm = {
@@ -219,7 +220,7 @@ const PartnerPanels = ({match}) => {
         <div>
           <span className="spad-partner-admin__eyebrow">SPAD Partner Access</span>
           <h2>مدیریت پنل‌های همکاری</h2>
-          <p>ایجاد و کنترل دسترسی دفاتر اسناد رسمی، سازندگان، نظام مهندسی و سرمایه‌گذاران فقط از این بخش انجام می‌شود.</p>
+          <p>ایجاد و کنترل دسترسی دفاتر اسناد رسمی، سازندگان، مدیران ساختمان، نظام مهندسی و سرمایه‌گذاران از این بخش انجام می‌شود.</p>
         </div>
         <div className="spad-partner-admin__hero-lock"><i className="simple-icon-lock"/><span>Admin only</span></div>
       </div>
