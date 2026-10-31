@@ -12,6 +12,7 @@ Route::get('community/auctions',[Community::class,'adminAuctions']);
 Route::patch('community/auctions/{id}',[Community::class,'adminAuctionStatus'])->whereNumber('id');
 Route::get('community/auctions/{id}/bids',[Community::class,'adminAuctionBids'])->whereNumber('id');
 
+Route::post('community/builders/upload-image',[Community::class,'adminUploadBuilderImage']);
 Route::post('community/builders',[Community::class,'adminCreateBuilder']);
 Route::put('community/builders/{id}',[Community::class,'adminEditBuilder'])->whereNumber('id');
 Route::delete('community/builders/{id}',[Community::class,'adminDeleteBuilder'])->whereNumber('id');
