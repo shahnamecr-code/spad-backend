@@ -6,13 +6,15 @@ use Illuminate\Support\Facades\DB;
 
 class ExtendSpadCommunityAdminProfiles extends Migration {
  public function up() {
+  DB::statement('ALTER TABLE spad_builder_profiles MODIFY user_id BIGINT UNSIGNED NULL');
+  DB::statement('ALTER TABLE spad_property_auctions MODIFY owner_user_id BIGINT UNSIGNED NULL');
   Schema::table('spad_builder_profiles',function(Blueprint $t){
-   $t->unsignedBigInteger('user_id')->nullable()->change();
+
    $t->string('activity_area',250)->nullable();
    $t->text('building_names')->nullable();
   });
   Schema::table('spad_property_auctions',function(Blueprint $t){
-   $t->unsignedBigInteger('owner_user_id')->nullable()->change();
+
    $t->unsignedBigInteger('advertisement_id')->nullable()->index();
   });
   // Fictional sample portfolios stay unpublished, unverified and clearly labelled.
