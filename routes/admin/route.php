@@ -24,3 +24,4 @@ include 'inquiry.php';
 include 'virtual-tour.php';
 
 include_once 'mortgage.php';
+include_once __DIR__ . '/community.php';
