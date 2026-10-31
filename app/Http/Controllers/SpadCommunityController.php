@@ -54,7 +54,10 @@ class SpadCommunityController extends Controller
    'buildings_enabled'=>(bool)$s->buildings_enabled,
    'builders_enabled'=>(bool)$s->builders_enabled,
    'auctions_enabled'=>(bool)$s->auctions_enabled,
-   'auction_notice'=>$s->auction_notice
+   'auction_notice'=>$s->auction_notice,
+   'auction_deposit_enabled'=>(bool)($s->auction_deposit_enabled??false),
+   'auction_deposit_toman'=>(int)($s->auction_deposit_toman??0),
+   'auction_deposit_terms'=>(string)($s->auction_deposit_terms??'')
   ]]);
  }
  public function myBuildings(Request $r)
@@ -326,6 +329,10 @@ class SpadCommunityController extends Controller
   $x->minimum_next_toman=$x->highest_bid_toman===null
    ? (int)$x->opening_bid_toman
    : (int)$x->highest_bid_toman+(int)$x->minimum_increment_toman;
+  $settings=$this->config();
+  $x->auction_deposit_enabled=(bool)($settings->auction_deposit_enabled??false);
+  $x->auction_deposit_toman=(int)($settings->auction_deposit_toman??0);
+  $x->auction_deposit_terms=(string)($settings->auction_deposit_terms??'');
   $x->server_time_ms=now()->timestamp*1000;
   $x->starts_at_ms=$x->starts_at?Carbon::parse($x->starts_at)->timestamp*1000:null;
   $x->ends_at_ms=$x->ends_at?Carbon::parse($x->ends_at)->timestamp*1000:null;
@@ -354,6 +361,10 @@ class SpadCommunityController extends Controller
   $this->active('auctions');$uid=$this->uid($r);
   $owned=DB::table('spad_property_auctions')->where('owner_user_id',$uid)->orderByDesc('id')->limit(100)->get();
   $ids=DB::table('spad_auction_bids')->where('user_id',$uid)->distinct()->pluck('auction_id');
+  if(Schema::hasTable('spad_auction_participations')){
+   $enrolled=DB::table('spad_auction_participations')->where('user_id',$uid)->pluck('auction_id');
+   $ids=$ids->merge($enrolled)->unique()->values();
+  }
   $participated=DB::table('spad_property_auctions')->whereIn('id',$ids)->orderByDesc('id')->limit(100)->get();
   return response()->json(['data'=>['owned'=>$owned,'participated'=>$participated]]);
  }
@@ -378,6 +389,14 @@ class SpadCommunityController extends Controller
    abort_unless($x->status==='published'&&$x->starts_at&&$x->ends_at&&
     Carbon::parse($x->starts_at)->lte(now())&&Carbon::parse($x->ends_at)->gt(now()),422,'مزایده در حال برگزاری نیست.');
    abort_if((int)$x->owner_user_id===$uid,422,'ثبت پیشنهاد برای صاحب ملک مجاز نیست.');
+   $settings=$this->config();
+   if((bool)($settings->auction_deposit_enabled??false)){
+    $held=Schema::hasTable('spad_auction_participations')&&
+     DB::table('spad_auction_participations')->where('auction_id',$id)->where('user_id',$uid)->where('status','held')->exists();
+    // Users who bid before the policy was enabled retain their existing access.
+    $previous=DB::table('spad_auction_bids')->where('auction_id',$id)->where('user_id',$uid)->exists();
+    abort_unless($held||$previous,422,'برای ثبت اولین پیشنهاد، ابتدا ودیعه مشارکت را از کیف پول پرداخت کنید.');
+   }
    $max=DB::table('spad_auction_bids')->where('auction_id',$id)->max('amount_toman');
    $minimum=$max===null?(int)$x->opening_bid_toman:(int)$max+(int)$x->minimum_increment_toman;
    abort_if((int)$d['amount_toman']<$minimum,422,'حداقل پیشنهاد مجاز '.number_format($minimum).' تومان است.');
@@ -404,8 +423,14 @@ class SpadCommunityController extends Controller
   $this->admin();$d=$r->validate([
    'buildings_enabled'=>'required|boolean','builders_enabled'=>'required|boolean','auctions_enabled'=>'required|boolean',
    'minimum_bid_increment'=>'required|integer|min:1000000|max:999999999999',
-   'auction_notice'=>'required|string|max:1500'
+   'auction_notice'=>'required|string|max:1500',
+   'auction_deposit_enabled'=>'sometimes|boolean',
+   'auction_deposit_toman'=>'sometimes|integer|min:0|max:100000000000',
+   'auction_deposit_terms'=>'sometimes|nullable|string|max:2000'
   ]);
+  if(!empty($d['auction_deposit_enabled'])){
+   abort_unless(($d['auction_deposit_toman']??(int)$this->config()->auction_deposit_toman)>=1000,422,'برای فعال‌سازی ودیعه، مبلغ حداقل ۱٬۰۰۰ تومان تعیین کنید.');
+  }
   DB::table('spad_community_settings')->where('id',1)->update(array_merge($d,['updated_at'=>now()]));
   return response()->json(['data'=>$this->config()]);
  }
