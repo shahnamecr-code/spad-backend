@@ -327,6 +327,8 @@ class SpadCommunityController extends Controller
    ? (int)$x->opening_bid_toman
    : (int)$x->highest_bid_toman+(int)$x->minimum_increment_toman;
   $x->server_time_ms=now()->timestamp*1000;
+  $x->starts_at_ms=$x->starts_at?Carbon::parse($x->starts_at)->timestamp*1000:null;
+  $x->ends_at_ms=$x->ends_at?Carbon::parse($x->ends_at)->timestamp*1000:null;
   unset($x->owner_user_id,$x->provisional_winner_user_id);
   return response()->json(['data'=>$x,'notice'=>$this->config()->auction_notice]);
  }
