@@ -316,8 +316,36 @@ class SpadCommunityController extends Controller
   $this->active('auctions');
   $x=DB::table('spad_property_auctions')->where('id',$id)->where('status','published')->first();
   abort_unless($x,404);$this->decorateAuction($x);
+  // Public activity contains amounts and times only; never expose bidder IDs.
+  $activity=DB::table('spad_auction_bids')->where('auction_id',$id)
+   ->orderByDesc('id')->limit(25)->get(['id','amount_toman','created_at']);
+  $x->recent_bids=$activity->map(function($bid){
+    return ['id'=>(int)$bid->id,'amount_toman'=>(int)$bid->amount_toman,
+     'created_at'=>$bid->created_at];
+  })->values();
+  $x->minimum_next_toman=$x->highest_bid_toman===null
+   ? (int)$x->opening_bid_toman
+   : (int)$x->highest_bid_toman+(int)$x->minimum_increment_toman;
+  $x->server_time_ms=now()->timestamp*1000;
   unset($x->owner_user_id,$x->provisional_winner_user_id);
   return response()->json(['data'=>$x,'notice'=>$this->config()->auction_notice]);
+ }
+ public function myAuctionBids(Request $r,$id)
+ {
+  $this->active('auctions');$uid=$this->uid($r);
+  abort_unless(DB::table('spad_property_auctions')->where('id',$id)->where('status','published')->exists(),404);
+  $records=DB::table('spad_auction_bids')->where('auction_id',$id)
+   ->where('user_id',$uid)->orderByDesc('id')->limit(50)
+   ->get(['id','amount_toman','created_at']);
+  $highest=DB::table('spad_auction_bids')->where('auction_id',$id)->max('amount_toman');
+  return response()->json(['data'=>[
+   'bids'=>$records,'count'=>DB::table('spad_auction_bids')->where('auction_id',$id)->where('user_id',$uid)->count(),
+   'my_highest_toman'=>$records->max('amount_toman'),
+   'highest_bid_toman'=>$highest===null?null:(int)$highest,
+   'is_leading'=>$highest!==null&&$records->contains(function($bid)use($highest){
+     return (int)$bid->amount_toman===(int)$highest;
+   }),
+  ]]);
  }
  public function myAuctions(Request $r)
  {
