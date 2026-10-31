@@ -220,13 +220,17 @@ class SpadCommunityController extends Controller
   $d=$r->validate(['name'=>'required|string|min:3|max:180','city'=>'required|string|max:110',
    'headline'=>'nullable|string|max:220','biography'=>'nullable|string|max:7000',
    'experience_years'=>'required|integer|min:0|max:90','completed_projects'=>'required|integer|min:0|max:10000',
-   'logo_url'=>$this->urlRule()]);
+   'logo_url'=>$this->urlRule(),
+   'activity_area'=>'nullable|string|max:250',
+   'building_names'=>'nullable|string|max:2000']);
   $old=DB::table('spad_builder_profiles')->where('user_id',$uid)->first();
   DB::table('spad_builder_profiles')->updateOrInsert(['user_id'=>$uid],array_merge($d,[
    'published'=>false,'verified'=>false,'rank_priority'=>$old?$old->rank_priority:1000,
    'updated_at'=>now(),'created_at'=>$old?$old->created_at:now()
   ]));
-  return response()->json(['message'=>'رزومه برای بررسی و تأیید مدیریت ثبت شد.']);
+  $profile=DB::table('spad_builder_profiles')->where('user_id',$uid)->first();
+  return response()->json(['id'=>$profile->id,'profile_url'=>'/top-builders/'.$profile->id,
+   'published'=>false,'message'=>'صفحه اختصاصی سازنده ایجاد شد و برای انتشار عمومی نیازمند تأیید مدیریت است.']);
  }
  public function addMyProject(Request $r)
  {
