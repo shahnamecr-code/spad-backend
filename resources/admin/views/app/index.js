@@ -67,6 +67,19 @@ const Wallets = React.lazy(() => import(/* webpackChunkName: "wallets" */'./wall
 const MortgageAdmin = React.lazy(() => import("./mortgage"));
 const MaterialsAdmin = React.lazy(() => import("./material-prices"));
 const CommunityAdmin = React.lazy(() => import("./community"));
+class CommunityPageErrorBoundary extends React.Component {
+ constructor(props){super(props);this.state={hasError:false};}
+ static getDerivedStateFromError(){return {hasError:true};}
+ componentDidCatch(err){console.error("SPAD community panel rendering error",err);}
+ render(){
+  if(this.state.hasError)return <div dir="rtl" style={{padding:28,margin:24,background:"#f6fbff",border:"1px solid #d9e8f4",borderRadius:15}}>
+   <h3 style={{fontSize:20,color:"#146d9c"}}>صفحه مدیریت به‌درستی بارگذاری نشد</h3>
+   <p style={{fontSize:13,color:"#53798b"}}>یک خطای موقت در نمایش این بخش رخ داده است. صفحه را دوباره بارگذاری کنید؛ اطلاعات شما تغییری نکرده است.</p>
+   <button type="button" style={{background:"#0877b5",color:"white",border:0,borderRadius:8,padding:"10px 18px",cursor:"pointer"}} onClick={()=>window.location.reload()}>بارگذاری مجدد صفحه</button>
+  </div>;
+  return this.props.children;
+ }
+}
 const Inquiries = React.lazy(() => import(/* webpackChunkName: "inquiries" */'./inquiries'));
 const VirtualTours = React.lazy(() => import(/* webpackChunkName: "virtual-tours" */'./virtual-tours'));
 const PartnerPanels = React.lazy(() => import(/* webpackChunkName: "partner-panels" */'./partner-panels'));
@@ -168,7 +181,7 @@ const App = ({ match, step, location }) => {
                 <Route path={`${match.url}/material-prices`} render={(props) => <MaterialsAdmin {...props} />} />
                 <Route path={`${match.url}/building-management`} render={(props) => <CommunityAdmin {...props} mode="buildings" />} />
                 <Route path={`${match.url}/top-builders`} render={(props) => <CommunityAdmin {...props} mode="builders" />} />
-                <Route path={`${match.url}/property-auctions`} render={(props) => <CommunityAdmin {...props} mode="auctions" />} />
+                <Route path={`${match.url}/property-auctions`} render={(props) => <CommunityPageErrorBoundary><CommunityAdmin {...props} mode="auctions" /></CommunityPageErrorBoundary>} />
                 <Route
                   path={`${match.url}/inquiries`}
                   render={(props) => <Inquiries {...props} />}
