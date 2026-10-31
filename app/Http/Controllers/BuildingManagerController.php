@@ -120,6 +120,7 @@ class BuildingManagerController extends Controller
             abort_unless(DB::table('spad_building_units')->where('building_id',$id)
                 ->where('id',$d['unit_id'])->exists(),422,'واحد متعلق به ساختمان نیست.');
         } else { $d['unit_id']=null; }
+        if($d['kind']==='tax')abort_unless($d['unit_id'],422,'برای حفظ حریم خصوصی، قبض مالیاتی باید به یک واحد مشخص مرتبط شود.');
         if($d['kind']!=='tax')$d['tax_category']=null;
         DB::table('spad_building_bills')->insert(array_merge($d,[
             'building_id'=>$id,'status'=>'unpaid','recorded_by'=>$r->user()->id,
