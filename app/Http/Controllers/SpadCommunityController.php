@@ -89,18 +89,56 @@ class SpadCommunityController extends Controller
   $units=DB::table('spad_building_units')->where('building_id',$id)
    ->orderBy('id')->get();
   // Residents must never see other residents' names, IDs or payment history.
-  if(!$manager)$units=$units->filter(function($x)use($uid){return (int)$x->user_id===$uid;})->values();
+  if(!$manager){
+    $units=$units->filter(function($x)use($uid){return (int)$x->user_id===$uid;})->values();
+    // Document identifiers and contact details of the owner stay restricted to management.
+    $units=$units->map(function($unit){
+      foreach(['deed_main_no','deed_sub_no','deed_registration_section','deed_area_sqm',
+        'deed_unique_id','owner_phone','tenant_phone','tax_file_reference'] as $private){
+        unset($unit->{$private});
+      }
+      return $unit;
+    });
+   }
   $unitIds=$units->pluck('id');
   $charges=DB::table('spad_building_charges')->where('building_id',$id)
    ->when(!$manager,function($q)use($unitIds){$q->whereIn('unit_id',$unitIds);})
    ->orderByDesc('id')->limit(500)->get();
   $expenses=DB::table('spad_building_expenses')->where('building_id',$id)->orderByDesc('expense_date')->limit(100)->get();
-  $bills=DB::table('spad_building_bills')->where('building_id',$id)->orderByDesc('id')->limit(100)->get();
+  $bills=DB::table('spad_building_bills')->where('building_id',$id)
+    ->when(!$manager,function($query)use($unitIds){
+      $query->where(function($q)use($unitIds){
+        $q->whereNull('unit_id')->orWhereIn('unit_id',$unitIds);
+      });
+    })->orderByDesc('id')->limit(100)->get();
   $notices=DB::table('spad_building_notices')->where('building_id',$id)->orderByDesc('id')->limit(60)->get();
   $tickets=DB::table('spad_building_tickets')->where('building_id',$id)
    ->when(!$manager,function($q)use($uid){$q->where('user_id',$uid);})
    ->orderByDesc('id')->limit(100)->get();
   return response()->json(['data'=>compact('building','manager','units','charges','bills','expenses','notices','tickets')]);
+ }
+ public function updateMyUnitPaymentDetails(Request $r,$id)
+ {
+   $this->active('buildings');$uid=$this->uid($r);
+   [$building,$memberUnit]=$this->building($id,$uid);
+   $unit=DB::table('spad_building_units')->where('building_id',$id)
+     ->where('user_id',$uid)->where('status','active')->first();
+   abort_unless($unit,403,'تنها عضو تأییدشده این واحد می‌تواند شناسه‌های پرداخت خود را به‌روزرسانی کند.');
+   $d=$r->validate([
+      'water_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+      'water_subscription_no'=>'nullable|string|max:50',
+      'electricity_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+      'electricity_subscription_no'=>'nullable|string|max:50',
+      'gas_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+      'gas_subscription_no'=>'nullable|string|max:50',
+      'landline_number'=>['nullable','regex:/^[0-9]{8,15}$/'],
+      'landline_bill_id'=>['nullable','regex:/^[0-9]{5,40}$/'],
+      'municipal_renovation_code'=>'nullable|string|max:50',
+      'municipal_property_code'=>'nullable|string|max:50',
+   ]);
+   abort_if(empty($d),422,'شناسه‌ای برای ذخیره ارسال نشده است.');
+   DB::table('spad_building_units')->where('id',$unit->id)->update(array_merge($d,['updated_at'=>now()]));
+   return response()->json(['message'=>'شناسه‌های قبوض این واحد ذخیره شد. هیچ پرداختی انجام نشده است.']);
  }
  public function addUnit(Request $r,$id)
  {
