@@ -365,7 +365,13 @@ class SpadCommunityController extends Controller
    $enrolled=DB::table('spad_auction_participations')->where('user_id',$uid)->pluck('auction_id');
    $ids=$ids->merge($enrolled)->unique()->values();
   }
-  $participated=DB::table('spad_property_auctions')->whereIn('id',$ids)->orderByDesc('id')->limit(100)->get();
+  $participatedQuery=DB::table('spad_property_auctions as a')->whereIn('a.id',$ids);
+  if(Schema::hasTable('spad_auction_participations')){
+   $participatedQuery->leftJoin('spad_auction_participations as p',function($join)use($uid){
+    $join->on('p.auction_id','=','a.id')->where('p.user_id','=',$uid);
+   })->select('a.*','p.status as deposit_status','p.amount_toman as deposit_amount_toman');
+  }else $participatedQuery->select('a.*');
+  $participated=$participatedQuery->orderByDesc('a.id')->limit(100)->get();
   return response()->json(['data'=>['owned'=>$owned,'participated'=>$participated]]);
  }
  public function proposeAuction(Request $r)
