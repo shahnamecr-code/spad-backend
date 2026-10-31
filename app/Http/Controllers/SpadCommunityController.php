@@ -95,11 +95,12 @@ class SpadCommunityController extends Controller
    ->when(!$manager,function($q)use($unitIds){$q->whereIn('unit_id',$unitIds);})
    ->orderByDesc('id')->limit(500)->get();
   $expenses=DB::table('spad_building_expenses')->where('building_id',$id)->orderByDesc('expense_date')->limit(100)->get();
+  $bills=DB::table('spad_building_bills')->where('building_id',$id)->orderByDesc('id')->limit(100)->get();
   $notices=DB::table('spad_building_notices')->where('building_id',$id)->orderByDesc('id')->limit(60)->get();
   $tickets=DB::table('spad_building_tickets')->where('building_id',$id)
    ->when(!$manager,function($q)use($uid){$q->where('user_id',$uid);})
    ->orderByDesc('id')->limit(100)->get();
-  return response()->json(['data'=>compact('building','manager','units','charges','expenses','notices','tickets')]);
+  return response()->json(['data'=>compact('building','manager','units','charges','bills','expenses','notices','tickets')]);
  }
  public function addUnit(Request $r,$id)
  {
