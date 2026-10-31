@@ -345,6 +345,12 @@ export default function CommunityAdmin({mode="buildings"}){
     </div>
     <Row>{[["title","عنوان مزایده"],["city","شهر"],["district","محله"],["image_url","تصویر HTTPS"],["opening_bid_toman","قیمت شروع (تومان)"],["minimum_increment_toman","حداقل گام پیشنهاد (تومان)"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input value={auctionForm[key]||""} type={["opening_bid_toman","minimum_increment_toman"].includes(key)?"number":"text"} onChange={e=>setAuctionForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
     <FormGroup><Label>شرح کامل ملک، شرایط بازدید و مقررات مزایده</Label><Input type="textarea" rows={5} value={auctionForm.description} onChange={e=>setAuctionForm(v=>({...v,description:e.target.value}))}/></FormGroup>
+    <div style={{border:"1px solid #d5e8f5",borderRadius:14,padding:15,margin:"16px 0",background:"#fafdff"}}>
+     <h5 style={{fontSize:15,color:"#12648e",marginBottom:6}}>زمان‌بندی اختیاری مزایده</h5>
+     <p style={{fontSize:11,color:"#6c8ca4",lineHeight:2}}>تاریخ‌ها شمسی هستند و ساعت به وقت تهران انتخاب می‌شود. اگر هنوز زمان مزایده قطعی نیست، این بخش را خالی بگذارید و پس از تأیید ملک تنظیم کنید.</p>
+     <AuctionDateTimeFields values={auctionForm} onChange={(key,value)=>setAuctionForm(old=>({...old,[key]:value}))} disabled={busy}/>
+     {(auctionForm.starts_at||auctionForm.ends_at)&&!validAuctionTimeRange(auctionForm.starts_at,auctionForm.ends_at)&&<small style={{color:"#c55744"}}>زمان پایان باید بعد از شروع باشد و هر دو زمان انتخاب شوند.</small>}
+    </div>
     <Button color="primary" disabled={busy} onClick={createAuction}>ثبت در وضعیت بررسی</Button>
    </CardBody></Card>}
    <h4>بازبینی و مدیریت مزایده‌ها</h4>
@@ -354,9 +360,13 @@ export default function CommunityAdmin({mode="buildings"}){
     <td style={{minWidth:185}}><strong>{x.title}</strong><div style={{fontSize:11,color:"#789"}}>{x.city} / {x.district} | کاربر {x.owner_user_id}</div>
      <p style={{fontSize:10,maxWidth:260,whiteSpace:"normal"}}>{x.description}</p></td>
     <td style={{minWidth:100}}>{money(x.opening_bid_toman)}</td>
-    <td style={{minWidth:190}}>
-     <Label style={{fontSize:10}}>شروع (میلادی، ساعت سرور)</Label><Input bsSize="sm" type="text" placeholder="2026-11-01 12:00:00" value={timeInput(d.starts_at)} onChange={e=>updAuction(x,"starts_at",e.target.value)}/>
-     <Label style={{fontSize:10,marginTop:6}}>پایان (میلادی، ساعت سرور)</Label><Input bsSize="sm" type="text" placeholder="2026-11-05 12:00:00" value={timeInput(d.ends_at)} onChange={e=>updAuction(x,"ends_at",e.target.value)}/>
+    <td style={{minWidth:210}}>
+     <div style={{display:"grid",gap:6,fontSize:11,color:"#597e99"}}>
+      <div><span style={{color:"#0b87c1"}}>شروع: </span>{persianAuctionTime(d.starts_at)}</div>
+      <div><span style={{color:"#0b87c1"}}>پایان: </span>{persianAuctionTime(d.ends_at)}</div>
+     </div>
+     <Button size="sm" color="info" outline style={{marginTop:8,fontSize:11,borderRadius:9}} disabled={busy} onClick={()=>openAuctionSchedule(x)}>انتخاب تاریخ و ساعت</Button>
+     <div style={{fontSize:9,color:"#93a7b6",marginTop:6}}>تقویم شمسی · ساعت تهران</div>
     </td>
     <td style={{minWidth:170}}><Input type="select" bsSize="sm" value={d.status} onChange={e=>updAuction(x,"status",e.target.value)}>
       {["review","published","paused","closed","rejected"].map(k=><option value={k} key={k}>{statuses[k]}</option>)}
@@ -370,5 +380,25 @@ export default function CommunityAdmin({mode="buildings"}){
    </tr>})}
    </tbody></Table>{!auctions.length&&<p>هنوز مزایده‌ای ثبت نشده است.</p>}
   </CardBody></Card>}
+   <Modal isOpen={!!scheduleFor} centered size="lg" toggle={()=>!busy&&setScheduleFor(null)} style={{direction:"rtl",maxWidth:720}}>
+    <ModalHeader toggle={()=>!busy&&setScheduleFor(null)} style={{color:"#0d6197"}}>
+     زمان‌بندی مزایده {scheduleFor?("«"+scheduleFor.title+"»"):""}
+    </ModalHeader>
+    <ModalBody style={{padding:20}}>
+     <p style={{fontSize:12,color:"#6489a2",lineHeight:2}}>برای انتخاب تاریخ روی کادرها بزنید و از تقویم شمسی، روز و ساعت و دقیقه را تعیین کنید. این زمان‌ها با منطقه زمانی تهران ذخیره می‌شوند.</p>
+     <AuctionDateTimeFields values={scheduleValues} onChange={changeSchedule} disabled={busy}/>
+     {!validAuctionTimeRange(scheduleValues.starts_at,scheduleValues.ends_at)&&
+      <div style={{fontSize:11,color:"#c3543f",padding:10,background:"#fff5f2",borderRadius:9}}>
+       هر دو تاریخ الزامی‌اند و زمان پایان باید بعد از زمان شروع باشد.
+      </div>}
+     <p style={{fontSize:11,color:"#7896aa",lineHeight:2,marginTop:13}}>توجه: پس از ثبت اولین پیشنهاد، زمان شروع و پایان مزایده به‌دلایل حفاظتی قابل تغییر نیست. همچنین زمان پایان در مزایده فعال ممکن است مطابق قوانین تمدید خودکار تغییر کند.</p>
+    </ModalBody>
+    <ModalFooter style={{justifyContent:"flex-start",gap:9}}>
+     <Button color="primary" disabled={busy||!validAuctionTimeRange(scheduleValues.starts_at,scheduleValues.ends_at)} onClick={()=>scheduleFor&&updateAuction(scheduleFor,scheduleValues)}>
+      {busy?"در حال ذخیره...":"ذخیره تاریخ و ساعت مزایده"}
+     </Button>
+     <Button outline color="secondary" disabled={busy} onClick={()=>setScheduleFor(null)}>انصراف</Button>
+    </ModalFooter>
+   </Modal>
  </div>;
 }
