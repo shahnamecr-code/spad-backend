@@ -23,7 +23,7 @@ const unitDeedFields=[
  ["deed_unique_id","شناسه یکتای سند (در صورت نیاز)"],["tax_file_reference","شماره پرونده / ارجاع مالیاتی"]
 ];
 
-const initial={buildings_enabled:true,builders_enabled:true,auctions_enabled:true,minimum_bid_increment:10000000,auction_notice:"ثبت پیشنهاد صرفاً اعلام علاقه‌مندی است و انتقال مالکیت نیازمند قرارداد قانونی جداگانه است."};
+const initial={buildings_enabled:true,builders_enabled:true,auctions_enabled:true,minimum_bid_increment:10000000,auction_deposit_enabled:false,auction_deposit_toman:0,auction_deposit_terms:"ودیعه مشارکت از کیف پول کسر می‌شود و بازپرداخت آن با ثبت سند مالی و تأیید مدیریت انجام می‌شود.",auction_notice:"ثبت پیشنهاد صرفاً اعلام علاقه‌مندی است و انتقال مالکیت نیازمند قرارداد قانونی جداگانه است."};
 const error=(e)=>{const details=e.response?.data?.errors;const first=details&&Object.values(details).flat()[0];NotificationManager.error(first||e.response?.data?.message||"خطا در ارتباط با سرور");};
 const ok=(msg)=>NotificationManager.success(msg);
 const timeInput=normalizeAuctionTime;
@@ -49,6 +49,8 @@ export default function CommunityAdmin({mode="buildings"}){
  const [builders,setBuilders]=useState([]);
  const [auctions,setAuctions]=useState([]);
  const [bids,setBids]=useState({});
+ const [auctionParticipants,setAuctionParticipants]=useState({});
+ const [auctionHeldTotals,setAuctionHeldTotals]=useState({});
  const [auctionDrafts,setAuctionDrafts]=useState({});
  const [builderDrafts,setBuilderDrafts]=useState({});
  const [busy,setBusy]=useState(false);
@@ -111,7 +113,9 @@ export default function CommunityAdmin({mode="buildings"}){
  const saveSettings=async()=>{
   setBusy(true);
   try{
-   const payload={...settings,minimum_bid_increment:Number(settings.minimum_bid_increment)};
+   const payload={...settings,minimum_bid_increment:Number(settings.minimum_bid_increment),
+     auction_deposit_enabled:!!settings.auction_deposit_enabled,
+     auction_deposit_toman:Number(settings.auction_deposit_toman||0)};
    await axios.post(api+"/settings",payload);ok("تنظیمات خدمات اسپاد ذخیره شد");await reload();
   }catch(e){error(e)}finally{setBusy(false)}
  };
@@ -226,6 +230,23 @@ export default function CommunityAdmin({mode="buildings"}){
   try{const r=await axios.get(api+"/auctions/"+id+"/bids");setBids(o=>({...o,[id]:r.data.data||[]}))}
   catch(e){error(e)}
  };
+ const fetchAuctionParticipants=async(id)=>{
+  try{const r=await axios.get(api+"/auctions/"+id+"/participations");
+   setAuctionParticipants(old=>({...old,[id]:r.data.data||[]}));
+   setAuctionHeldTotals(old=>({...old,[id]:r.data.total_held_toman||0}));
+  }catch(e){error(e)}
+ };
+ const refundAuctionDeposit=async(auction,row)=>{
+  const reason=window.prompt("علت بازگشت ودیعه به کیف پول کاربر را وارد کنید (حداقل ۸ حرف):","بازگشت ودیعه مشارکت در مزایده");
+  if(!reason||reason.trim().length<8)return;
+  if(!window.confirm("تأیید بازگشت "+money(row.amount_toman)+" به کیف پول کاربر شماره "+row.user_id+"؟ این عملیات مالی ثبت خواهد شد."))return;
+  setBusy(true);
+  try{
+   await axios.post(api+"/auctions/"+auction.id+"/participations/"+row.id+"/refund",{reason:reason.trim()});
+   ok("بازگشت ودیعه و سند مالی با موفقیت ثبت شد");
+   await fetchAuctionParticipants(auction.id);
+  }catch(e){error(e)}finally{setBusy(false)}
+ };
  const filtered=(arr)=>arr.filter(x=>!search||[x.id,x.name,x.title,x.city,x.status,x.user_id].join(" ").includes(search));
  const updBuilder=(item,key,value)=>setBuilderDrafts(old=>({...old,[item.id]:{...item,...old[item.id],[key]:value}}));
  const updAuction=(item,key,value)=>setAuctionDrafts(old=>({...old,[item.id]:{...item,...old[item.id],[key]:value}}));
@@ -245,7 +266,22 @@ export default function CommunityAdmin({mode="buildings"}){
    </FormGroup>)}
    {section==="auctions"&&<><FormGroup><Label>حداقل گام مجاز مزایده (تومان)</Label><Input type="number" min={1000000} value={settings.minimum_bid_increment} onChange={e=>setSettings(v=>({...v,minimum_bid_increment:e.target.value}))}/></FormGroup>
    <FormGroup><Label>اطلاعیه و شرایط شرکت در مزایده (نمایش عمومی)</Label><Input type="textarea" rows={3} maxLength={1500} value={settings.auction_notice||""} onChange={e=>setSettings(v=>({...v,auction_notice:e.target.value}))}/></FormGroup>
-   <p style={{fontSize:12,color:"#7b8998"}}>ثبت پیشنهاد مزایده به معنی دریافت وجه، ضمانت معامله یا انتقال سند نیست. دریافت وجه تضمین تا زمان اتصال درگاه و تأیید مقررات فعال نشده است.</p></>}
+   <div style={{padding:17,border:"1px solid #cfe5f4",borderRadius:15,background:"linear-gradient(120deg,#f2faff,#fff)",marginTop:12}}>
+    <h4 style={{fontSize:16,color:"#136795"}}>تنظیمات ودیعه شرکت در مزایده و کیف پول</h4>
+    <p style={{fontSize:12,color:"#6a889d",lineHeight:2}}>ودیعه از کیف پول واقعی SPAD کسر می‌شود. درگاه شارژ را در تنظیمات کیف پول تنظیم کنید. بازپرداخت با تأیید مدیر و ثبت تراکنش بازگشت وجه انجام می‌شود؛ این بخش پیش‌فرض غیرفعال است.</p>
+    <FormGroup check style={{margin:"12px 0"}}><Label check>
+     <Input type="checkbox" checked={!!settings.auction_deposit_enabled} onChange={e=>setSettings(v=>({...v,auction_deposit_enabled:e.target.checked}))}/>
+     دریافت ودیعه پیش از اولین پیشنهاد کاربران جدید
+    </Label></FormGroup>
+    <FormGroup><Label>مبلغ ثابت ودیعه (تومان)</Label>
+     <Input type="number" min={0} max={100000000000} value={settings.auction_deposit_toman||0} onChange={e=>setSettings(v=>({...v,auction_deposit_toman:e.target.value}))}/>
+    </FormGroup>
+    <FormGroup><Label>شرایط ودیعه و بازپرداخت، قابل نمایش برای کاربر</Label>
+     <Input type="textarea" rows={3} maxLength={2000} value={settings.auction_deposit_terms||""} onChange={e=>setSettings(v=>({...v,auction_deposit_terms:e.target.value}))}/>
+    </FormGroup>
+    <a href="/spad-admin/wallets" style={{fontSize:12,color:"#0a80b7"}}>مدیریت درگاه‌های پرداخت و کیف پول اسپاد</a>
+    <p style={{fontSize:11,color:"#7c92a5",margin:"10px 0 0"}}>بدون فعال‌سازی و تنظیم مبلغ، هیچ ودیعه‌ای کسر نمی‌شود.</p>
+   </div></>
    <Button color="primary" onClick={saveSettings} disabled={busy}>ذخیره تنظیمات</Button>
   </CardBody></Card>}
   {<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
