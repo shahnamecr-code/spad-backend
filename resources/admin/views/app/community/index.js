@@ -19,7 +19,7 @@ const CommonHeading=({title,desc})=><div style={{background:"linear-gradient(110
  <p style={{margin:0,fontSize:12,opacity:.87}}>{desc}</p></div>;
 const Kpi=({title,value})=><Col sm="4"><Card style={{marginBottom:12,border:"1px solid #dbebf5",borderRadius:13}}><CardBody><small style={{color:"#7292aa"}}>{title}</small><h3 style={{color:"#087bbc",fontWeight:500}}>{fmt(value)}</h3></CardBody></Card></Col>;
 export default function CommunityAdmin({mode="buildings"}){
- const [section,setSection]=useState(mode);
+ const section=mode;
  const [settings,setSettings]=useState(initial);
  const [buildings,setBuildings]=useState([]);
  const [builders,setBuilders]=useState([]);
@@ -28,6 +28,16 @@ export default function CommunityAdmin({mode="buildings"}){
  const [auctionDrafts,setAuctionDrafts]=useState({});
  const [builderDrafts,setBuilderDrafts]=useState({});
  const [busy,setBusy]=useState(false);
+ const [editBuilder,setEditBuilder]=useState(null);
+ const [newBuilder,setNewBuilder]=useState(false);
+ const [projectFor,setProjectFor]=useState(null);
+ const [projects,setProjects]=useState([]);
+ const [projectDraft,setProjectDraft]=useState({title:"",city:"",description:"",image_url:"",completed_year:""});
+ const [newAuction,setNewAuction]=useState(false);
+ const blankBuilder={name:"",city:"",headline:"",biography:"",activity_area:"",building_names:"",experience_years:0,completed_projects:0,logo_url:"",published:false,verified:false,rank_priority:1000};
+ const blankAuction={title:"",city:"",district:"",description:"",image_url:"",opening_bid_toman:"",minimum_increment_toman:10000000,advertisement_id:""};
+ const [auctionForm,setAuctionForm]=useState(blankAuction);
+ const [builderForm,setBuilderForm]=useState(blankBuilder);
  const [search,setSearch]=useState("");
  const reload=async()=>{
   try{
@@ -40,7 +50,7 @@ export default function CommunityAdmin({mode="buildings"}){
   }catch(e){error(e)}
  };
  useEffect(()=>{reload()},[]);
- useEffect(()=>setSection(mode),[mode]);
+
  const saveSettings=async()=>{
   setBusy(true);
   try{
@@ -75,6 +85,31 @@ export default function CommunityAdmin({mode="buildings"}){
    ok("وضعیت مزایده ذخیره شد");await reload();
   }catch(e){error(e)}finally{setBusy(false)}
  };
+ const openBuilder=(b)=>{setEditBuilder(b?b.id:null);setBuilderForm(b?{...blankBuilder,...b}:blankBuilder);setNewBuilder(true)};
+ const saveBuilder=async()=>{setBusy(true);try {
+  const p={...builderForm,experience_years:Number(builderForm.experience_years),completed_projects:Number(builderForm.completed_projects),
+   rank_priority:Number(builderForm.rank_priority),published:!!builderForm.published,verified:!!builderForm.verified};
+  if(editBuilder)await axios.put(api+"/builders/"+editBuilder,p);
+  else await axios.post(api+"/builders",p);
+  ok("اطلاعات سازنده ذخیره شد");setNewBuilder(false);await reload();
+ }catch(e){error(e)}finally{setBusy(false)}};
+ const deleteBuilder=async(b)=>{if(!window.confirm("سازنده و همه نمونه‌کارهای او حذف شوند؟"))return;
+  try{await axios.delete(api+"/builders/"+b.id);ok("سازنده حذف شد");await reload()}catch(e){error(e)}
+ };
+ const openProjects=async(b)=>{setProjectFor(b);setProjectDraft({title:"",city:b.city||"",description:"",image_url:"",completed_year:""});
+  try{const r=await axios.get(api+"/builders/"+b.id+"/projects");setProjects(r.data.data||[])}catch(e){error(e)}
+ };
+ const addProject=async()=>{setBusy(true);try{await axios.post(api+"/builders/"+projectFor.id+"/projects",{...projectDraft,completed_year:projectDraft.completed_year?Number(projectDraft.completed_year):null});
+  ok("نمونه‌کار ثبت شد");await openProjects(projectFor);
+ }catch(e){error(e)}finally{setBusy(false)}};
+ const removeProject=async(p)=>{if(!window.confirm("نمونه‌کار حذف شود؟"))return;
+  try{await axios.delete(api+"/builders/"+projectFor.id+"/projects/"+p.id);await openProjects(projectFor)}catch(e){error(e)}};
+ const createAuction=async()=>{setBusy(true);try{
+  const p={...auctionForm,opening_bid_toman:Number(auctionForm.opening_bid_toman),minimum_increment_toman:Number(auctionForm.minimum_increment_toman),
+   advertisement_id:auctionForm.advertisement_id?Number(auctionForm.advertisement_id):null};
+  await axios.post(api+"/auctions",p);ok("پیش‌نویس مزایده ثبت شد؛ قبل از انتشار مجوز مالکیت بررسی شود.");
+  setNewAuction(false);await reload();
+ }catch(e){error(e)}finally{setBusy(false)}};
  const fetchBids=async(id)=>{
   try{const r=await axios.get(api+"/auctions/"+id+"/bids");setBids(o=>({...o,[id]:r.data.data||[]}))}
   catch(e){error(e)}
@@ -85,12 +120,8 @@ export default function CommunityAdmin({mode="buildings"}){
  return <div className="container-fluid" dir="rtl" style={{paddingBottom:60}}>
   <CommonHeading title={section==="buildings"?"مدیریت ساختمان‌های اسپاد":section==="builders"?"باشگاه سازندگان برتر اسپاد":"مرکز مدیریت مزایده ملک"}
    desc="تأیید محتوا، مدیریت فعالیت‌ها و کنترل تنظیمات از سامانه یکپارچه اسپاد"/>
-  <div style={{display:"flex",gap:9,flexWrap:"wrap",marginBottom:18}}>
-    {[["buildings","مدیریت ساختمان"],["builders","سازندگان برتر"],["auctions","مزایده ملک"],["settings","تنظیمات سرویس‌ها"]].map(([key,title])=>
-      <Button key={key} color={section===key?"primary":"light"} outline={section!==key} onClick={()=>setSection(key)} style={{fontWeight:500,borderRadius:11}}>{title}</Button>)}
-  </div>
   <Row><Kpi title="ساختمان‌های ثبت‌شده" value={buildings.length}/><Kpi title="رزومه‌های سازندگان" value={builders.length}/><Kpi title="مزایده‌های ثبت‌شده" value={auctions.length}/></Row>
-  {section==="settings"&&<Card style={{borderRadius:16}}><CardBody>
+  {false&&section==="settings"&&<Card style={{borderRadius:16}}><CardBody>
    <h3 style={{fontSize:17}}>تنظیمات ماژول‌های اختصاصی</h3>
    {[
     ["buildings_enabled","فعال‌بودن سامانه مدیریت ساختمان"],
@@ -104,7 +135,7 @@ export default function CommunityAdmin({mode="buildings"}){
    <p style={{fontSize:12,color:"#7b8998"}}>ثبت پیشنهاد مزایده به معنی دریافت وجه، ضمانت معامله یا انتقال سند نیست. دریافت وجه تضمین تا زمان اتصال درگاه و تأیید مقررات فعال نشده است.</p>
    <Button color="primary" onClick={saveSettings} disabled={busy}>ذخیره تنظیمات</Button>
   </CardBody></Card>}
-  {section!=="settings"&&<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
+  {<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
   {section==="buildings"&&<Card><CardBody><h4>بررسی درخواست‌های ساختمان</h4><Table responsive hover>
    <thead><tr><th>شناسه</th><th>ساختمان و شهر</th><th>مدیر کاربر</th><th>تعداد واحد</th><th>وضعیت</th><th>تغییر وضعیت</th></tr></thead>
    <tbody>{filtered(buildings).map(x=><tr key={x.id}>
@@ -116,7 +147,21 @@ export default function CommunityAdmin({mode="buildings"}){
    </tr>)}</tbody></Table>
    {!buildings.length&&<p>هنوز ساختمانی ثبت نشده است.</p>}
   </CardBody></Card>}
-  {section==="builders"&&<Card><CardBody><h4>رزومه‌ها، تأیید هویت و اولویت نمایش</h4>
+  {section==="builders"&&<Card><CardBody>
+   <Button color="primary" className="mb-3" onClick={()=>openBuilder(null)}>+ افزودن سازنده</Button>
+   {newBuilder&&<Card className="mb-3"><CardBody><h4>{editBuilder?"ویرایش رزومه سازنده":"ثبت سازنده جدید"}</h4>
+    <Row>{[["name","نام و نام خانوادگی"],["city","شهر"],["activity_area","محدوده فعالیت"],["building_names","نام ساختمان‌ها و پروژه‌ها"],["experience_years","سال‌های فعالیت"],["completed_projects","تعداد پروژه"],["headline","عنوان حرفه‌ای"],["logo_url","آدرس HTTPS تصویر / لوگو"],["rank_priority","اولویت نمایش"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input type={["experience_years","completed_projects","rank_priority"].includes(key)?"number":"text"} value={builderForm[key]||""} onChange={e=>setBuilderForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    <FormGroup><Label>رزومه و سوابق تخصصی</Label><Input type="textarea" rows={5} value={builderForm.biography||""} onChange={e=>setBuilderForm(v=>({...v,biography:e.target.value}))}/></FormGroup>
+    <Label check className="mr-3"><Input type="checkbox" checked={!!builderForm.published} onChange={e=>setBuilderForm(v=>({...v,published:e.target.checked}))}/> انتشار عمومی</Label>
+    {editBuilder&&<Label check className="mr-3"><Input type="checkbox" checked={!!builderForm.verified} onChange={e=>setBuilderForm(v=>({...v,verified:e.target.checked}))}/> تأیید مدیریت</Label>}
+    <div className="mt-3"><Button color="primary" disabled={busy} onClick={saveBuilder}>ذخیره رزومه</Button>{" "}<Button color="light" onClick={()=>setNewBuilder(false)}>انصراف</Button></div>
+   </CardBody></Card>}
+   {projectFor&&<Card className="mb-3"><CardBody><h4>نمونه‌کارهای {projectFor.name}</h4>
+     {projects.map(p=><p key={p.id}><strong>{p.title}</strong> — {p.city} <Button size="sm" color="danger" outline onClick={()=>removeProject(p)}>حذف</Button></p>)}
+     <Row>{[["title","نام پروژه"],["city","شهر"],["image_url","لینک تصویر HTTPS"],["completed_year","سال تکمیل"],["description","توضیحات پروژه"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input value={projectDraft[key]||""} onChange={e=>setProjectDraft(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
+     <Button color="primary" onClick={addProject} disabled={busy}>افزودن نمونه‌کار</Button>{" "}<Button color="light" onClick={()=>setProjectFor(null)}>بستن</Button>
+   </CardBody></Card>}
+   <h4>رزومه‌ها، تأیید هویت و اولویت نمایش</h4>
    <p style={{fontSize:12,color:"#789"}}>رتبه‌بندی فعلاً اولویت سردبیری است؛ ادعای رتبه آماری یا امتیاز کاربران نمایش داده نمی‌شود.</p>
    <Table responsive hover><thead><tr><th>سازنده</th><th>سابقه</th><th>پروژه‌ها</th><th>تأیید مدیریت</th><th>انتشار عمومی</th><th>اولویت</th><th>ثبت</th></tr></thead><tbody>
    {filtered(builders).map(x=>{const d={...x,...builderDrafts[x.id]};return <tr key={x.id}>
@@ -125,11 +170,22 @@ export default function CommunityAdmin({mode="buildings"}){
     <td><Input type="select" bsSize="sm" value={d.verified?"1":"0"} onChange={e=>updBuilder(x,"verified",e.target.value==="1")}><option value="0">تأیید نشده</option><option value="1">تأیید شده</option></Input></td>
     <td><Input type="select" bsSize="sm" value={d.published?"1":"0"} onChange={e=>updBuilder(x,"published",e.target.value==="1")}><option value="0">مخفی / بررسی</option><option value="1">منتشر شود</option></Input></td>
     <td><Input bsSize="sm" style={{width:90}} type="number" min={1} max={10000} value={d.rank_priority} onChange={e=>updBuilder(x,"rank_priority",e.target.value)}/></td>
-    <td><Button size="sm" color="primary" disabled={busy} onClick={()=>updateBuilder(x)}>ذخیره</Button></td>
+    <td><Button size="sm" color="primary" disabled={busy} onClick={()=>updateBuilder(x)}>ذخیره وضعیت</Button>{" "}
+     <Button size="sm" color="info" outline onClick={()=>openBuilder(x)}>ویرایش</Button>{" "}
+     <Button size="sm" color="secondary" outline onClick={()=>openProjects(x)}>نمونه‌کارها</Button>{" "}
+     <Button size="sm" color="danger" outline onClick={()=>deleteBuilder(x)}>حذف</Button>
+     <a className="d-block mt-1" href={"https://spad.estate/top-builders/"+x.id} target="_blank" rel="noopener noreferrer">صفحه اختصاصی</a></td>
    </tr>})}
    </tbody></Table>{!builders.length&&<p>هنوز رزومه‌ای ثبت نشده است.</p>}
   </CardBody></Card>}
-  {section==="auctions"&&<Card><CardBody><h4>بازبینی و مدیریت مزایده‌ها</h4>
+  {section==="auctions"&&<Card><CardBody>
+   <Button color="primary" className="mb-3" onClick={()=>setNewAuction(v=>!v)}>+ ایجاد پیش‌نویس مزایده</Button>
+   {newAuction&&<Card className="mb-3"><CardBody><h4>ثبت پیش‌نویس مزایده ملک</h4><p>فقط پس از تأیید مالکیت و اجازه کتبی مالک منتشر کنید.</p>
+    <Row>{[["title","عنوان مزایده"],["city","شهر"],["district","محله"],["image_url","تصویر HTTPS"],["advertisement_id","شناسه آگهی تأییدشده (اختیاری)"],["opening_bid_toman","قیمت شروع (تومان)"],["minimum_increment_toman","حداقل گام پیشنهاد (تومان)"]].map(([key,label])=><Col md="6" key={key}><FormGroup><Label>{label}</Label><Input value={auctionForm[key]||""} type={["opening_bid_toman","minimum_increment_toman","advertisement_id"].includes(key)?"number":"text"} onChange={e=>setAuctionForm(v=>({...v,[key]:e.target.value}))}/></FormGroup></Col>)}</Row>
+    <FormGroup><Label>شرح کامل ملک، شرایط بازدید و مقررات مزایده</Label><Input type="textarea" rows={5} value={auctionForm.description} onChange={e=>setAuctionForm(v=>({...v,description:e.target.value}))}/></FormGroup>
+    <Button color="primary" disabled={busy} onClick={createAuction}>ثبت در وضعیت بررسی</Button>
+   </CardBody></Card>}
+   <h4>بازبینی و مدیریت مزایده‌ها</h4>
    <p style={{fontSize:12,color:"#778ca1"}}>پیشنهادها با قفل تراکنش ثبت می‌شوند. شروع و پایان پس از ثبت اولین پیشنهاد قابل تغییر نیست. برنده صرفاً موقت اعلام می‌شود.</p>
    <Table responsive hover><thead><tr><th>ملک</th><th>قیمت آغازین</th><th>زمان‌بندی</th><th>وضعیت و گام</th><th>عملیات</th></tr></thead><tbody>
    {filtered(auctions).map(x=>{const d={...x,...auctionDrafts[x.id]};return <tr key={x.id}>
