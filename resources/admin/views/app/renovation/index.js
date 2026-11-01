@@ -9,16 +9,20 @@ const formStyle={border:"1px solid #d5e8f7",background:"#f8fbff",borderRadius:10
 const blockStyle={border:"1px solid #d3e6f4",borderRadius:16,boxShadow:"0 8px 23px rgba(4,87,155,.045)"};
 const states={draft:"پیش‌نویس",completed:"دارای فاکتور",reviewed:"بررسی کارشناسی"};
 export default function RenovationAdmin(){
- const [view,setView]=useState("projects"),[items,setItems]=useState([]),[rates,setRates]=useState([]);
+ const [view,setView]=useState("projects"),[items,setItems]=useState([]),[rates,setRates]=useState([]),[assets,setAssets]=useState([]);
+ const [assetCategory,setAssetCategory]=useState("all");
+ const [newAsset,setNewAsset]=useState({title:"",category:"cabinet",category_title:"کابینت",room_scope:"kitchen",
+  color_hex:"#e8eff5",image_url:"",photo_source_url:"",photo_credit:"",unit_price_toman:"",enabled:true,sort_order:100});
  const [selected,setSelected]=useState(null),[detail,setDetail]=useState(null);
  const [edit,setEdit]=useState({admin_quote_toman:"",admin_days:"",admin_note:"",status:"completed"});
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[query,setQuery]=useState("");
  const [notice,setNotice]=useState("");
  const load=async()=>{
   setLoading(true);
-  const results=await Promise.allSettled([axios.get(base+"/projects"),axios.get(base+"/rates")]);
+  const results=await Promise.allSettled([axios.get(base+"/projects"),axios.get(base+"/rates"),axios.get(base+"/assets")]);
   if(results[0].status==="fulfilled")setItems(results[0].value.data.data||[]);
   if(results[1].status==="fulfilled")setRates(results[1].value.data.data||[]);
+  if(results[2].status==="fulfilled")setAssets(results[2].value.data.data||[]);
   if(results.some(x=>x.status==="rejected"))setNotice("دریافت بخشی از اطلاعات ممکن نشد.");
   setLoading(false);
  };
@@ -49,6 +53,30 @@ export default function RenovationAdmin(){
   }catch(e){NotificationManager.error(e?.response?.data?.message||"ثبت تعرفه ناموفق بود.");}
   finally{setBusy(false);}
  };
+ const assetCategories=[["cabinet","کابینت","kitchen"],["hob","گاز صفحه‌ای","kitchen"],["hood","هود","kitchen"],["sink","سینک","kitchen"],
+   ["chandelier","لوستر","living"],["ceiling","کناف","living"],["led","لاین نوری","living"],
+   ["paint","رنگ دیوار","all"],["wallpaper","کاغذ دیواری","all"],["curtain","پرده","living"]];
+ const assetInput=(id,key,value)=>setAssets(a=>a.map(x=>x.id===id?{...x,[key]:value}:x));
+ const assetPayload=x=>({
+   title:x.title,category:x.category,category_title:x.category_title,room_scope:x.room_scope,
+   color_hex:x.color_hex||"#edf5fb",image_url:x.image_url||null,photo_source_url:x.photo_source_url||null,
+   photo_credit:x.photo_credit||null,
+   unit_price_toman:x.unit_price_toman===""||x.unit_price_toman===null?null:Number(x.unit_price_toman),
+   enabled:!!x.enabled,sort_order:Number(x.sort_order||0)
+ });
+ const saveAsset=async asset=>{setBusy(true);try{
+   await axios.put(base+"/assets/"+asset.id,assetPayload(asset));NotificationManager.success("نمونه ذخیره شد.");await load();
+  }catch(e){NotificationManager.error(e?.response?.data?.message||"ذخیره نمونه ناموفق بود.");}finally{setBusy(false);}};
+ const createAsset=async()=>{setBusy(true);try{
+   await axios.post(base+"/assets",assetPayload(newAsset));NotificationManager.success("نمونه جدید ثبت شد.");await load();
+   setNewAsset(x=>({...x,title:"",image_url:"",photo_source_url:"",photo_credit:"",unit_price_toman:""}));
+  }catch(e){NotificationManager.error(e?.response?.data?.message||"ثبت نمونه ناموفق بود.");}finally{setBusy(false);}};
+ const disableAsset=async asset=>{
+  if(!window.confirm("این نمونه غیرفعال شود؟ تاریخچه کاربران حذف نمی‌شود."))return;
+  setBusy(true);try{await axios.delete(base+"/assets/"+asset.id);await load();}
+  catch(e){NotificationManager.error(e?.response?.data?.message||"عملیات ناموفق بود.");}
+  finally{setBusy(false);}
+ };
  const download=async m=>{
   try{
    const response=await axios.get(base+"/projects/"+selected+"/media/"+m.id,{responseType:"blob"});
@@ -70,6 +98,7 @@ export default function RenovationAdmin(){
   <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:15}}>
    <Button color={view==="projects"?"primary":"light"} onClick={()=>setView("projects")}>پروژه‌ها و فاکتورها</Button>
    <Button color={view==="rates"?"primary":"light"} onClick={()=>setView("rates")}>قیمت‌گذاری و زمان‌بندی</Button>
+   <Button color={view==="assets"?"primary":"light"} onClick={()=>setView("assets")}>کاتالوگ متریال و تصاویر</Button>
    <Button color="info" outline onClick={load} disabled={loading}>به‌روزرسانی</Button>
   </div>
   {notice&&<p style={{fontSize:12,color:"#bd6929"}}>{notice}</p>}
