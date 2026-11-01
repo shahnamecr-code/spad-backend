@@ -30,7 +30,15 @@ Route::post(
 */
 
 Route::get('storage/{file_name}', function ($file_name) {
-    $path = storage_path('app/public/' . $file_name);
+    $root = realpath(storage_path('app/public'));
+    $path = realpath(storage_path('app/public/' . $file_name));
+
+    // Missing files are a normal 404, not an unhandled production 500.
+    // Restrict resolved files to the dedicated public storage directory.
+    if (!$root || !$path || !is_file($path) ||
+        !str_starts_with($path, $root . DIRECTORY_SEPARATOR)) {
+        abort(404);
+    }
 
     return response()->file($path);
 })->where('file_name', '.*');
