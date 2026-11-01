@@ -2,7 +2,7 @@
 use App\Http\Controllers\OnlineRenovationController as R;
 use Illuminate\Support\Facades\Route;
 Route::prefix('online-renovation')->group(function(){
- Route::get('catalog',[R::class,'catalog']);Route::get('rates',[R::class,'rates']);
+ Route::get('catalog',[R::class,'catalog']);Route::get('rates',[R::class,'rates']);Route::get('assets',[R::class,'assets']);
  Route::middleware('auth:sanctum')->group(function(){
   Route::get('mine',[R::class,'mine']);Route::post('projects',[R::class,'create'])->middleware('throttle:6,1');
   Route::get('{id}',[R::class,'show'])->whereNumber('id');

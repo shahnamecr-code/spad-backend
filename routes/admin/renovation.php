@@ -7,3 +7,8 @@ Route::get('online-renovation/projects/{id}',[R::class,'adminProject'])->whereNu
 Route::get('online-renovation/projects/{id}/media/{mediaId}',[R::class,'adminMedia'])->whereNumber('id')->whereNumber('mediaId');
 Route::get('online-renovation/rates',[R::class,'adminRates']);
 Route::put('online-renovation/rates/{code}',[R::class,'adminRate'])->where('code','[a-z0-9-]+');
+
+Route::get('online-renovation/assets',[R::class,'adminAssets']);
+Route::post('online-renovation/assets',[R::class,'adminCreateAsset']);
+Route::put('online-renovation/assets/{id}',[R::class,'adminSaveAsset'])->whereNumber('id');
+Route::delete('online-renovation/assets/{id}',[R::class,'adminDisableAsset'])->whereNumber('id');
