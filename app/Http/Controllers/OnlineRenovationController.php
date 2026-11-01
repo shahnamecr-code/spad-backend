@@ -23,6 +23,7 @@ class OnlineRenovationController extends Controller {
  private function row($p){
   $p->plan=json_decode($p->plan?:'[]',true)?:[];
   $p->design_layers=json_decode($p->design_layers?:'[]',true)?:[];
+  $p->tour_scenes=json_decode($p->tour_scenes??'[]',true)?:[];
   $p->invoice=json_decode($p->invoice?:'null',true);
   return $p;
  }
@@ -108,7 +109,12 @@ class OnlineRenovationController extends Controller {
     'design_layers.*.x'=>'required_with:design_layers|numeric|min:0|max:100',
     'design_layers.*.y'=>'required_with:design_layers|numeric|min:0|max:100',
     'design_layers.*.w'=>'required_with:design_layers|numeric|min:6|max:100',
-    'design_layers.*.h'=>'required_with:design_layers|numeric|min:6|max:100']);
+    'design_layers.*.h'=>'required_with:design_layers|numeric|min:6|max:100',
+    'tour_scenes'=>'sometimes|array|max:12',
+    'tour_scenes.*.media_id'=>'required_with:tour_scenes|integer|min:1',
+    'tour_scenes.*.title'=>'required_with:tour_scenes|string|min:2|max:100',
+    'tour_scenes.*.kind'=>'required_with:tour_scenes|in:panorama,photo',
+    'tour_scenes.*.next_media_id'=>'nullable|integer|min:1']);
   if(isset($d['plan'])){
    $allowed=DB::table('spad_renovation_rates')->where('enabled',true)->pluck('code')->all();
    foreach($d['plan'] as $item)abort_unless(in_array($item['code'],$allowed,true),422,'آیتم بازسازی معتبر نیست.');
@@ -122,6 +128,30 @@ class OnlineRenovationController extends Controller {
     abort_unless($layer['x']+$layer['w']<=100.001 && $layer['y']+$layer['h']<=100.001,422,'موقعیت ناحیه معتبر نیست.');
    }
    $d['design_layers']=json_encode($d['design_layers'],JSON_UNESCAPED_UNICODE);
+  }
+  if(array_key_exists('tour_scenes',$d)){
+   abort_unless($p->source_type==='user_upload',422,'ساخت تور شخصی فقط برای تصاویر خودتان مجاز است.');
+   abort_unless(Schema::hasColumn('spad_renovation_projects','tour_scenes'),503,'ساخت تور اختصاصی هنوز راه‌اندازی نشده است.');
+   $sceneIds=array_column($d['tour_scenes'],'media_id');
+   abort_unless(count($sceneIds)===count(array_unique($sceneIds)),422,'تصاویر تکراری در تور ثبت شده‌اند.');
+   $owned=DB::table('spad_renovation_media')->where('project_id',$p->id)
+     ->where('user_id',$p->user_id)->where('kind','source')
+     ->whereIn('id',$sceneIds)->get()->keyBy('id');
+   abort_unless($owned->count()===count($sceneIds),422,'یکی از تصاویر متعلق به این پروژه نیست.');
+   foreach($d['tour_scenes'] as $scene){
+    if(!empty($scene['next_media_id'])){
+     abort_unless(in_array($scene['next_media_id'],$sceneIds),422,'اتصال بین فضاها معتبر نیست.');
+     abort_unless((int)$scene['next_media_id']!==(int)$scene['media_id'],422,'یک فضا نمی‌تواند به خودش متصل شود.');
+    }
+    if($scene['kind']==='panorama'){
+     $file=$owned->get($scene['media_id']);
+     $dimensions=@getimagesize(Storage::disk('local')->path($file->path));
+     abort_unless($dimensions && $dimensions[0]>=1024 && $dimensions[1]>=512
+       && abs($dimensions[0]/$dimensions[1]-2)<0.035,422,
+       'تصویر ۳۶۰ باید پانورامای کامل ۲ به ۱ با حداقل ابعاد ۱۰۲۴ در ۵۱۲ باشد.');
+    }
+   }
+   $d['tour_scenes']=json_encode($d['tour_scenes'],JSON_UNESCAPED_UNICODE);
   }
   $d['updated_at']=now();
   DB::table('spad_renovation_projects')->where('id',$p->id)->update($d);
