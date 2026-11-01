@@ -23,8 +23,30 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 
-class AdvertisementController extends Controller
+class AdvertisementCategoryController extends Controller
 {
+    /**
+     * Return the category layout to the administrator, with legacy fallbacks.
+     */
+    public function layout(Category $category)
+    {
+        $layouts = $category->layout()->order()->get();
+        $normal = $layouts->where('position', 'normal')->values();
+        $side = $layouts->where('position', 'side')->values();
+
+        if ($layouts->isEmpty()) {
+            $normal = PropertyWrapper::query()->order()->normal()->get();
+            $side = PropertyWrapper::query()->order()->side()->get();
+        }
+
+        return response()->json([
+            'normal' => $normal,
+            'side' => $side,
+            'properties' => Property::query()->get()->pluck(null, 'slug'),
+            'important_places' => config('spad_setting.important_places', []),
+        ]);
+    }
+
     //    property wrapper
     public function index()
     {
