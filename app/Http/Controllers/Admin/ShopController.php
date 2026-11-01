@@ -170,17 +170,4 @@ class ShopController extends Controller {
     public function getShopsForSelect() {
         return Shop::select(['id as value', 'name as label'])->get();
     }
-
-    /**
-     * Shop deletion is intentionally disabled: shops own administrator and
-     * customer relationships, and cascading removal has not been audited.
-     * Respond explicitly instead of dispatching a missing controller method.
-     */
-    public function destroy(Shop $shop)
-    {
-        return response()->json([
-            'status' => false,
-            'message' => 'حذف فروشگاه برای حفظ اطلاعات مرتبط غیرفعال است.',
-        ], 405);
-    }
 }
