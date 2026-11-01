@@ -95,6 +95,16 @@ class AdvertisementObserver
         if (array_key_exists('mortgage_max_amount', $tools)) {
             $updates['mortgage_max_amount'] = $this->moneyInteger(data_get($tools, 'mortgage_max_amount'));
         }
+        // Save only a complete point inside the permitted Shiraz map extent.
+        if (array_key_exists('map_lat', $tools) || array_key_exists('map_lng', $tools)) {
+            $lat = data_get($tools, 'map_lat');
+            $lng = data_get($tools, 'map_lng');
+            $valid = is_numeric($lat) && is_numeric($lng)
+                && (float) $lat >= 29.3 && (float) $lat <= 30.0
+                && (float) $lng >= 52.1 && (float) $lng <= 53.2;
+            $updates['map_lat'] = $valid ? round((float) $lat, 6) : null;
+            $updates['map_lng'] = $valid ? round((float) $lng, 6) : null;
+        }
         if (array_key_exists('document_type', $tools)) {
             $updates['document_type'] = $this->documentType(data_get($tools, 'document_type'));
         }

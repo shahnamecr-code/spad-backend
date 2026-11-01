@@ -862,6 +862,8 @@ class UsersController extends Controller
         // Customers can only edit customer-facing tool fields. Admin-only badges,
         // virtual tours, 3D floor plans and financial settings are never exposed here.
         $data['property_tools'] = [
+            'map_lat' => optional($tool)->map_lat,
+            'map_lng' => optional($tool)->map_lng,
             'document_type' => optional($tool)->document_type ?: '',
             'rental_occupancy_status' => optional($tool)->rental_occupancy_status ?: 'vacant',
             'rental_evacuation_date' => $evacuationDate ?: '',
@@ -893,6 +895,8 @@ class UsersController extends Controller
             ],
             'position.address' => ['required'],
             'important_places' => ['nullable', 'array'],
+            'property_tools.map_lat' => ['nullable', 'numeric', 'between:29.3,30.0', 'required_with:property_tools.map_lng'],
+            'property_tools.map_lng' => ['nullable', 'numeric', 'between:52.1,53.2', 'required_with:property_tools.map_lat'],
             'property_tools.document_type' => [
                 'nullable',
                 Rule::in(['single_leaf', 'endowment', 'pre_sale']),

@@ -19,6 +19,8 @@ class PropertyToolsController extends Controller
                 'virtual_tour_url' => optional($tool)->virtual_tour_url ?? '',
                 'renovation_enabled' => (bool) optional($tool)->renovation_enabled,
                 'renovation_url' => optional($tool)->renovation_url ?? '',
+                'map_lat' => optional($tool)->map_lat,
+                'map_lng' => optional($tool)->map_lng,
                 'rental_deposit_ceiling' => optional($tool)->rental_deposit_ceiling ?? '',
                 'rental_monthly_rent' => optional($tool)->rental_monthly_rent ?? '',
                 'rental_occupancy_status' => optional($tool)->rental_occupancy_status ?: 'vacant',

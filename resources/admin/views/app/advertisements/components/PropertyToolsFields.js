@@ -16,6 +16,7 @@ import {
 import { Field, useFormikContext } from "formik";
 import { FormikSwitch } from "../../../../containers/form-validations/FormikFields";
 import MediaLibraryButton from "../../../../components/mediaLibrary/MediaLibrary";
+import ShirazAreaPicker from "./ShirazAreaPicker";
 
 const faNumber = (value) => {
   const number = String(value || "").replace(/[^0-9]/g, "");
@@ -128,6 +129,14 @@ const PropertyToolsFields = () => {
       </div>
 
       <CardBody className="spad-ad-tools-body">
+        <ShirazAreaPicker
+          latitude={tools.map_lat}
+          longitude={tools.map_lng}
+          onChange={(point) => {
+            setFieldValue("property_tools.map_lat", point ? point.lat : null);
+            setFieldValue("property_tools.map_lng", point ? point.lng : null);
+          }}
+        />
         <div className="spad-ad-document-panel">
           <div className="spad-ad-finance-title">
             <span className="spad-ad-tool-icon spad-ad-tool-icon--blue">

@@ -16,6 +16,8 @@ const defaultPropertyTools = {
   virtual_tour_url: "",
   renovation_enabled: false,
   renovation_url: "",
+  map_lat: null,
+  map_lng: null,
   rental_deposit_ceiling: "",
   rental_monthly_rent: "",
   rental_occupancy_status: "vacant",
