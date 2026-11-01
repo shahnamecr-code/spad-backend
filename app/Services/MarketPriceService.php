@@ -28,51 +28,94 @@ class MarketPriceService
                 'enabled' => false,
                 'configured' => false,
                 'refresh_seconds' => $refreshSeconds,
+                'source_status' => 'disabled',
                 'items' => [],
             ];
         }
 
         $apiKey = trim((string) $this->setting('market_ticker_api_key', ''));
         $apiUrl = trim((string) $this->setting('market_ticker_api_url', self::DEFAULT_API_URL));
-
         if ($apiKey === '') {
             return [
                 'enabled' => true,
                 'configured' => false,
                 'refresh_seconds' => $refreshSeconds,
+                'source_status' => 'not_configured',
                 'items' => [],
             ];
         }
 
+        // All browsers share ONE server-side cache; no upstream calls per ticker poll.
+        // Importantly, a provider 429 must never cause another request on every
+        // frontend refresh. Cache the failure and honour Retry-After.
         $cacheSuffix = sha1($apiUrl . '|' . $apiKey);
         $cacheKey = 'market_ticker:prices:' . $cacheSuffix;
         $lastGoodKey = $cacheKey . ':last_good';
-
+        $backoffKey = $cacheKey . ':provider_backoff';
+        $mutexKey = $cacheKey . ':refresh_mutex';
         $items = Cache::get($cacheKey);
+        $sourceStatus = Cache::get($backoffKey) ?: 'cached';
 
         if (!is_array($items)) {
-            try {
-                $response = Http::acceptJson()
-                    ->timeout(12)
-                    ->retry(2, 350)
-                    ->get($apiUrl, ['api_key' => $apiKey]);
+            $lastGood = Cache::get($lastGoodKey, []);
+            $lastGood = is_array($lastGood) ? $lastGood : [];
 
-                $response->throw();
-                $payload = $response->json();
+            if (Cache::get($backoffKey)) {
+                $items = $lastGood;
+            } elseif (!Cache::add($mutexKey, 1, 45)) {
+                // An in-flight refresh owns the API call.
+                $items = $lastGood;
+                $sourceStatus = 'refreshing';
+            } else {
+                $cooldownSeconds = 900;
+                try {
+                    // No automatic retries: each 429 would otherwise spend more quota.
+                    $response = Http::acceptJson()
+                        ->timeout(12)
+                        ->get($apiUrl, ['api_key' => $apiKey]);
 
-                if (!is_array($payload)) {
-                    throw new \RuntimeException('Invalid market price API payload.');
+                    if ($response->status() === 429) {
+                        $retryAfter = $response->header('Retry-After');
+                        $retrySeconds = is_scalar($retryAfter) && ctype_digit((string) $retryAfter)
+                            ? (int) $retryAfter : 900;
+                        $cooldownSeconds = max(300, min(7200, $retrySeconds));
+                        $sourceStatus = 'rate_limited';
+                        throw new \RuntimeException('Market quote provider rate limited (HTTP 429).');
+                    }
+                    if (!$response->successful()) {
+                        $sourceStatus = 'unavailable';
+                        throw new \RuntimeException('Market quote provider HTTP ' . $response->status());
+                    }
+
+                    $payload = $response->json();
+                    if (!is_array($payload)) {
+                        $sourceStatus = 'invalid_response';
+                        throw new \RuntimeException('Invalid market quote response.');
+                    }
+
+                    $normalized = $this->normalize($payload);
+                    if (count($normalized) === 0) {
+                        $sourceStatus = 'invalid_response';
+                        throw new \RuntimeException('Market quote response contains no usable prices.');
+                    }
+
+                    $items = $normalized;
+                    Cache::put($cacheKey, $items, $refreshSeconds);
+                    Cache::forever($lastGoodKey, $items);
+                    Cache::forget($backoffKey);
+                    $sourceStatus = 'live';
+                } catch (Throwable $e) {
+                    // Never replace the last valid prices with zeroes or placeholders.
+                    $items = $lastGood;
+                    Cache::put($backoffKey, $sourceStatus === 'cached' ? 'unavailable' : $sourceStatus, $cooldownSeconds);
+                    Cache::put($cacheKey, $items, min(900, $cooldownSeconds));
+                    Log::warning('Market quote upstream unavailable.', [
+                        'type' => get_class($e),
+                        'status' => $sourceStatus,
+                    ]);
+                } finally {
+                    Cache::forget($mutexKey);
                 }
-
-                $items = $this->normalize($payload);
-                Cache::put($cacheKey, $items, $refreshSeconds);
-                Cache::forever($lastGoodKey, $items);
-            } catch (Throwable $e) {
-                Log::warning('Market price API request failed.', [
-                    'message' => $e->getMessage(),
-                ]);
-
-                $items = Cache::get($lastGoodKey, []);
             }
         }
 
@@ -80,6 +123,7 @@ class MarketPriceService
             'enabled' => true,
             'configured' => true,
             'refresh_seconds' => $refreshSeconds,
+            'source_status' => $sourceStatus,
             'items' => array_values($items ?: []),
         ];
     }
