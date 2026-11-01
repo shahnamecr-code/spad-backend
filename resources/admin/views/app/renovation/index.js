@@ -102,7 +102,53 @@ export default function RenovationAdmin(){
    <Button color="info" outline onClick={load} disabled={loading}>به‌روزرسانی</Button>
   </div>
   {notice&&<p style={{fontSize:12,color:"#bd6929"}}>{notice}</p>}
-  {view==="rates"?<Card style={blockStyle}><CardBody>
+  {view==="assets"?<Card style={blockStyle}><CardBody>
+   <h3 style={{fontSize:18,color:"#0a77c4",marginBottom:8}}>کتابخانه نمونه‌های تصویری و متریال</h3>
+   <p style={{fontSize:11,lineHeight:2,color:"#6a8398"}}>عکس‌های انتخابی، نمونه الهام طراحی هستند؛ برای تعرفه تأییدنشده مبلغ درج نکنید. افزودن عکس فقط از دامنه مجاز و نشانی HTTPS انجام می‌شود.</p>
+   <div style={{display:"flex",flexWrap:"wrap",gap:7,margin:"12px 0 16px"}}>
+    {[["all","همه"],...assetCategories.map(x=>[x[0],x[1]])].map(([code,title])=><Button
+     key={code} size="sm" color={assetCategory===code?"primary":"light"} onClick={()=>setAssetCategory(code)}>{title}</Button>)}
+   </div>
+   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:12}}>
+    {assets.filter(x=>assetCategory==="all"||x.category===assetCategory).map(asset=>
+     <article key={asset.id} style={{padding:12,border:"1px solid #d7e7f5",borderRadius:15,background:"#f9fcff"}}>
+      {asset.image_url?<img src={asset.image_url} alt={asset.title} loading="lazy" style={{width:"100%",height:132,objectFit:"cover",borderRadius:10,marginBottom:9}}/>:
+       <div style={{height:55,background:asset.color_hex,borderRadius:10,marginBottom:8}}/>}
+      <Label style={{fontSize:11}}>عنوان نمونه</Label><Input style={formStyle} value={asset.title} onChange={e=>assetInput(asset.id,"title",e.target.value)}/>
+      <Label style={{fontSize:11,marginTop:7}}>رنگ نمایشی</Label><Input type="color" style={{width:"100%",height:35}} value={asset.color_hex} onChange={e=>assetInput(asset.id,"color_hex",e.target.value)}/>
+      <Label style={{fontSize:11,marginTop:7}}>نشانی تصویر نمونه (HTTPS)</Label><Input style={formStyle} value={asset.image_url||""} onChange={e=>assetInput(asset.id,"image_url",e.target.value)}/>
+      <Label style={{fontSize:11,marginTop:7}}>لینک منبع و صاحب عکس</Label>
+      <Input style={formStyle} value={asset.photo_source_url||""} onChange={e=>assetInput(asset.id,"photo_source_url",e.target.value)}/>
+      <Input style={{...formStyle,marginTop:5}} value={asset.photo_credit||""} onChange={e=>assetInput(asset.id,"photo_credit",e.target.value)} placeholder="نام عکاس یا منبع"/>
+      <Label style={{fontSize:11,marginTop:7}}>قیمت تخمینی نمونه (تومان)</Label>
+      <Input type="number" min="0" style={formStyle} value={asset.unit_price_toman??""} placeholder="قیمت تعیین نشده" onChange={e=>assetInput(asset.id,"unit_price_toman",e.target.value)}/>
+      <label style={{display:"flex",gap:10,alignItems:"center",padding:"9px 0",fontSize:11}}>
+       <Input type="checkbox" checked={!!asset.enabled} onChange={e=>assetInput(asset.id,"enabled",e.target.checked)}/> فعال
+      </label>
+      <div style={{display:"flex",gap:8}}>
+       <Button color="primary" size="sm" disabled={busy} onClick={()=>saveAsset(asset)}>ذخیره نمونه</Button>
+       <Button color="danger" outline size="sm" disabled={busy} onClick={()=>disableAsset(asset)}>غیرفعال‌سازی</Button>
+      </div>
+     </article>)}
+   </div>
+   <div style={{padding:15,background:"#eaf7ff",border:"1px solid #c6e5f8",borderRadius:13,marginTop:20}}>
+    <strong style={{color:"#136b9f",fontSize:13}}>افزودن نمونه جدید به کاتالوگ</strong>
+    <Row style={{marginTop:12}}>
+     <Col md="4"><Label>دسته‌بندی</Label><Input type="select" value={newAsset.category} onChange={e=>{
+      const match=assetCategories.find(x=>x[0]===e.target.value);
+      setNewAsset(v=>({...v,category:match[0],category_title:match[1],room_scope:match[2]}));
+     }}>{assetCategories.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</Input></Col>
+     <Col md="4"><Label>عنوان نمونه</Label><Input value={newAsset.title} onChange={e=>setNewAsset(v=>({...v,title:e.target.value}))}/></Col>
+     <Col md="4"><Label>رنگ پیش‌نمایش</Label><Input type="color" value={newAsset.color_hex} onChange={e=>setNewAsset(v=>({...v,color_hex:e.target.value}))}/></Col>
+     <Col md="6"><Label>لینک تصویر</Label><Input value={newAsset.image_url} onChange={e=>setNewAsset(v=>({...v,image_url:e.target.value}))} placeholder="https://images.unsplash.com/..."/></Col>
+     <Col md="6"><Label>لینک منبع تصویر</Label><Input value={newAsset.photo_source_url} onChange={e=>setNewAsset(v=>({...v,photo_source_url:e.target.value}))}/></Col>
+     <Col md="6"><Label>نام عکاس</Label><Input value={newAsset.photo_credit} onChange={e=>setNewAsset(v=>({...v,photo_credit:e.target.value}))}/></Col>
+     <Col md="6"><Label>قیمت تخمینی (تومان)</Label><Input type="number" min={0} value={newAsset.unit_price_toman} onChange={e=>setNewAsset(v=>({...v,unit_price_toman:e.target.value}))}/></Col>
+    </Row>
+    <Button color="primary" disabled={busy||!newAsset.title.trim()} onClick={createAsset} style={{marginTop:12}}>ثبت نمونه جدید</Button>
+   </div>
+  </CardBody></Card>:
+  view==="rates"?<Card style={blockStyle}><CardBody>
     <h3 style={{fontSize:17,color:"#164c7a"}}>تعرفه اولیه بازسازی</h3>
     <p style={{fontSize:11,color:"#718da2",lineHeight:2}}>نرخ‌های ثبت‌شده نمونه اولیه برآورد هستند. پیش از ارائه نرخ بازار، قیمت هر آیتم را با تعرفه کارشناسی به‌روز کنید. تغییرات روی فاکتورهای صادرشده قبلی اعمال نمی‌شوند.</p>
     <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:11}}>
