@@ -22,6 +22,7 @@ class OnlineRenovationController extends Controller {
  }
  private function row($p){
   $p->plan=json_decode($p->plan?:'[]',true)?:[];
+  $p->design_layers=json_decode($p->design_layers?:'[]',true)?:[];
   $p->invoice=json_decode($p->invoice?:'null',true);
   return $p;
  }
@@ -40,6 +41,14 @@ class OnlineRenovationController extends Controller {
       'scene_count'=>$tour->scenes->where('process_status','ready')->count()];
    })->values();
   return response()->json(['data'=>$tours]);
+ }
+
+ public function assets(){
+  $this->ready();
+  abort_unless(Schema::hasTable('spad_renovation_assets'),503,'کاتالوگ بازسازی در حال آماده‌سازی است.');
+  return response()->json(['data'=>DB::table('spad_renovation_assets')
+    ->where('enabled',true)->orderBy('sort_order')->orderBy('id')->get(),
+   'note'=>'تصاویر صرفاً نمونه الهام طراحی هستند، نه کالا یا رندر واقع‌گرایانه از ملک شما. قیمت خالی به‌معنی رایگان نیست.']);
  }
  public function rates(){
   $this->ready();
@@ -91,11 +100,28 @@ class OnlineRenovationController extends Controller {
     'design_style'=>'sometimes|in:modern,minimal,luxury,classic',
     'plan'=>'sometimes|array|max:12','plan.*.code'=>'required_with:plan|string|max:40',
     'plan.*.qty'=>'required_with:plan|numeric|min:0|max:2000',
-    'plan.*.room'=>'nullable|string|max:100']);
+    'plan.*.room'=>'nullable|string|max:100',
+    'design_layers'=>'sometimes|array|max:24',
+    'design_layers.*.asset_code'=>'required_with:design_layers|string|max:50',
+    'design_layers.*.scene_key'=>'required_with:design_layers|string|max:100',
+    'design_layers.*.room'=>'required_with:design_layers|string|max:100',
+    'design_layers.*.x'=>'required_with:design_layers|numeric|min:0|max:100',
+    'design_layers.*.y'=>'required_with:design_layers|numeric|min:0|max:100',
+    'design_layers.*.w'=>'required_with:design_layers|numeric|min:6|max:100',
+    'design_layers.*.h'=>'required_with:design_layers|numeric|min:6|max:100']);
   if(isset($d['plan'])){
    $allowed=DB::table('spad_renovation_rates')->where('enabled',true)->pluck('code')->all();
    foreach($d['plan'] as $item)abort_unless(in_array($item['code'],$allowed,true),422,'آیتم بازسازی معتبر نیست.');
    $d['plan']=json_encode($d['plan'],JSON_UNESCAPED_UNICODE);
+  }
+  if(isset($d['design_layers'])){
+   abort_unless(Schema::hasTable('spad_renovation_assets'),503);
+   $active=DB::table('spad_renovation_assets')->where('enabled',true)->pluck('code')->all();
+   foreach($d['design_layers'] as $layer){
+    abort_unless(in_array($layer['asset_code'],$active,true),422,'نمونه انتخابی معتبر نیست.');
+    abort_unless($layer['x']+$layer['w']<=100.001 && $layer['y']+$layer['h']<=100.001,422,'موقعیت ناحیه معتبر نیست.');
+   }
+   $d['design_layers']=json_encode($d['design_layers'],JSON_UNESCAPED_UNICODE);
   }
   $d['updated_at']=now();
   DB::table('spad_renovation_projects')->where('id',$p->id)->update($d);
@@ -124,7 +150,8 @@ class OnlineRenovationController extends Controller {
  public function finalize(Request $r,$id){
   $this->ready();$p=$this->project($r,$id);
   $plan=json_decode($p->plan?:'[]',true)?:[];
-  abort_unless(count($plan)>0,422,'ابتدا آیتم‌های بازسازی را انتخاب کنید.');
+  $layers=json_decode($p->design_layers?:'[]',true)?:[];
+  abort_unless(count($plan)>0||count($layers)>0,422,'ابتدا آیتم‌های بازسازی یا نمونه متریال را انتخاب کنید.');
   $rates=DB::table('spad_renovation_rates')->where('enabled',true)->get()->keyBy('code');
   $lines=[];$sum=0;$days=0;
   foreach($plan as $item){
@@ -135,14 +162,30 @@ class OnlineRenovationController extends Controller {
    $lines[]=['code'=>$rate->code,'title'=>$rate->title,'unit'=>$rate->unit,'qty'=>$qty,
      'unit_price_toman'=>(int)$rate->price_toman,'total_toman'=>$price,'estimated_days'=>(int)$rate->days];
   }
-  abort_unless($sum>0,422,'تعرفه پروژه نیازمند تنظیم مدیر است.');
+  $unpriced=0;
+  if(count($layers)>0){
+   $catalog=DB::table('spad_renovation_assets')->whereIn('code',array_unique(array_column($layers,'asset_code')))
+     ->get()->keyBy('code');
+   foreach($layers as $layer){
+    $asset=$catalog->get($layer['asset_code']);
+    abort_unless($asset && $asset->enabled,422,'یکی از نمونه‌های انتخابی دیگر فعال نیست.');
+    $amount=$asset->unit_price_toman===null?null:(int)$asset->unit_price_toman;
+    if($amount===null)$unpriced++;else $sum+=$amount;
+    $lines[]=['code'=>'sample:'.$asset->code,'title'=>'نمونه انتخابی: '.$asset->title,
+     'unit'=>'نمونه','qty'=>1,'unit_price_toman'=>$amount,'total_toman'=>$amount,
+     'estimated_days'=>0];
+   }
+  }
+  abort_unless($sum>0||$unpriced>0,422,'تعرفه پروژه نیازمند تنظیم مدیر است.');
   $invoice=['number'=>'SPAD-RNV-'.str_pad((string)$p->id,6,'0',STR_PAD_LEFT),'lines'=>$lines,
-   'total_toman'=>$sum,'estimated_days'=>$days,'currency'=>'تومان',
+   'total_toman'=>$unpriced>0?null:$sum,'priced_subtotal_toman'=>$sum,
+   'unpriced_items'=>$unpriced,'pricing_pending'=>$unpriced>0,
+   'estimated_days'=>$days,'currency'=>'تومان',
    'notice'=>'برآورد غیرقطعی بر اساس نرخ‌های ثبت‌شده در اسپاد؛ پس از بازدید و بررسی فنی قابل تغییر است.',
    'created_at'=>now()->toIso8601String()];
   DB::table('spad_renovation_projects')->where('id',$p->id)->update([
    'status'=>'completed','invoice'=>json_encode($invoice,JSON_UNESCAPED_UNICODE),
-   'estimated_total_toman'=>$sum,'estimated_days'=>$days,'updated_at'=>now()
+   'estimated_total_toman'=>$unpriced>0?null:$sum,'estimated_days'=>$days,'updated_at'=>now()
   ]);
   return response()->json(['data'=>$this->detail($this->project($r,$id))]);
  }
@@ -186,6 +229,56 @@ class OnlineRenovationController extends Controller {
     $m->url=url('/api/admin/online-renovation/projects/'.$id.'/media/'.$m->id);return $m;
   });
   return response()->json(['data'=>$p]);
+ }
+ public function adminAssets(){
+  $this->ready();$this->admin();
+  abort_unless(Schema::hasTable('spad_renovation_assets'),503);
+  return response()->json(['data'=>DB::table('spad_renovation_assets')
+    ->orderBy('category')->orderBy('sort_order')->get()]);
+ }
+ private function assetFields(Request $r){
+  $d=$r->validate([
+   'title'=>'required|string|min:2|max:150',
+   'category'=>'required|in:cabinet,hob,hood,chandelier,ceiling,led,sink,paint,wallpaper,curtain',
+   'category_title'=>'required|string|max:100',
+   'room_scope'=>'required|in:kitchen,living,all',
+   'color_hex'=>'required|regex:/^#[a-fA-F0-9]{6}$/',
+   'image_url'=>'nullable|url|max:500',
+   'photo_source_url'=>'nullable|url|max:500',
+   'photo_credit'=>'nullable|string|max:140',
+   'unit_price_toman'=>'nullable|integer|min:0|max:2000000000',
+   'enabled'=>'required|boolean',
+   'sort_order'=>'required|integer|min:0|max:99999'
+  ]);
+  foreach(['image_url','photo_source_url'] as $key){
+   if(!empty($d[$key])){
+    $url=parse_url($d[$key]);$host=strtolower($url['host']??'');
+    abort_unless(($url['scheme']??'')==='https',422,'فقط نشانی HTTPS پذیرفته می‌شود.');
+    if($key==='image_url') abort_unless(in_array($host,['images.unsplash.com','images.pexels.com'],true),422,'دامنه تصویر مجاز نیست.');
+   }
+  }
+  return $d;
+ }
+ public function adminCreateAsset(Request $r){
+  $this->ready();$this->admin();
+  $d=$this->assetFields($r);
+  $d['code']='custom-'.bin2hex(random_bytes(8));
+  $d['created_at']=now();$d['updated_at']=now();
+  $id=DB::table('spad_renovation_assets')->insertGetId($d);
+  return response()->json(['data'=>DB::table('spad_renovation_assets')->find($id)],201);
+ }
+ public function adminSaveAsset(Request $r,$id){
+  $this->ready();$this->admin();$d=$this->assetFields($r);
+  abort_unless(DB::table('spad_renovation_assets')->where('id',$id)->exists(),404);
+  $d['updated_at']=now();DB::table('spad_renovation_assets')->where('id',$id)->update($d);
+  return response()->json(['data'=>DB::table('spad_renovation_assets')->find($id)]);
+ }
+ public function adminDisableAsset(Request $r,$id){
+  $this->ready();$this->admin();
+  abort_unless(DB::table('spad_renovation_assets')->where('id',$id)->exists(),404);
+  // Do not delete assets referenced in user projects or invoices.
+  DB::table('spad_renovation_assets')->where('id',$id)->update(['enabled'=>false,'updated_at'=>now()]);
+  return response()->json(['message'=>'نمونه غیرفعال شد و تاریخچه محفوظ ماند.']);
  }
  public function adminProjects(Request $r){$this->ready();$this->admin();
   $items=DB::table('spad_renovation_projects')->orderByDesc('id')->limit(250)->get()
