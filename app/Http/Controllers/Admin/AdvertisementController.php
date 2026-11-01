@@ -653,6 +653,32 @@ class AdvertisementController extends Controller
         ]);
     }
 
+    public function deleteAdvertisement(Request $request, Advertisement $advertisement)
+    {
+        $advertisementId = $advertisement->id;
+
+        DB::transaction(function () use ($advertisement) {
+            // This pivot table does not have ON DELETE CASCADE in the original schema.
+            $advertisement->admins()->detach();
+
+            // Remove polymorphic/pivot records that are not protected by a database cascade.
+            $advertisement->files()->detach();
+            $advertisement->favorites()->delete();
+            $advertisement->points()->delete();
+            $advertisement->reports()->delete();
+
+            // Properties, meetings, tools, raffles and virtual tours are cascade-deleted
+            // by their foreign keys (or the Advertisement observer where applicable).
+            $advertisement->delete();
+        });
+
+        return response()->json([
+            'status' => true,
+            'id' => $advertisementId,
+            'message' => "آگهی شماره {$advertisementId} با موفقیت حذف شد"
+        ]);
+    }
+
     public function showAdvertisementExperts(Request $request, Advertisement $advertisement)
     {
         $admins = Admin::query()->role('expert')->whereHas('allowed_categories', function ($query) use ($advertisement) {
