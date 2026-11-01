@@ -1064,4 +1064,222 @@ class AdvertisementCategoryController extends Controller
         }
         throw new ModelNotFoundException();
     }
+
+    /**
+     * Category API restored after the legacy controller was overwritten with
+     * an advertisement controller. The route already enforces admin auth.
+     * Existing categories and custom layouts are preserved.
+     */
+    public function list(Request $request)
+    {
+        $query = Category::query();
+        if ($request->filled('parent')) {
+            $query->where('parent', (int) $request->input('parent'));
+        } else {
+            $query->where(function ($q) {
+                $q->whereNull('parent')->orWhere('parent', 0);
+            });
+        }
+        return response()->json($query->get());
+    }
+
+    public function getCategoriesList()
+    {
+        return response()->json(Category::query()
+            ->where(function ($q) {
+                $q->whereNull('parent')->orWhere('parent', 0);
+            })
+            ->with('children')->get());
+    }
+
+    public function allCategories(Request $request)
+    {
+        $validated = $request->validate([
+            'page' => 'nullable|integer|min:1',
+            'search' => 'nullable|string|max:120',
+        ]);
+        $page = (int) ($validated['page'] ?? 1);
+        $query = Category::query()->select('id', 'name', 'slug', 'parent');
+        if (!empty($validated['search'])) {
+            $query->where('name', 'like', '%' . $validated['search'] . '%');
+        }
+        $limit = 30;
+        $entries = $query->skip(($page - 1) * $limit)->take($limit + 1)->get();
+        return response()->json([
+            'data' => $entries->take($limit)->values(),
+            'page' => $page,
+            'hasMore' => $entries->count() > $limit,
+        ]);
+    }
+
+    public function showAllCategoriesWithParent()
+    {
+        return response()->json(Category::query()
+            ->with('parent_category_name')->get());
+    }
+
+    public function getEditFormData(Category $category)
+    {
+        return response()->json($category->load('icon_file'));
+    }
+
+    /**
+     * Normalize the single-file selector used by the existing admin React form.
+     */
+    private function categoryFormData(Request $request, $ignoreId = null)
+    {
+        $slugRule = \Illuminate\Validation\Rule::unique('categories', 'slug');
+        if ($ignoreId !== null) {
+            $slugRule->ignore((int) $ignoreId);
+        }
+        $data = $request->validate([
+            'name' => 'required|string|min:2|max:190',
+            'slug' => ['required', 'string', 'min:2', 'max:190', $slugRule],
+            'parent' => 'nullable|integer|exists:categories,id',
+            'order' => 'nullable|integer|min:0',
+        ]);
+        if ($request->exists('icon')) {
+            $icon = $request->input('icon');
+            if (is_array($icon)) {
+                $icon = count($icon) ? reset($icon) : null;
+                if (is_array($icon)) {
+                    $icon = $icon['id'] ?? $icon['value'] ?? null;
+                }
+            }
+            if ($icon === null || $icon === '') {
+                $data['icon'] = null;
+            } else {
+                $data['icon'] = (int) $icon;
+                if ($data['icon'] < 1) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'icon' => ['شناسه فایل نامعتبر است.'],
+                    ]);
+                }
+            }
+        }
+        return $data;
+    }
+
+    public function store(Request $request)
+    {
+        $data = $this->categoryFormData($request);
+        $category = Category::query()->create($data);
+        return response()->json([
+            'status' => true,
+            'message' => 'دسته‌بندی با موفقیت ثبت شد.',
+            'data' => $category,
+        ]);
+    }
+
+    public function update(Request $request, Category $category)
+    {
+        $data = $this->categoryFormData($request, $category->id);
+        if (isset($data['parent'])) {
+            if ((int) $data['parent'] === (int) $category->id) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'parent' => ['هر دسته نمی‌تواند والد خودش باشد.'],
+                ]);
+            }
+            $cursor = Category::query()->find($data['parent']);
+            $visited = [];
+            while ($cursor && !isset($visited[$cursor->id])) {
+                if ($cursor->id === $category->id) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'parent' => ['این جابه‌جایی باعث حلقه در دسته‌بندی‌ها می‌شود.'],
+                    ]);
+                }
+                $visited[$cursor->id] = true;
+                $cursor = $cursor->parent ? Category::query()->find($cursor->parent) : null;
+            }
+        }
+        $category->update($data);
+        return response()->json([
+            'status' => true,
+            'message' => 'دسته‌بندی با موفقیت ویرایش شد.',
+            'data' => $category->fresh(),
+        ]);
+    }
+
+    public function getLayoutEditForm(\App\Models\CategoryLayout $layout)
+    {
+        return response()->json([
+            'data' => $layout,
+            'properties' => Property::query()->order()->get(),
+        ]);
+    }
+
+    private function validatedLayoutData(Request $request)
+    {
+        return $request->validate([
+            'title' => 'required|string|min:2|max:190',
+            'order' => 'required|integer|min:0',
+            'position' => ['required', \Illuminate\Validation\Rule::in(['normal', 'side'])],
+            'access' => 'nullable|integer|min:0',
+            'layout' => 'nullable|array',
+            'layout.*' => 'array',
+        ]);
+    }
+
+    public function addLayout(Request $request, Category $category)
+    {
+        $data = $this->validatedLayoutData($request);
+        $data['category_id'] = $category->id;
+        $layout = \App\Models\CategoryLayout::query()->create($data);
+        return response()->json([
+            'status' => true,
+            'message' => 'چیدمان با موفقیت ذخیره شد.',
+            'data' => $layout,
+        ]);
+    }
+
+    public function updateLayout(Request $request, \App\Models\CategoryLayout $layout)
+    {
+        $data = $this->validatedLayoutData($request);
+        $layout->update($data);
+        return response()->json([
+            'status' => true,
+            'message' => 'چیدمان با موفقیت ویرایش شد.',
+            'data' => $layout->fresh(),
+        ]);
+    }
+
+    public function importCategoryLayout(Request $request, Category $category)
+    {
+        $validated = $request->validate([
+            'from' => 'required|integer|exists:categories,id',
+        ]);
+        $from = Category::query()->findOrFail($validated['from']);
+        if ($from->id === $category->id) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'from' => ['دسته مبدأ و مقصد باید متفاوت باشند.'],
+            ]);
+        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($from, $category) {
+            foreach ($from->layout()->get() as $item) {
+                $exists = $category->layout()
+                    ->where('title', $item->title)
+                    ->where('position', $item->position)
+                    ->where('order', $item->order)
+                    ->exists();
+                if (!$exists) {
+                    $category->layout()->create([
+                        'title' => $item->title,
+                        'order' => $item->order,
+                        'position' => $item->position,
+                        'access' => $item->access,
+                        'layout' => $item->layout,
+                    ]);
+                }
+            }
+        });
+        $layouts = $category->layout()->order()->get();
+        return response()->json([
+            'status' => true,
+            'message' => 'چیدمان‌های جدید بدون حذف چیدمان‌های فعلی کپی شدند.',
+            'data' => [
+                'normal' => $layouts->where('position', 'normal')->values(),
+                'side' => $layouts->where('position', 'side')->values(),
+            ],
+        ]);
+    }
 }
