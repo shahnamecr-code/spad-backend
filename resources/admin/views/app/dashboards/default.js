@@ -185,7 +185,7 @@ const DashboardDefault=()=>{
   {name:'بازسازی آنلاین',sub:'پروژه‌ها و ابزارها',icon:'simple-icon-layers',url:adminRoot+'/online-renovation'},
   {name:'وام مسکن',sub:'وام و درخواست‌ها',icon:'simple-icon-wallet',url:adminRoot+'/mortgage'},
   {name:'قیمت مصالح',sub:'نرخ‌ها و منابع',icon:'iconsminds-coins',url:adminRoot+'/material-prices'},
-  {name:'تنظیمات کیف پول',sub:'پرداخت و اعتبار',icon:'simple-icon-wallet',url:adminRoot+'/wallets/settings'},
+  {name:'درگاه و کیف پول',sub:'درگاه پرداخت، کیف پول و تراکنش‌ها',icon:'simple-icon-wallet',url:adminRoot+'/wallets/center'},
   {name:'دسته‌بندی ملک‌ها',sub:'نوع ملک و گروه‌ها',icon:'simple-icon-grid',url:adminRoot+'/advertisements/categories/list'},
   {name:'ویژگی‌های املاک',sub:'فیلدها و مشخصات',icon:'simple-icon-check',url:adminRoot+'/advertisements/properties/list'},
   {name:'تنظیمات مناطق',sub:'محله‌ها و محدوده‌ها',icon:'simple-icon-location-pin',url:adminRoot+'/settings/regions'},
