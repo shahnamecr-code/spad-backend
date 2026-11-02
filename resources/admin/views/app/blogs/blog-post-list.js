@@ -96,8 +96,9 @@ const ContentList = ({match})=>{
 
       <Row>
         <Colxx md = "12">
-          <Card>
+          <Card className="spad-v9-list-card spad-v9-blog-list">
             <CardBody>
+              <div className="spad-v9-list-caption"><span>SPAD CONTENT STUDIO</span><h3>فهرست مطالب منتشرشده</h3></div>
               <TableAjax columns={cols} data={data} fetchData={fetchData} loading={loading} pageCount={pageCount}/>
             </CardBody>
           </Card>
