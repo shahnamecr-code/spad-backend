@@ -12,6 +12,8 @@ return [
     */
     'default' => env('SMS_DRIVER', 'smsir-verify'),
     'login_template' => env('SMSIR_LOGIN_TEMPLATE_ID'),
+    'handover_template' => env('SMSIR_HANDOVER_TEMPLATE_ID'),
+    'handover_parameter' => env('SMSIR_HANDOVER_PARAMETER', 'code'),
     'login_parameter' => env('SMSIR_LOGIN_PARAMETER', 'CODE'),
     'welcome_template' => env('SMSIR_WELCOME_TEMPLATE_ID'),
     'welcome_parameter' => env('SMSIR_WELCOME_PARAMETER', 'NAME'),
