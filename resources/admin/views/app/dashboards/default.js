@@ -28,7 +28,7 @@ const ServerHealthPanel=({info,loading,error,onRefresh})=>{
  const ok=recent.length?recent[recent.length-1].app_ok&&recent[recent.length-1].db_ok:false;
  const observed=info&&info.observed_success_percent!==null&&info.observed_success_percent!==undefined?Number(info.observed_success_percent).toLocaleString('fa-IR',{maximumFractionDigits:1})+'٪':null;
  const last=recent.length?recent[recent.length-1]:null;
- const ms=last&&Number.isFinite(Number(last.app_ms))?Number(last.app_ms).toLocaleString('fa-IR')+' میلی‌ثانیه':'نامشخص';
+ const ms=last&&last.app_ms!==null&&Number.isFinite(Number(last.app_ms))?Number(last.app_ms).toLocaleString('fa-IR')+' میلی‌ثانیه':'نامشخص';
  return <div className="spad-v10-health" role="region" aria-label="پایش واقعی سلامت سایت و پایگاه داده">
    <div className="spad-v10-health__heading"><span><i className="simple-icon-heart"/> پایش پایداری سرور</span>
     <button type="button" onClick={onRefresh} disabled={loading} title="تازه‌سازی وضعیت پایداری"><i className="simple-icon-refresh"/></button></div>
