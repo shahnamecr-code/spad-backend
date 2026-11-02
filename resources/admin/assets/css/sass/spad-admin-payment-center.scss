@@ -1,0 +1,111 @@
+/* SPAD | Gateway & Wallet Control Center. Scoped to avoid affecting old accounting routes. */
+.spad-payment-center{--pay-blue:#087dca;--pay-ink:#1f4d70;--pay-line:#e2edf5;--pay-muted:#829aad;direction:rtl;text-align:right;max-width:1680px;margin:0 auto;padding:0 0 45px;color:var(--pay-ink);font-family:inherit}
+.spad-payment-center *{box-sizing:border-box}
+.spad-payment-center button,.spad-payment-center input,.spad-payment-center select,.spad-payment-center textarea{font-family:inherit}
+.spad-payment-center button{cursor:pointer}
+.spad-payment-center button:disabled{opacity:.45;cursor:not-allowed}
+.spad-payment-center a{text-decoration:none!important}
+.spad-payment-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:23px 27px;color:#fff;
+ background:linear-gradient(110deg,#053654 0%,#0862a6 60%,#078ed2 100%);border:1px solid #148acc;
+ border-radius:20px;box-shadow:0 13px 31px rgba(4,62,111,.1);position:relative;isolation:isolate;overflow:hidden}
+.spad-payment-hero::after{content:"";width:310px;height:310px;border:43px solid #ffffff0e;border-radius:50%;position:absolute;left:3%;bottom:-270px;pointer-events:none;z-index:-1}
+.spad-payment-overline{display:flex;align-items:center;gap:8px;color:#bce4fe;font-size:10px;font-weight:700}
+.spad-payment-hero h1{margin:7px 0 2px;font-size:25px!important;font-weight:800;color:#fff!important;line-height:1.65}
+.spad-payment-hero p{font-size:11px;line-height:2;color:#d4ecfa;max-width:710px;margin:0}
+.spad-payment-hero__actions{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.spad-payment-hero__actions :is(button,a){display:inline-flex;justify-content:center;align-items:center;gap:7px;
+ padding:9px 12px;min-height:36px;border:1px solid #ffffff49;border-radius:10px;background:#ffffff20;color:#fff!important;
+ font-size:10px;font-weight:650;white-space:nowrap}
+.spad-payment-hero__actions :is(button,a):hover{background:#ffffff32}
+.spad-payment-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:16px 0;padding:8px;background:#f5faff;border:1px solid #e2edf6;border-radius:14px}
+.spad-payment-tabs button{display:flex;justify-content:center;align-items:center;gap:8px;padding:10px 14px;background:transparent;
+ border:1px solid transparent;border-radius:10px;color:#527c98;font-size:11px;font-weight:650;min-height:36px}
+.spad-payment-tabs button:hover{background:#e9f5fe}
+.spad-payment-tabs button.active{background:#fff;border-color:#cbe3f3;color:#087dc5;box-shadow:0 4px 14px #106b9e10}
+.spad-payment-alert,.spad-payment-success{padding:12px 14px;border:1px solid #ecc6bf;border-radius:11px;color:#9e5045;background:#fff1ee;margin:11px 0;font-size:11px;line-height:1.9}
+.spad-payment-success{color:#227a62;background:#edf9f5;border-color:#bde9d9}
+.spad-payment-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin-bottom:16px}
+.spad-payment-metrics article{position:relative;display:flex;flex-direction:column;gap:9px;min-width:0;padding:16px 17px;
+ background:#fff;border:1px solid var(--pay-line);border-radius:15px;box-shadow:0 6px 23px #0d50760b}
+.spad-payment-metrics article>small{font-size:10px;color:#7994a9}
+.spad-payment-metrics article>strong{font-size:17px;line-height:1.65;color:#215b7f;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:800}
+.spad-payment-metrics strong small{font-size:11px;color:#819fb1}
+.spad-payment-metrics i{position:absolute;left:15px;top:15px;color:#91c6e8;font-size:19px}
+.spad-payment-columns{display:grid;grid-template-columns:1fr 1.13fr;gap:14px;align-items:start}
+.spad-payment-columns.gateways{grid-template-columns:1.22fr .8fr}
+.spad-payment-card{min-width:0;background:#fff;border:1px solid var(--pay-line);border-radius:16px;padding:19px;box-shadow:0 8px 27px #0847730b}
+.spad-payment-section-head{display:flex;justify-content:space-between;align-items:center;gap:11px;margin-bottom:15px}
+.spad-payment-section-head h2,.spad-payment-card>h2{font-size:15px;color:#1d5478;margin:0 0 4px!important;font-weight:750;line-height:1.8}
+.spad-payment-section-head p{color:#8ba1b2;font-size:10px;line-height:1.8;margin:0}
+.spad-payment-card button,.spad-payment-card .spad-payment-view{border:1px solid #cfe4f2;background:#f3faff;border-radius:9px;padding:7px 11px;
+ min-height:32px;font-size:10px;color:#1879ad;font-weight:650;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.spad-payment-center .primary{background:linear-gradient(110deg,#097dcc,#0b9edb)!important;border:1px solid #087fc5!important;color:#fff!important}
+.spad-payment-card .danger-quiet{border-color:#f3d8d5;color:#b16b63;background:#fff8f7}
+.spad-payment-gateway-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:13px 0;border-bottom:1px solid #edf2f6}
+.spad-payment-gateway-row:last-of-type{border-bottom:none}
+.spad-payment-provider-icon{flex:0 0 36px;height:36px;width:36px;display:grid;place-items:center;color:#1186c8;background:#eaf7ff;border-radius:10px;font-size:17px}
+.spad-payment-gateway-row>div:nth-child(2){flex:1;min-width:135px;display:flex;flex-direction:column;gap:5px}
+.spad-payment-gateway-row b{font-size:11px;color:#275e83}
+.spad-payment-gateway-row small{font-size:9px;color:#91a5b6}
+.spad-payment-pill{display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;
+ background:#f1f5f8;color:#65829a;border:1px solid #dfeaf3;border-radius:25px;padding:5px 9px;font-size:9px;font-weight:650;line-height:1.55}
+.spad-payment-pill.good{background:#eefaf4;color:#238266;border-color:#c8e8d9}
+.spad-payment-pill.wait{background:#fff9ec;color:#b1803f;border-color:#f0e0bb}
+.spad-payment-pill.bad{background:#fff1ef;color:#af6158;border-color:#f0d3ce}
+.spad-payment-provider-hint{margin-top:15px;color:#5589a7;display:flex;align-items:flex-start;gap:9px;
+ line-height:2;font-size:10px;border:1px solid #daecf7;border-radius:10px;background:#f4faff;padding:12px}
+.spad-payment-provider-hint i{font-size:14px;margin-top:2px}
+.spad-payment-table-wrap{overflow-x:auto;scrollbar-width:thin;border:1px solid #e5eef5;border-radius:11px}
+.spad-payment-table-wrap table{width:100%;border-spacing:0;border-collapse:collapse;min-width:510px;font-size:10px}
+.spad-payment-table-wrap th{background:#f2f9fe;color:#477a9d;text-align:right;padding:12px 10px;font-size:10px;white-space:nowrap;font-weight:750}
+.spad-payment-table-wrap td{background:#fff;padding:11px 10px;border-bottom:1px solid #edf2f7;color:#416780;line-height:1.8;vertical-align:middle}
+.spad-payment-table-wrap tbody tr:hover td{background:#f7fbff}
+.spad-payment-table-wrap tbody tr:last-child td{border-bottom:0}
+.spad-payment-table-wrap td b{font-size:10px;color:#225875}
+.spad-payment-table-wrap td small{display:block;font-size:9px;color:#8da5b8;margin-top:4px}
+.spad-payment-table-wrap .empty{padding:24px;text-align:center;color:#91a8b8;font-size:10px}
+.spad-payment-steps{display:flex;flex-direction:column;gap:15px;padding:10px 0}
+.spad-payment-steps>div{display:flex;gap:12px;align-items:flex-start}
+.spad-payment-steps>div>span{flex:0 0 30px;width:30px;height:30px;border-radius:10px;background:#e6f5ff;color:#147fc0;display:grid;place-items:center;font-weight:800;font-size:12px}
+.spad-payment-steps p{display:flex;flex-direction:column;gap:6px;margin:0}
+.spad-payment-steps b{color:#376580;font-size:11px}
+.spad-payment-steps small{color:#819aac;font-size:10px;line-height:1.9}
+.spad-payment-settings{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.spad-payment-settings>label{min-width:0;display:flex;flex-direction:column;gap:7px;color:#4d7591;font-size:11px;font-weight:650}
+.spad-payment-settings>label.wide,.spad-payment-settings>.wide{grid-column:1/-1}
+.spad-payment-settings :is(input:not([type=checkbox]),select,textarea),.spad-payment-filter :is(input,select){
+ width:100%;height:auto;min-height:42px;border:1px solid #d9e8f3;background:#fbfdff;border-radius:10px;
+ padding:9px 11px;color:#2e5d7c;font-size:11px;outline:none;box-shadow:none;max-width:100%}
+.spad-payment-settings :is(input,select,textarea):focus,.spad-payment-filter :is(input,select):focus{border-color:#5cb5e8;box-shadow:0 0 0 3px #0b9fe51a}
+.spad-payment-settings textarea{min-height:86px;resize:vertical}
+.spad-payment-settings label.check{display:flex;flex-direction:row;align-items:center;gap:9px;padding:12px;
+ background:#f7fbff;border:1px solid #e3edf5;border-radius:10px;font-size:11px;color:#54758d}
+.spad-payment-settings label.check input{accent-color:#087fcc;flex:0 0 auto}
+.spad-payment-settings label>small{font-size:9px;color:#839baa;line-height:1.8;font-weight:400}
+.spad-payment-actions{display:flex;justify-content:flex-end}
+.spad-payment-settings .primary{min-height:38px;border-radius:10px;padding:9px 16px;font-size:11px}
+.spad-payment-filter{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 15px}
+.spad-payment-filter input{flex:1;min-width:160px;max-width:350px}
+.spad-payment-filter select{min-width:140px;max-width:190px}
+.spad-payment-filter button{min-height:40px;padding:8px 13px}
+.spad-payment-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px;font-size:10px;color:#7794ab}
+.spad-payment-pagination>div{display:flex;align-items:center;gap:9px}
+.spad-payment-pagination button{padding:7px 9px;border-radius:8px}
+.spad-payment-empty{padding:25px;text-align:center;color:#829bad;font-size:11px}
+.spad-payment-overlay{position:fixed;inset:0;z-index:11000;background:#031f39b8;display:flex;align-items:center;justify-content:center;padding:15px}
+.spad-payment-modal{width:100%;max-width:670px;max-height:95vh;overflow-y:auto;background:#fff;border-radius:19px;padding:23px;box-shadow:0 25px 80px #0004}
+.spad-payment-modal>header{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #e2edf6;padding-bottom:15px;margin-bottom:19px}
+.spad-payment-modal header small{font-size:10px;color:#0b8ac6}
+.spad-payment-modal header h2{font-size:18px;margin:7px 0 0;color:#1f567a}
+.spad-payment-modal header>button{width:33px;height:33px;border:0;border-radius:9px;font-size:23px;background:#f1f9fe;color:#4e86a6}
+.spad-payment-modal footer{display:flex;justify-content:flex-end;gap:9px;border-top:1px solid #e3edf5;padding-top:15px;margin-top:15px}
+.spad-payment-modal footer button{padding:10px 14px;border:1px solid #d4e6f3;background:#f2f9fd;color:#527d9a;border-radius:9px;font-size:11px}
+@media(max-width:1250px){.spad-payment-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.spad-payment-columns,.spad-payment-columns.gateways{grid-template-columns:1fr}}
+@media(max-width:680px){.spad-payment-hero{padding:17px;border-radius:15px;align-items:flex-start;flex-direction:column}.spad-payment-hero h1{font-size:20px!important}
+ .spad-payment-tabs{gap:5px;padding:6px}.spad-payment-tabs button{font-size:9.5px;padding:7px 9px;min-height:32px}.spad-payment-metrics{gap:7px}
+ .spad-payment-metrics article{padding:12px}.spad-payment-metrics article>strong{font-size:13px}.spad-payment-metrics i{font-size:15px}
+ .spad-payment-card{padding:12px}.spad-payment-settings{grid-template-columns:1fr;gap:12px}
+ .spad-payment-settings>label.wide,.spad-payment-settings>.wide{grid-column:auto}
+ .spad-payment-section-head{align-items:flex-start;flex-wrap:wrap}
+ .spad-payment-modal{padding:14px}.spad-payment-filter input{max-width:100%}
+}
