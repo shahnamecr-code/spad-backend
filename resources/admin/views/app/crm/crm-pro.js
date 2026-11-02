@@ -26,6 +26,7 @@ export default function CrmPro(){
  const [task,setTask]=useState({title:'',kind:'call',due_at:'',description:''});
  const [outbound,setOutbound]=useState({channel:'sms',message:''});
  const [saving,setSaving]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState(''),[info,setInfo]=useState('');
+ const [importCursor,setImportCursor]=useState(0),[importMore,setImportMore]=useState(true);
  const reload=useCallback(async()=>{
   try{
    const [a,b]=await Promise.all([
@@ -41,6 +42,16 @@ export default function CrmPro(){
  },[]);
  useEffect(()=>{if(superAdmin)reload();else setLoading(false);},[superAdmin,reload]);
  useEffect(()=>{if(selected)loadDetail(selected);else setDetail(null);},[selected,loadDetail]);
+ const importUsers=async()=>{
+  if(!window.confirm('حداکثر ۱۰۰ کاربر سایت به CRM افزوده شود؟ کاربران موجود حذف یا ویرایش نمی‌شوند و هیچ مجوز پیامک یا تماس برایشان ثبت نخواهد شد.'))return;
+  setSaving(true);setError('');setInfo('');
+  try{
+   const {data}=await axios.post(API+'/import-customers',{after_id:importCursor,limit:100});
+   setImportCursor(data.next_cursor||importCursor);setImportMore(Boolean(data.has_more));
+   setInfo('وارد شد: '+num(data.created)+'، تکراری یا نامعتبر: '+num(data.skipped)+'. '+(data.has_more?'برای ادامه، دکمه را دوباره بزنید.':'تمام این دسته بررسی شد.'));
+   await reload();
+  }catch(e){setError(err(e));}finally{setSaving(false);}
+ };
  const submit=async(event)=>{
   event.preventDefault();if(!form)return;
   setSaving(true);setError('');setInfo('');
@@ -72,7 +83,7 @@ export default function CrmPro(){
   <header className="spad-crm-pro__hero"><div><span><i className="simple-icon-people"/> مرکز ارتباط و فروش املاک</span><h1>مدیریت هوشمند مشتریان اسپاد</h1>
    <p>سرنخ‌های ملکی، مذاکرات، بازدیدها، پیگیری‌ها و ارتباطات مشتری در یک میز کار یکپارچه</p>
    <div className="spad-crm-pro__hero-tags"><span>پرونده اختصاصی مشتری</span><span>تاریخچه تعاملات</span><span>ارتباط با رضایت مخاطب</span></div></div>
-   <div className="spad-crm-pro__hero-actions"><button type="button" onClick={()=>{setForm({...blank});setError('');}}>+ ثبت مشتری جدید</button><Link to={adminRoot+'/crm/all-requests'}>درخواست‌های ملکی</Link></div>
+   <div className="spad-crm-pro__hero-actions"><button type="button" onClick={()=>{setForm({...blank});setError('');}}>+ ثبت مشتری جدید</button><button type="button" disabled={saving||!importMore} onClick={importUsers}>ورود مشتریان سایت</button><Link to={adminRoot+'/crm/all-requests'}>درخواست‌های ملکی</Link></div>
   </header>
   <div className="spad-crm-pro__metrics">
    <article><small>کل پرونده‌های CRM</small><strong>{num(summary?.total)}</strong><i className="simple-icon-people"/></article>
