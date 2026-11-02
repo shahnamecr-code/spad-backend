@@ -23,6 +23,8 @@ const defaultPropertyTools = {
   rental_evacuation_date: "",
   mortgage_enabled: false,
   mortgage_max_amount: "",
+  deposit_enabled: false,
+  deposit_amount: "",
   document_type: "",
   owner_identity_verified: false,
   documents_verified: false,

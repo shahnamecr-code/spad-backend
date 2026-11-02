@@ -401,6 +401,37 @@ const PropertyToolsFields = () => {
           </div>
         </div>
 
+        <div className="spad-ad-finance-panel mb-4" style={{ border: "1px solid #bfdef6", borderRadius: 16, padding: 18, background: "linear-gradient(120deg,#f2faff,#fff)" }}>
+          <div className="spad-ad-finance-title">
+            <span className="spad-ad-tool-icon spad-ad-tool-icon--blue"><i className="simple-icon-credit-card" /></span>
+            <div>
+              <h4>تنظیمات پرداخت بیعانه ملک</h4>
+              <p>پرداخت فقط پس از فعال‌سازی و تعیین مبلغ توسط مدیر برای کاربران قابل نمایش است.</p>
+            </div>
+          </div>
+          <SwitchField name="property_tools.deposit_enabled" label="فعالسازی پرداخت بیعانه" />
+          {tools.deposit_enabled ? (
+            <div className="mt-3">
+              <MoneyField
+                name="property_tools.deposit_amount"
+                label="مبلغ بیعانه (تومان)"
+                hint="این مبلغ در سرور ثبت می‌شود و کاربر اجازه تغییر آن را ندارد. حداقل مبلغ ۱٬۰۰۰ تومان است."
+                icon="simple-icon-wallet"
+              />
+              {(!tools.deposit_amount || Number(tools.deposit_amount) < 1000) ? (
+                <div className="spad-ad-note-box">
+                  <i className="simple-icon-exclamation" />
+                  <span>برای فعال شدن دکمه پرداخت بیعانه، مبلغ معتبر وارد کنید.</span>
+                </div>
+              ) : null}
+              <div className="spad-ad-note-box mt-2">
+                <i className="simple-icon-info" />
+                <span>پرداخت از درگاه‌های فعال در بخش «درگاه و کیف پول» انجام می‌شود. بیعانه به‌تنهایی سند قرارداد یا انتقال مالکیت نیست.</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
         <div className="spad-ad-note-box">
           <i className="simple-icon-settings" />
           <span>
