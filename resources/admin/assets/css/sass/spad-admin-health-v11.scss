@@ -1,0 +1,47 @@
+/* SPAD command center — operational health panel, evidence-first styling. */
+.spad-v11-health{flex:0 0 435px;width:435px;max-width:100%;position:relative;
+ display:flex;flex-direction:column;gap:10px;padding:17px 19px;border:1px solid rgba(255,255,255,.26);
+ border-radius:20px;background:linear-gradient(135deg,rgba(2,31,64,.8),rgba(1,60,105,.55));
+ box-shadow:0 13px 24px #0225442a,inset 0 1px #ffffff1b;color:#fff;backdrop-filter:blur(12px)}
+.spad-v11-health__top{display:flex;justify-content:space-between;align-items:center;gap:11px}
+.spad-v11-health__top>div{display:flex;gap:9px;align-items:center;min-width:0}
+.spad-v11-health__top strong{color:#fff;font-size:11.5px;line-height:1.6;font-weight:800}
+.spad-v11-health__pulse{width:8px;height:8px;border-radius:50%;background:#30dfb8;
+ box-shadow:0 0 0 4px #31d5ad2b,0 0 14px #6ef2d36b;flex:0 0 8px}
+.spad-v11-health__top button{flex:0 0 30px;width:30px;height:30px;border:1px solid #ffffff32;
+ border-radius:9px;background:#ffffff19;color:#e5f7ff;display:grid;place-items:center;cursor:pointer}
+.spad-v11-health__period{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.spad-v11-health__period button{border:1px solid #ffffff24;color:#c2dff4;background:#ffffff10;
+ border-radius:7px;padding:5px 10px;font-size:9px;cursor:pointer;min-height:27px}
+.spad-v11-health__period button.active{background:#ffffff32;border-color:#ffffff59;color:#fff}
+.spad-v11-health__state{margin-right:auto;display:inline-flex;align-items:center;gap:6px;
+ font-size:9px;border:1px solid #ffffff30;border-radius:25px;padding:5px 9px;color:#c9e8f9}
+.spad-v11-health__state.good{background:#18d3a91b;border-color:#2ee4ae56;color:#a6ffe1}
+.spad-v11-health__state.bad{background:#ec8b621b;border-color:#ec9d7f66;color:#ffd6bd}
+.spad-v11-health__metrics{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.spad-v11-health__metrics>div{display:flex;flex-direction:column;gap:5px;padding:10px 8px;border-radius:10px;
+ border:1px solid #ffffff1a;background:#ffffff10;min-width:0}
+.spad-v11-health__metrics small{font-size:8px;color:#b5d8ed;white-space:nowrap}
+.spad-v11-health__metrics strong{font-size:14px;color:#effbff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.spad-v11-health__plot{background:#ffffff0a;border-radius:12px;padding:9px 10px}
+.spad-v11-health__plot-label{display:flex;align-items:center;justify-content:space-between;gap:7px;margin-bottom:5px}
+.spad-v11-health__plot-label b{font-size:10px;color:#e7f8ff}
+.spad-v11-health__plot-label small{color:#a2cbe5;font-size:8px}
+.spad-v11-health__plot svg{display:block;width:100%;height:69px}
+.spad-v11-health__empty{display:flex;min-height:69px;align-items:center;justify-content:center;text-align:center;font-size:9px;color:#b6dbee}
+.spad-v11-health__samples{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.spad-v11-health__samples>div{display:flex;flex-direction:column;gap:5px;border-left:1px solid #ffffff19;padding-left:5px}
+.spad-v11-health__samples>div:last-child{border-left:0}
+.spad-v11-health__samples span{color:#b7d4e9;font-size:8px;line-height:1.6}
+.spad-v11-health__samples b{color:#eafaff;font-size:11px}
+.spad-v11-health__incident{display:flex;align-items:center;gap:9px;background:#ed925d21;border:1px solid #ffc08936;
+ color:#ffe5d0;font-size:9px;line-height:1.8;padding:8px 10px;border-radius:9px}
+.spad-v11-health__incident.ok{background:#17d8a712;border-color:#61eabc30;color:#b6f9df}
+.spad-v11-health__bottom{display:flex;flex-direction:column;gap:5px;padding-top:7px;border-top:1px solid #ffffff23}
+.spad-v11-health__bottom small{font-size:8px;line-height:1.8;color:#c2d9e9}
+.spad-v11-health__bottom span{font-size:8px;color:#8dc5e6}
+@media(max-width:1450px){.spad-v11-health{flex-basis:390px;width:390px}}
+@media(max-width:1100px){.spad-v8-dash-hero{flex-wrap:wrap}.spad-v11-health{flex:1 1 100%;width:100%}}
+@media(max-width:600px){.spad-v11-health{padding:12px 11px;border-radius:13px}
+ .spad-v11-health__metrics strong{font-size:12px}.spad-v11-health__metrics small{font-size:7.5px}
+ .spad-v11-health__state{margin-right:0}.spad-v11-health__samples span{font-size:7.5px}}
