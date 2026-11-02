@@ -1,6 +1,6 @@
 import React,{useCallback,useEffect,useMemo,useState} from 'react';
 import axios from 'axios';
-import {Link} from 'react-router-dom';
+import {Link,useHistory,useLocation} from 'react-router-dom';
 import {useSelector} from 'react-redux';
 import {adminPathApi,adminRoot} from '../../../constants/defaultValues';
 
@@ -34,7 +34,8 @@ const Pagination=({data,onPage})=><div className="spad-payment-pagination">
 export default function WalletCenter(){
  const user=useSelector(s=>s.authUser.currentUser);
  const superAdmin=Boolean(user&&Array.isArray(user.roles)&&user.roles.includes('Super Admin'));
- const initial=new URLSearchParams(window.location.search).get('tab');
+ const history=useHistory(),location=useLocation();
+ const initial=new URLSearchParams(location.search).get('tab');
  const [tab,setTab]=useState(CHANNELS.some(x=>x.id===initial)?initial:'overview');
  const [overview,setOverview]=useState(null),[settings,setSettings]=useState({...DEFAULTS}),[gateways,setGateways]=useState([]);
  const [editing,setEditing]=useState(null),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
@@ -68,9 +69,10 @@ export default function WalletCenter(){
   }catch(e){setFailure(errorText(e));}
  },[superAdmin,txPage,txQuery,direction]);
  useEffect(()=>{load();},[load]);
+ useEffect(()=>{const value=new URLSearchParams(location.search).get('tab');setTab(CHANNELS.some(x=>x.id===value)?value:'overview');},[location.search]);
  useEffect(()=>{if(tab==='wallets')loadUsers();},[tab,loadUsers]);
  useEffect(()=>{if(tab==='transactions')loadTx();},[tab,loadTx]);
- const selectTab=value=>{setTab(value);setFailure('');setNotice('');window.history.replaceState(null,'',window.location.pathname+'?tab='+value);};
+ const selectTab=value=>{setTab(value);setFailure('');setNotice('');history.replace({pathname:location.pathname,search:'?tab='+value});};
  const commit=async(action,success)=>{
   setBusy(true);setFailure('');setNotice('');
   try{await action();setNotice(success);await load();return true;}
