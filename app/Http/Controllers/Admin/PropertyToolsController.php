@@ -27,6 +27,8 @@ class PropertyToolsController extends Controller
                 'rental_evacuation_date' => optional($tool)->rental_evacuation_date ? optional($tool)->rental_evacuation_date->format('Y-m-d') : '',
                 'mortgage_enabled' => (bool) optional($tool)->mortgage_enabled,
                 'mortgage_max_amount' => optional($tool)->mortgage_max_amount ?? '',
+                'deposit_enabled' => (bool) optional($tool)->deposit_enabled,
+                'deposit_amount' => optional($tool)->deposit_amount ?? '',
                 'document_type' => optional($tool)->document_type ?? '',
                 'owner_identity_verified' => (bool) optional($tool)->owner_identity_verified,
                 'documents_verified' => (bool) optional($tool)->documents_verified,

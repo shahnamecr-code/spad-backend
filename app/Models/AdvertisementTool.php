@@ -19,6 +19,8 @@ class AdvertisementTool extends Model
         'documents_verified' => 'boolean',
         'below_expert_price' => 'boolean',
         'floorplan_3d_enabled' => 'boolean',
+        'deposit_enabled' => 'boolean',
+        'deposit_amount' => 'integer',
         'rental_deposit_ceiling' => 'integer',
         'rental_monthly_rent' => 'integer',
         'rental_evacuation_date' => 'date:Y-m-d',

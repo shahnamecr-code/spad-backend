@@ -27,6 +27,29 @@ use Illuminate\Validation\Rule;
 class AdvertisementController extends Controller
 {
     //    property wrapper
+    private function validateDepositSettings(Request $request): void
+    {
+        if (!$request->boolean('property_tools.deposit_enabled')) return;
+        $amount = $request->input('property_tools.deposit_amount');
+        if (!is_numeric($amount) || (int) $amount < 1000 || (int) $amount > 999999999999) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'property_tools.deposit_amount' => 'هنگام فعال‌سازی بیعانه، مبلغ معتبر حداقل ۱٬۰۰۰ تومان وارد کنید.',
+            ]);
+        }
+    }
+
+    private function saveDepositSettings(Request $request, Advertisement $advertisement): void
+    {
+        // Older clients without property_tools must not change an existing deposit.
+        if (!$request->has('property_tools.deposit_enabled')) return;
+        $enabled = $request->boolean('property_tools.deposit_enabled');
+        $advertisement->toolConfig()->updateOrCreate(
+            ['advertisement_id' => $advertisement->id],
+            ['deposit_enabled' => $enabled,
+             'deposit_amount' => $enabled ? (int) $request->input('property_tools.deposit_amount') : null]
+        );
+    }
+
     public function index()
     {
         $propertySideWrappers = PropertyWrapper::query()->order()->side()->get();
@@ -548,11 +571,14 @@ class AdvertisementController extends Controller
             'category' => ['required', Rule::exists('categories', 'id')],
             'position.region.id' => ['required', Rule::exists('regions', 'id')->where('city_id', $shiraz->id)],
             'position.address' => 'required',
-            'important_places'=>['nullable','array']
+            'important_places'=>['nullable','array'],
+            'property_tools.deposit_enabled' => ['nullable', 'boolean'],
+            'property_tools.deposit_amount' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
         ]);
         $category_id = $request->input('category');
         $category = Category::find($category_id);
-        $checkAdvertisement = isValidAdvertisement($category, $request->except('category', 'position'),true,true);
+        $this->validateDepositSettings($request);
+        $checkAdvertisement = isValidAdvertisement($category, $request->except('category', 'position', 'property_tools'),true,true);
         $status = Advertisement::WAITING;
         if (count($checkAdvertisement['errors']) == 0) {
             $user = $request->user();
@@ -587,6 +613,7 @@ class AdvertisementController extends Controller
 
                 }
                 $advertisement->properties()->saveMany($properties);
+                $this->saveDepositSettings($request, $advertisement);
                 return response()->json([
                     'status' => true,
                     'data' => $data
@@ -798,7 +825,9 @@ class AdvertisementController extends Controller
         $this->validate($request, [
             'position.region.id' => ['required', Rule::exists('regions', 'id')->where('city_id', $shiraz->id)],
             'position.address' => 'required',
-            'important_places'=>['nullable','array']
+            'important_places'=>['nullable','array'],
+            'property_tools.deposit_enabled' => ['nullable', 'boolean'],
+            'property_tools.deposit_amount' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
         ]);
         $category = $advertisement->category;
         $user = $request->user();
@@ -811,7 +840,8 @@ class AdvertisementController extends Controller
             abort('403');
         }
 
-        $checkAdvertisement = isValidAdvertisement($category, $request->except('category', 'position'),true,true);
+        $this->validateDepositSettings($request);
+        $checkAdvertisement = isValidAdvertisement($category, $request->except('category', 'position', 'property_tools'),true,true);
         $status = Advertisement::WAITING;
         if (count($checkAdvertisement['errors']) == 0) {
             if ($user_role == 'Super Admin'
@@ -850,6 +880,7 @@ class AdvertisementController extends Controller
                 $adProp->save();
             }
 
+            $this->saveDepositSettings($request, $advertisement);
             return response()->json([
                 'status' => true,
                 'message' => 'تغییرات آگهی با موفقیت ذخیره شد',
