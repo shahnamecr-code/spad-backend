@@ -13,7 +13,12 @@ const Media_management = () => {
   }
 
   return (
-    <>
+    <section className="spad-v9-media-library" dir="rtl">
+      <div className="spad-v9-media-library__intro">
+        <div><span>SPAD MEDIA ARCHIVE</span><h3>فایل‌ها و تصاویر سایت</h3>
+          <p>آپلود، دسته‌بندی و مدیریت تصاویر و فایل‌های رسانه‌ای بدون تغییر در محتوای موجود</p></div>
+        <i className="simple-icon-picture" aria-hidden="true" />
+      </div>
       <MediaLibrary
         multiSelect
         onSubmit={(filesValues) => {
@@ -23,7 +28,7 @@ const Media_management = () => {
         // defaultFileIdz={defaultFileIdz && defaultFileIdz.map((el) => el.id)}
         setShow={setShow}
       />
-    </>
+    </section>
   )
 }
 
