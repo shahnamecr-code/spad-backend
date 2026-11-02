@@ -97,3 +97,5 @@ include_once 'virtual-tour.php';
 
 require_once __DIR__ . '/mortgage.php';
 require_once __DIR__ . '/community.php';
+
+require_once __DIR__ . '/identity.php';
