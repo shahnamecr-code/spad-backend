@@ -2,11 +2,21 @@
 // Private, user-owned handover checklist API. Never expose via public routes.
 use App\Http\Controllers\PropertyHandoverController;
 
+
+// Participants can verify only via an unguessable invitation plus an SMS code.
+// Never return the underlying checklist or private photos through these endpoints.
+Route::get('handover-sign/{token}', [\\App\\Http\\Controllers\\PropertyHandoverSignatureController::class, 'invitationInfo'])->middleware('throttle:30,1');
+Route::post('handover-sign/{token}/send', [\\App\\Http\\Controllers\\PropertyHandoverSignatureController::class, 'publicSend'])->middleware('throttle:5,1');
+Route::post('handover-sign/{token}/verify', [\\App\\Http\\Controllers\\PropertyHandoverSignatureController::class, 'verify'])->middleware('throttle:10,1');
+
 Route::middleware('auth:sanctum')->prefix('handover-checklists')->group(function () {
     Route::get('/', [PropertyHandoverController::class, 'index']);
     Route::post('/', [PropertyHandoverController::class, 'store']);
     Route::get('/{id}', [PropertyHandoverController::class, 'show'])->whereNumber('id');
     Route::put('/{id}', [PropertyHandoverController::class, 'update'])->whereNumber('id');
+    Route::get('/{id}/signatures', [\\App\\Http\\Controllers\\PropertyHandoverSignatureController::class, 'status'])->whereNumber('id');
+    Route::post('/{id}/signatures/start', [\\App\\Http\\Controllers\\PropertyHandoverSignatureController::class, 'start'])->whereNumber('id');
+    Route::post('/{id}/signatures/{party}/send', [\\App\\Http\\Controllers\\PropertyHandoverSignatureController::class, 'send'])->whereNumber('id');
     Route::post('/{id}/complete', [PropertyHandoverController::class, 'complete'])->whereNumber('id');
     Route::post('/{id}/photos', [PropertyHandoverController::class, 'uploadPhoto'])->whereNumber('id');
     Route::get('/{id}/photos/{photoId}', [PropertyHandoverController::class, 'photo'])->whereNumber('id')->whereNumber('photoId');
