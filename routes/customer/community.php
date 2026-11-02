@@ -58,3 +58,16 @@ Route::middleware('auth:sanctum')->prefix('building-partner')->group(function(){
  Route::post('{panelId}/buildings/{id}/bills',[\App\Http\Controllers\BuildingManagerController::class,'bill'])->whereNumber('panelId')->whereNumber('id');
  Route::patch('{panelId}/buildings/{id}/bills/{billId}',[\App\Http\Controllers\BuildingManagerController::class,'billStatus'])->whereNumber('panelId')->whereNumber('id');
 });
+
+
+Route::middleware('auth:sanctum')->group(function(){
+ Route::get('building-operations/{id}',[\App\Http\Controllers\BuildingOperationsController::class,'residentView'])->whereNumber('id')->middleware('throttle:30,1');
+ Route::post('building-operations/{id}/polls/{pollId}/vote',[\App\Http\Controllers\BuildingOperationsController::class,'vote'])->whereNumber('id')->whereNumber('pollId')->middleware('throttle:15,1');
+ Route::post('building-operations/{id}/facilities/{facilityId}/reserve',[\App\Http\Controllers\BuildingOperationsController::class,'reserve'])->whereNumber('id')->whereNumber('facilityId')->middleware('throttle:10,1');
+ Route::get('building-partner/{panelId}/buildings/{id}/operations',[\App\Http\Controllers\BuildingOperationsController::class,'index'])->whereNumber('panelId')->whereNumber('id');
+ Route::post('building-partner/{panelId}/buildings/{id}/facilities',[\App\Http\Controllers\BuildingOperationsController::class,'facility'])->whereNumber('panelId')->whereNumber('id');
+ Route::post('building-partner/{panelId}/buildings/{id}/maintenance',[\App\Http\Controllers\BuildingOperationsController::class,'maintenance'])->whereNumber('panelId')->whereNumber('id');
+ Route::patch('building-partner/{panelId}/buildings/{id}/maintenance/{itemId}',[\App\Http\Controllers\BuildingOperationsController::class,'maintenanceStatus'])->whereNumber('panelId')->whereNumber('id')->whereNumber('itemId');
+ Route::post('building-partner/{panelId}/buildings/{id}/polls',[\App\Http\Controllers\BuildingOperationsController::class,'poll'])->whereNumber('panelId')->whereNumber('id');
+ Route::post('building-partner/{panelId}/buildings/{id}/polls/{pollId}/close',[\App\Http\Controllers\BuildingOperationsController::class,'closePoll'])->whereNumber('panelId')->whereNumber('id')->whereNumber('pollId');
+});
