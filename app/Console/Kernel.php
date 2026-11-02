@@ -27,7 +27,7 @@ class Kernel extends ConsoleKernel
         // Records one genuine public HTTPS + database probe every five minutes,
         // provided the hosting server invokes Laravel schedule:run.
         $schedule->call(function () {
-            \App\Services\\SpadAdminHealthService::sample();
+            \App\Services\SpadAdminHealthService::sample();
         })->everyFiveMinutes()->withoutOverlapping();
     }
 
