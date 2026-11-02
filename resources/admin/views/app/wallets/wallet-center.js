@@ -257,7 +257,7 @@ export default function WalletCenter(){
     {(deposits?.data?.data||[]).map(x=><tr key={x.id}>
      <td><b>بیعانه ملک کد {x.property_code||x.advertisement_id}</b>
        <small>{x.property_title||'—'}</small><small>{x.property_location||'—'}</small>
-       <Link to={adminRoot+'/advertisements/adver-edit/'+x.advertisement_id}>مشاهده/ویرایش ملک</Link></td>
+       <Link to={adminRoot+'/advertisements/edit/'+x.advertisement_id}>مشاهده/ویرایش ملک</Link></td>
      <td><b>{x.user?.full_name||'—'}</b><small dir="ltr">{x.user?.mobile||'—'}</small><small>کاربر #{n(x.user?.id)}</small></td>
      <td><b>{money(x.amount)}</b><small>{x.gateway?.title||'—'} · {x.gateway?.driver||'—'}</small>
        <small>مبلغ درگاه: {n(x.gateway_amount)} {x.gateway_currency==='R'?'ریال':'تومان'}</small></td>
