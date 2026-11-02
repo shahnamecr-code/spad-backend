@@ -28,7 +28,7 @@ class Kernel extends ConsoleKernel
         // provided the hosting server invokes Laravel schedule:run.
         $schedule->call(function () {
             \App\Services\SpadAdminHealthService::sample();
-        })->everyFiveMinutes()->withoutOverlapping();
+        })->name('spad-admin-public-health')->everyFiveMinutes()->withoutOverlapping();
     }
 
     /**
