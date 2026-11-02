@@ -8,309 +8,196 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+/**
+ * Public Iranian market prices. No API key, visitor-side provider access or
+ * extrapolated prices. All quote values are in toman except the USD gold ounce.
+ *
+ * The existing gold-currency page expects coin values in thousands of toman
+ * and multiplies by 1000. Keep that compatibility contract until the frontend
+ * can be upgraded independently; other values are already in toman.
+ */
 class MarketPriceService
 {
-    private const DEFAULT_API_URL = 'https://api.navasan.tech/latest/';
-    private const DEFAULT_REFRESH_SECONDS = 7200;
+    private const URLS = [
+        'https://raw.githubusercontent.com/iran-market/iran-market.github.io/main/data/latest-toman.json',
+        'https://raw.githubusercontent.com/iran-market/iran-market.github.io/main/data/popular.json',
+    ];
+    private const CACHE_PREFIX = 'market_ticker:open_market_v1';
+    private const CACHE_SECONDS = 600;
+    private const LAST_GOOD_SECONDS = 172800;
+    private const MAX_QUOTE_AGE_SECONDS = 7200;
 
     private $settingsCache = null;
 
-    /**
-     * Return public ticker data. The provider API key always stays server-side.
-     */
     public function getTickerData(): array
     {
         $enabled = $this->isEnabled('market_ticker_enabled', true);
-        $refreshSeconds = $this->refreshSeconds();
-
+        $refresh = $this->refreshSeconds();
         if (!$enabled) {
-            return [
-                'enabled' => false,
-                'configured' => false,
-                'refresh_seconds' => $refreshSeconds,
-                'source_status' => 'disabled',
-                'items' => [],
-            ];
+            return ['enabled' => false, 'configured' => true, 'refresh_seconds' => $refresh,
+                'source_status' => 'disabled', 'items' => []];
         }
 
-        $apiKey = trim((string) $this->setting('market_ticker_api_key', ''));
-        $apiUrl = trim((string) $this->setting('market_ticker_api_url', self::DEFAULT_API_URL));
-        if ($apiKey === '') {
-            return [
-                'enabled' => true,
-                'configured' => false,
-                'refresh_seconds' => $refreshSeconds,
-                'source_status' => 'not_configured',
-                'items' => [],
-            ];
+        $snapshot = Cache::get(self::CACHE_PREFIX . ':snapshot');
+        if (is_array($snapshot) && isset($snapshot['items']) && is_array($snapshot['items'])) {
+            return $this->reply($snapshot['items'], $refresh, $snapshot['status'] ?? 'cached');
         }
 
-        // All browsers share ONE server-side cache; no upstream calls per ticker poll.
-        // Importantly, a provider 429 must never cause another request on every
-        // frontend refresh. Cache the failure and honour Retry-After.
-        $cacheSuffix = sha1($apiUrl . '|' . $apiKey);
-        $cacheKey = 'market_ticker:prices:' . $cacheSuffix;
-        $lastGoodKey = $cacheKey . ':last_good';
-        $backoffKey = $cacheKey . ':provider_backoff';
-        $mutexKey = $cacheKey . ':refresh_mutex';
-        $items = Cache::get($cacheKey);
-        $sourceStatus = Cache::get($backoffKey) ?: 'cached';
+        $lastGood = Cache::get(self::CACHE_PREFIX . ':last_good', []);
+        $lastGood = is_array($lastGood) ? $lastGood : [];
 
-        if (!is_array($items)) {
-            $lastGood = Cache::get($lastGoodKey, []);
-            $lastGood = is_array($lastGood) ? $lastGood : [];
+        if (Cache::get(self::CACHE_PREFIX . ':backoff')) {
+            return $this->reply($lastGood, $refresh, 'unavailable');
+        }
 
-            if (Cache::get($backoffKey)) {
-                $items = $lastGood;
-            } elseif (!Cache::add($mutexKey, 1, 45)) {
-                // An in-flight refresh owns the API call.
-                $items = $lastGood;
-                $sourceStatus = 'refreshing';
-            } else {
-                $cooldownSeconds = 900;
+        if (!Cache::add(self::CACHE_PREFIX . ':mutex', 1, 45)) {
+            return $this->reply($lastGood, $refresh, 'refreshing');
+        }
+
+        try {
+            $items = [];
+            foreach (self::URLS as $url) {
                 try {
-                    // No automatic retries: each 429 would otherwise spend more quota.
-                    $response = Http::acceptJson()
-                        ->timeout(12)
-                        ->get($apiUrl, ['api_key' => $apiKey]);
-
+                    $response = Http::acceptJson()->timeout(15)->get($url);
                     if ($response->status() === 429) {
-                        $retryAfter = $response->header('Retry-After');
-                        $retrySeconds = is_scalar($retryAfter) && ctype_digit((string) $retryAfter)
-                            ? (int) $retryAfter : 900;
-                        $cooldownSeconds = max(300, min(7200, $retrySeconds));
-                        $sourceStatus = 'rate_limited';
-                        throw new \RuntimeException('Market quote provider rate limited (HTTP 429).');
+                        throw new \RuntimeException('Upstream rate limit');
                     }
                     if (!$response->successful()) {
-                        $sourceStatus = 'unavailable';
-                        throw new \RuntimeException('Market quote provider HTTP ' . $response->status());
+                        throw new \RuntimeException('Upstream HTTP ' . $response->status());
                     }
-
                     $payload = $response->json();
                     if (!is_array($payload)) {
-                        $sourceStatus = 'invalid_response';
-                        throw new \RuntimeException('Invalid market quote response.');
+                        throw new \RuntimeException('Invalid upstream JSON');
                     }
-
-                    $normalized = $this->normalize($payload);
-                    if (count($normalized) === 0) {
-                        $sourceStatus = 'invalid_response';
-                        throw new \RuntimeException('Market quote response contains no usable prices.');
+                    $items = $this->normalizeOpenMarket($payload);
+                    // Require actual USD and gold quotes before treating a response as successful.
+                    $keys = array_column($items, 'key');
+                    if (in_array('usd', $keys, true) && in_array('gold_18', $keys, true)) {
+                        break;
                     }
-
-                    $items = $normalized;
-                    Cache::put($cacheKey, $items, $refreshSeconds);
-                    Cache::forever($lastGoodKey, $items);
-                    Cache::forget($backoffKey);
-                    $sourceStatus = 'live';
-                } catch (Throwable $e) {
-                    // Never replace the last valid prices with zeroes or placeholders.
-                    $items = $lastGood;
-                    Cache::put($backoffKey, $sourceStatus === 'cached' ? 'unavailable' : $sourceStatus, $cooldownSeconds);
-                    Cache::put($cacheKey, $items, min(900, $cooldownSeconds));
-                    Log::warning('Market quote upstream unavailable.', [
-                        'type' => get_class($e),
-                        'status' => $sourceStatus,
+                    $items = [];
+                } catch (Throwable $error) {
+                    Log::warning('Open market upstream failed.', [
+                        'source' => parse_url($url, PHP_URL_HOST),
+                        'exception_type' => get_class($error),
                     ]);
-                } finally {
-                    Cache::forget($mutexKey);
                 }
             }
-        }
 
+            if (count($items) === 0) {
+                Cache::put(self::CACHE_PREFIX . ':backoff', 1, 300);
+                $this->cacheSnapshot($lastGood, 'unavailable', 300);
+                return $this->reply($lastGood, $refresh, 'unavailable');
+            }
+
+            Cache::put(self::CACHE_PREFIX . ':last_good', $items, self::LAST_GOOD_SECONDS);
+            Cache::forget(self::CACHE_PREFIX . ':backoff');
+            $this->cacheSnapshot($items, 'live', $refresh);
+            return $this->reply($items, $refresh, 'live');
+        } finally {
+            Cache::forget(self::CACHE_PREFIX . ':mutex');
+        }
+    }
+
+    private function cacheSnapshot(array $items, string $status, int $seconds): void
+    {
+        Cache::put(self::CACHE_PREFIX . ':snapshot',
+            ['items' => $items, 'status' => $status], $seconds);
+    }
+
+    private function reply(array $items, int $refresh, string $status): array
+    {
         return [
             'enabled' => true,
-            'configured' => true,
-            'refresh_seconds' => $refreshSeconds,
-            'source_status' => $sourceStatus,
-            'items' => array_values($items ?: []),
+            'configured' => true, // No key is needed for the public feed.
+            'refresh_seconds' => $refresh,
+            'source_status' => $status,
+            'provider' => 'Iran Market Data',
+            'items' => array_values($items),
         ];
     }
 
-    private function normalize(array $payload): array
+    private function normalizeOpenMarket(array $payload): array
     {
-        $definitions = [
-            [
-                'key' => 'usd',
-                'label' => 'دلار',
-                'setting' => 'market_ticker_usd',
-                'sources' => ['usd', 'usd_sell'],
-            ],
-            [
-                'key' => 'gold_18',
-                'label' => 'طلای ۱۸ عیار',
-                'setting' => 'market_ticker_gold_18',
-                'sources' => ['18ayar'],
-            ],
-            [
-                'key' => 'gold_24',
-                'label' => 'طلای ۲۴ عیار',
-                'setting' => 'market_ticker_gold_24',
-                'sources' => ['24ayar'],
-                'derive' => ['source' => '18ayar', 'factor' => 4 / 3],
-            ],
-            [
-                'key' => 'new_coin',
-                'label' => 'سکه جدید',
-                'setting' => 'market_ticker_new_coin',
-                'sources' => ['sekkeh'],
-            ],
-            [
-                'key' => 'old_coin',
-                'label' => 'سکه قدیم',
-                'setting' => 'market_ticker_old_coin',
-                'sources' => ['bahar'],
-            ],
-            [
-                'key' => 'half_coin',
-                'label' => 'نیم سکه',
-                'setting' => 'market_ticker_half_coin',
-                'sources' => ['nim'],
-            ],
-            [
-                'key' => 'quarter_coin',
-                'label' => 'ربع سکه',
-                'setting' => 'market_ticker_quarter_coin',
-                'sources' => ['rob'],
-            ],
-            [
-                'key' => 'gold_ounce',
-                'label' => 'انس طلا',
-                'setting' => 'market_ticker_gold_ounce',
-                'sources' => ['usd_xau', 'xau'],
-            ],
-            [
-                'key' => 'melted_gold',
-                'label' => 'آبشده نقدی',
-                'setting' => 'market_ticker_melted_gold',
-                'sources' => ['abshodeh'],
-            ],
-            [
-                'key' => 'mesghal_gold',
-                'label' => 'مثقال طلا',
-                'setting' => 'market_ticker_mesghal_gold',
-                'sources' => ['mesghal', 'mesghal_tala'],
-                // Fallback when the provider does not expose a dedicated mesghal symbol.
-                'derive' => ['source' => '18ayar', 'factor' => 4.3318],
-            ],
-            [
-                'key' => 'eur',
-                'label' => 'یورو',
-                'setting' => 'market_ticker_eur',
-                'sources' => ['eur'],
-            ],
-            [
-                'key' => 'gbp',
-                'label' => 'پوند انگلیس',
-                'setting' => 'market_ticker_gbp',
-                'sources' => ['gbp'],
-            ],
-            [
-                'key' => 'usdt',
-                'label' => 'تتر',
-                'setting' => 'market_ticker_usdt',
-                'sources' => ['usdt'],
-            ],
-            [
-                'key' => 'aed',
-                'label' => 'درهم امارات',
-                'setting' => 'market_ticker_aed',
-                'sources' => ['aed', 'aed_sell', 'dirham_dubai'],
-            ],
-            [
-                'key' => 'try',
-                'label' => 'لیر ترکیه',
-                'setting' => 'market_ticker_try',
-                'sources' => ['try', 'try_hav'],
-            ],
-        ];
+        $groups = $payload['data']['categories'] ?? null;
+        if (!is_array($groups)) {
+            $groups = ['popular' => $payload['data'] ?? []];
+        }
 
-        $items = [];
-
-        foreach ($definitions as $definition) {
-            if (!$this->isEnabled($definition['setting'], true)) {
+        $bySymbol = [];
+        foreach ($groups as $group) {
+            if (!is_array($group)) {
                 continue;
             }
-
-            $data = isset($definition['sources'])
-                ? $this->extract($payload, $definition['sources'])
-                : null;
-
-            if (!$data && isset($definition['derive'])) {
-                $source = $this->extract($payload, [$definition['derive']['source']]);
-                if ($source) {
-                    $data = [
-                        'value' => round($source['value'] * $definition['derive']['factor']),
-                        'change' => isset($source['change']) && is_numeric($source['change'])
-                            ? round(((float) $source['change']) * $definition['derive']['factor'])
-                            : null,
-                        'timestamp' => $source['timestamp'] ?? null,
-                    ];
+            foreach ($group as $row) {
+                if (is_array($row) && isset($row['symbol'])) {
+                    $bySymbol[$row['symbol']] = $row;
                 }
             }
+        }
 
-            if (!$data || !isset($data['value']) || !is_numeric($data['value'])) {
+        $definitions = [
+            'usd' => ['دلار', 'market_ticker_usd', 'USD_IRR_FREE'],
+            'eur' => ['یورو', 'market_ticker_eur', 'EUR_IRR_FREE'],
+            'gbp' => ['پوند انگلیس', 'market_ticker_gbp', 'GBP_IRR_FREE'],
+            'usdt' => ['تتر', 'market_ticker_usdt', 'USDT_IRR'],
+            'aed' => ['درهم امارات', 'market_ticker_aed', 'AED_IRR_FREE'],
+            'try' => ['لیر ترکیه', 'market_ticker_try', 'TRY_IRR_FREE'],
+            'gold_18' => ['طلای ۱۸ عیار', 'market_ticker_gold_18', 'GOLD_18K_IRR'],
+            'gold_24' => ['طلای ۲۴ عیار', 'market_ticker_gold_24', 'GOLD_24K_IRR'],
+            'gold_ounce' => ['انس طلا', 'market_ticker_gold_ounce', 'XAU_USD'],
+            'melted_gold' => ['آبشده نقدی', 'market_ticker_melted_gold', 'GOLD_FUTURES'],
+            'mesghal_gold' => ['مثقال طلا', 'market_ticker_mesghal_gold', 'GOLD_MESGHAL_IRR'],
+            'new_coin' => ['سکه جدید', 'market_ticker_new_coin', 'COIN_EMAMI_IRR'],
+            'old_coin' => ['سکه قدیم', 'market_ticker_old_coin', 'COIN_BAHAR_IRR'],
+            'half_coin' => ['نیم سکه', 'market_ticker_half_coin', 'COIN_HALF_IRR'],
+            'quarter_coin' => ['ربع سکه', 'market_ticker_quarter_coin', 'COIN_QUARTER_IRR'],
+        ];
+        $now = time();
+        $items = [];
+
+        foreach ($definitions as $key => $definition) {
+            [$label, $setting, $symbol] = $definition;
+            if (!$this->isEnabled($setting, true)) {
+                continue;
+            }
+            $row = $bySymbol[$symbol] ?? null;
+            if (!is_array($row) || !empty($row['stale']) || !empty($row['quality'])) {
+                continue;
+            }
+            $raw = $row['price'] ?? null;
+            if (!is_numeric($raw) || !is_finite((float) $raw) || (float) $raw <= 0) {
+                continue;
+            }
+            // The individual quote timestamp, not the feed publication timestamp.
+            $timestamp = isset($row['timestamp']) && is_string($row['timestamp'])
+                ? strtotime($row['timestamp']) : false;
+            if (!$timestamp || $timestamp > $now + 300 ||
+                $timestamp < $now - self::MAX_QUOTE_AGE_SECONDS) {
                 continue;
             }
 
+            $factor = in_array($key, ['new_coin', 'old_coin', 'half_coin', 'quarter_coin'], true)
+                ? 0.001 : 1.0;
+            $change = $row['change'] ?? null;
             $items[] = [
-                'key' => $definition['key'],
-                'label' => $definition['label'],
-                'value' => (float) $data['value'],
-                'change' => isset($data['change']) && is_numeric($data['change'])
-                    ? (float) $data['change']
-                    : null,
-                'timestamp' => $data['timestamp'] ?? null,
+                'key' => $key,
+                'label' => $label,
+                'value' => (float) $raw * $factor,
+                'change' => is_numeric($change) && is_finite((float) $change)
+                    ? (float) $change * $factor : null,
+                'timestamp' => $timestamp,
             ];
         }
-
         return $items;
-    }
-
-    private function extract(array $payload, array $sources): ?array
-    {
-        foreach ($sources as $source) {
-            $row = $payload[$source] ?? null;
-            if (!is_array($row) || !array_key_exists('value', $row)) {
-                continue;
-            }
-
-            $value = $this->numericValue($row['value']);
-            if ($value === null) {
-                continue;
-            }
-
-            return [
-                'value' => $value,
-                'change' => isset($row['change']) ? $this->numericValue($row['change']) : null,
-                'timestamp' => $row['timestamp'] ?? null,
-            ];
-        }
-
-        return null;
-    }
-
-    private function numericValue($value): ?float
-    {
-        if (is_int($value) || is_float($value)) {
-            return (float) $value;
-        }
-
-        if (!is_string($value)) {
-            return null;
-        }
-
-        $normalized = str_replace([',', '٬', ' '], '', trim($value));
-        $normalized = preg_replace('/[^0-9.\-]/', '', $normalized);
-
-        return $normalized !== '' && is_numeric($normalized) ? (float) $normalized : null;
     }
 
     private function refreshSeconds(): int
     {
-        $value = (int) $this->setting('market_ticker_refresh_seconds', self::DEFAULT_REFRESH_SECONDS);
-        return max(30, min($value ?: self::DEFAULT_REFRESH_SECONDS, 86400));
+        // Ignore legacy 2-hour Navasan quota settings; this feed is keyless.
+        $configured = (int) $this->setting('market_ticker_refresh_seconds', self::CACHE_SECONDS);
+        return $configured >= 3600 ? self::CACHE_SECONDS
+            : max(300, min(1800, $configured ?: self::CACHE_SECONDS));
     }
 
     private function isEnabled(string $code, bool $default = true): bool
@@ -328,9 +215,7 @@ class MarketPriceService
                 $this->settingsCache[$setting->code] = $setting->value;
             }
         }
-
         return array_key_exists($code, $this->settingsCache)
-            ? $this->settingsCache[$code]
-            : $default;
+            ? $this->settingsCache[$code] : $default;
     }
 }
