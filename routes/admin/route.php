@@ -28,3 +28,4 @@ include_once __DIR__ . '/community.php';
 
 include_once __DIR__ . '/identity.php';
 include_once __DIR__ . '/web-services.php';
+include_once __DIR__ . '/crm-pro.php';
