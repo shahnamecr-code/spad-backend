@@ -15,6 +15,46 @@ use Shetabit\Payment\Facade\Payment;
 
 class PropertyDepositController extends Controller
 {
+    /**
+     * Public, non-financial listing identity. The canonical SPAD property code is
+     * the immutable advertisement id already used in property URLs.
+     */
+    private function propertyContext(Advertisement $advertisement): array
+    {
+        $advertisement->loadMissing(['city', 'region']);
+        $title = $advertisement->properties()->where('property_slug', 'title')->value('text_value');
+        $location = array_filter([
+            optional($advertisement->city)->name,
+            optional($advertisement->region)->name,
+        ]);
+        return [
+            'property_code' => (string) $advertisement->id,
+            'property_title' => $title ? mb_substr(trim((string) $title), 0, 250) : 'ملک کد ' . $advertisement->id,
+            'property_location' => mb_substr(implode('، ', $location), 0, 250),
+        ];
+    }
+
+    private function orderPayload(PropertyDepositOrder $order): array
+    {
+        return [
+            'id' => $order->id,
+            'advertisement_id' => $order->advertisement_id,
+            'property_code' => $order->property_code ?: (string) $order->advertisement_id,
+            'property_title' => $order->property_title ?: 'ملک کد ' . $order->advertisement_id,
+            'property_location' => $order->property_location,
+            'amount' => (int) $order->amount,
+            'gateway_amount' => (int) $order->gateway_amount,
+            'gateway_currency' => $order->gateway_currency,
+            'gateway_title' => $order->gateway_title ?: optional($order->gateway)->title,
+            'status' => $order->status,
+            'tracking_code' => $order->tracking_code,
+            'reference_id' => $order->reference_id,
+            'created_at' => optional($order->created_at)->toIso8601String(),
+            'paid_at' => optional($order->paid_at)->toIso8601String(),
+            'expires_at' => optional($order->expires_at)->toIso8601String(),
+        ];
+    }
+
     private function activeTool(Advertisement $advertisement): AdvertisementTool
     {
         abort_unless($advertisement->status === Advertisement::APPROVED
@@ -30,6 +70,7 @@ class PropertyDepositController extends Controller
         return response()->json([
             'data' => [
                 'advertisement_id' => $advertisement->id,
+                ...$this->propertyContext($advertisement),
                 'amount' => (int) $tool->deposit_amount,
                 'currency' => 'تومان',
                 'gateways' => WalletGateway::query()->where('enabled', true)
@@ -70,7 +111,10 @@ class PropertyDepositController extends Controller
             abort_unless(in_array($currency, ['T', 'R'], true), 422, 'واحد مبلغ درگاه معتبر نیست.');
             $amount = (int) $tool->deposit_amount;
 
+            $context = $this->propertyContext($advertisement);
             return PropertyDepositOrder::create([
+                ...$context,
+                'gateway_title' => $gateway->title,
                 'advertisement_id' => $advertisement->id,
                 'user_id' => $userId,
                 'gateway_id' => $gateway->id,
@@ -87,7 +131,8 @@ class PropertyDepositController extends Controller
         try {
             $invoice = (new Invoice)->amount($order->gateway_amount)
                 ->detail('property_deposit', $order->tracking_code)
-                ->detail('advertisement_id', $advertisement->id);
+                ->detail('advertisement_id', $advertisement->id)
+                ->detail('property_code', $order->property_code);
             $callback = url('/api/property-deposits/callback/' . $order->id . '/' . $order->callback_token);
             $payment = Payment::via($gateway->driver)->config($gateway->secureConfig())
                 ->callbackUrl($callback)
@@ -151,17 +196,23 @@ class PropertyDepositController extends Controller
         return redirect()->away($result);
     }
 
+    public function myOrders(Request $request)
+    {
+        $orders = PropertyDepositOrder::query()
+            ->where('user_id', $request->user()->id)
+            ->with('gateway:id,title')
+            ->latest('id')
+            ->paginate(min(30, max(5, (int) $request->input('per_page', 10))));
+        $orders->getCollection()->transform(function ($order) {
+            return $this->orderPayload($order);
+        });
+        return $orders->response()->header('Cache-Control', 'private, no-store');
+    }
+
     public function status(Request $request, PropertyDepositOrder $order)
     {
         abort_unless((int) $order->user_id === (int) $request->user()->id, 404);
-        return response()->json(['data' => [
-            'id' => $order->id,
-            'advertisement_id' => $order->advertisement_id,
-            'amount' => (int) $order->amount,
-            'status' => $order->status,
-            'tracking_code' => $order->tracking_code,
-            'reference_id' => $order->reference_id,
-            'paid_at' => optional($order->paid_at)->toIso8601String(),
-        ]])->header('Cache-Control', 'private, no-store');
+        return response()->json(['data' => $this->orderPayload($order->load('gateway:id,title'))])
+            ->header('Cache-Control', 'private, no-store');
     }
 }

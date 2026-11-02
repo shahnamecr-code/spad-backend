@@ -8,5 +8,6 @@ Route::match(['get', 'post'], 'property-deposits/callback/{order}/{token}', [Pro
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('property-deposits/{advertisement}/pay', [PropertyDepositController::class, 'pay'])
         ->middleware('throttle:5,1');
+    Route::get('property-deposits/my/orders', [PropertyDepositController::class, 'myOrders']);
     Route::get('property-deposits/orders/{order}', [PropertyDepositController::class, 'status']);
 });

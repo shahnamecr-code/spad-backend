@@ -9,6 +9,7 @@ use App\Models\WalletGateway;
 use App\Models\WalletSetting;
 use App\Models\WalletTopup;
 use App\Models\WalletTransaction;
+use App\Models\PropertyDepositOrder;
 use App\Services\WalletService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,80 @@ class WalletController extends Controller
         }
 
         return $query->orderByDesc('wallet_balance')->paginate(min(100, max(10, (int) $request->get('per_page', 25))));
+    }
+
+    /**
+     * Deposit audit ledger: read-only, private, and restricted to Super Admin.
+     * Never return callback secrets or the encrypted payment configuration.
+     */
+    public function propertyDeposits(Request $request)
+    {
+        $admin = auth('admin')->user();
+        abort_unless($admin && $admin->roles()->where('name', 'Super Admin')->exists(), 403);
+
+        $data = $request->validate([
+            'status' => ['nullable', 'in:pending,paid,failed'],
+            'search' => ['nullable', 'string', 'max:100'],
+            'per_page' => ['nullable', 'integer', 'between:5,50'],
+        ]);
+        $query = PropertyDepositOrder::query()
+            ->with(['user:id,first_name,last_name,mobile', 'gateway:id,title,driver']);
+
+        if (!empty($data['status'])) $query->where('status', $data['status']);
+        if (!empty($data['search'])) {
+            $search = trim($data['search']);
+            $query->where(function ($q) use ($search) {
+                $q->where('tracking_code', 'like', '%' . $search . '%')
+                    ->orWhere('reference_id', 'like', '%' . $search . '%')
+                    ->orWhere('property_code', 'like', '%' . $search . '%')
+                    ->orWhere('property_title', 'like', '%' . $search . '%')
+                    ->orWhereHas('user', function ($u) use ($search) {
+                        $u->where('mobile', 'like', '%' . $search . '%')
+                            ->orWhere('first_name', 'like', '%' . $search . '%')
+                            ->orWhere('last_name', 'like', '%' . $search . '%');
+                    });
+                if (ctype_digit($search)) $q->orWhere('advertisement_id', (int) $search);
+            });
+        }
+        $totals = [
+            'total' => PropertyDepositOrder::query()->count(),
+            'paid' => PropertyDepositOrder::query()->where('status', 'paid')->count(),
+            'paid_amount' => (int) PropertyDepositOrder::query()->where('status', 'paid')->sum('amount'),
+            'pending' => PropertyDepositOrder::query()->where('status', 'pending')->count(),
+        ];
+
+        $orders = $query->latest('id')->paginate((int) ($data['per_page'] ?? 15));
+        $orders->getCollection()->transform(function ($order) {
+            return [
+                'id' => $order->id,
+                'property_code' => $order->property_code ?: (string) $order->advertisement_id,
+                'advertisement_id' => $order->advertisement_id,
+                'property_title' => $order->property_title ?: 'ملک کد ' . $order->advertisement_id,
+                'property_location' => $order->property_location,
+                'user' => $order->user ? [
+                    'id' => $order->user->id,
+                    'full_name' => $order->user->full_name,
+                    'mobile' => $order->user->mobile,
+                ] : null,
+                'gateway' => $order->gateway ? [
+                    'id' => $order->gateway->id,
+                    'title' => $order->gateway_title ?: $order->gateway->title,
+                    'driver' => $order->gateway->driver,
+                ] : null,
+                'amount' => (int) $order->amount,
+                'gateway_amount' => (int) $order->gateway_amount,
+                'gateway_currency' => $order->gateway_currency,
+                'status' => $order->status,
+                'tracking_code' => $order->tracking_code,
+                'gateway_transaction_id' => $order->transaction_id,
+                'reference_id' => $order->reference_id,
+                'created_at' => optional($order->created_at)->toIso8601String(),
+                'paid_at' => optional($order->paid_at)->toIso8601String(),
+                'expires_at' => optional($order->expires_at)->toIso8601String(),
+            ];
+        });
+        return response()->json(['data' => $orders, 'totals' => $totals])
+            ->header('Cache-Control', 'private, no-store');
     }
 
     public function stats()

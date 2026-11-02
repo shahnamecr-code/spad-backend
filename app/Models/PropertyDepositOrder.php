@@ -10,6 +10,7 @@ class PropertyDepositOrder extends Model
         'advertisement_id', 'user_id', 'gateway_id', 'amount', 'gateway_amount',
         'gateway_currency', 'status', 'tracking_code', 'callback_token',
         'transaction_id', 'reference_id', 'expires_at', 'paid_at', 'failure_message',
+        'property_code', 'property_title', 'property_location', 'gateway_title',
     ];
 
     protected $hidden = ['callback_token', 'transaction_id', 'failure_message'];
