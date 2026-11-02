@@ -45,6 +45,28 @@ const DashboardDefault=()=>{
  const categories=list(dashboard?.ads_by_category?.label).map((name,i)=>({name,value:Number(list(dashboard?.ads_by_category?.value)[i]||0)})).sort((a,b)=>b.value-a.value).slice(0,6);
  const maxCat=Math.max(1,...categories.map(x=>x.value));
  const recent=list(dashboard?.last_ads);
+ // All destinations below are existing admin routes. Super-admin access is
+ // preserved; operational shortcuts never imply API secrets are publicly exposed.
+ const settingsLinks=[
+  {name:'تنظیمات اصلی سایت',sub:'تنظیمات عمومی',icon:'simple-icon-settings',url:adminRoot+'/settings/main'},
+  {name:'مدیریت وب‌سرویس‌ها',sub:'API، شاهکار و پیامک',icon:'simple-icon-puzzle',url:paths.services},
+  {name:'تنظیمات استعلامات',sub:'سرویس‌های استعلام',icon:'simple-icon-magnifier',url:adminRoot+'/inquiries/settings'},
+  {name:'خدمات استعلام',sub:'فهرست سرویس‌ها',icon:'simple-icon-layers',url:adminRoot+'/inquiries/services'},
+  {name:'مدیریت ساختمان',sub:'ساختمان و امکانات',icon:'iconsminds-building',url:paths.property},
+  {name:'سازندگان برتر',sub:'سازندگان و رزومه',icon:'iconsminds-business-man',url:adminRoot+'/top-builders'},
+  {name:'مزایده املاک',sub:'مزایده‌ها',icon:'iconsminds-gavel',url:adminRoot+'/property-auctions'},
+  {name:'امور ملکی',sub:'خدمات و درخواست‌ها',icon:'simple-icon-docs',url:adminRoot+'/property-affairs'},
+  {name:'بازسازی آنلاین',sub:'پروژه‌ها و ابزارها',icon:'simple-icon-layers',url:adminRoot+'/online-renovation'},
+  {name:'وام مسکن',sub:'وام و درخواست‌ها',icon:'simple-icon-wallet',url:adminRoot+'/mortgage'},
+  {name:'قیمت مصالح',sub:'نرخ‌ها و منابع',icon:'iconsminds-coins',url:adminRoot+'/material-prices'},
+  {name:'تنظیمات کیف پول',sub:'پرداخت و اعتبار',icon:'simple-icon-wallet',url:adminRoot+'/wallets/settings'},
+  {name:'دسته‌بندی ملک‌ها',sub:'نوع ملک و گروه‌ها',icon:'simple-icon-grid',url:adminRoot+'/advertisements/categories/list'},
+  {name:'ویژگی‌های املاک',sub:'فیلدها و مشخصات',icon:'simple-icon-check',url:adminRoot+'/advertisements/properties/list'},
+  {name:'تنظیمات مناطق',sub:'محله‌ها و محدوده‌ها',icon:'simple-icon-location-pin',url:adminRoot+'/settings/regions'},
+  {name:'تنظیمات شهرها',sub:'مکان‌ها',icon:'simple-icon-direction',url:adminRoot+'/settings/cities'},
+  {name:'پنل همکاران',sub:'کارگزاری و همکاران',icon:'iconsminds-handshake',url:adminRoot+'/partner-panels'},
+  {name:'مدیریت تور مجازی',sub:'تورهای ملکی',icon:'simple-icon-picture',url:adminRoot+'/virtual-tours/list'}
+ ];
  const actions=[
   {title:'مدیریت ملک‌ها',sub:'فهرست و وضعیت آگهی‌ها',icon:'iconsminds-building',url:paths.ads},
   {title:'درخواست‌ها',sub:'پیگیری CRM و متقاضیان',icon:'simple-icon-people',url:paths.crm},
@@ -69,6 +91,21 @@ const DashboardDefault=()=>{
     <Link to={paths.ads}>مدیریت املاک <i className="simple-icon-arrow-left"/></Link>
    </div>
   </header>
+  {superAdmin&&<section className="spad-v8-settings-launcher" aria-labelledby="spad-v8-settings-title">
+   <div className="spad-v8-settings-launcher__heading">
+    <div><span className="spad-v8-settings-launcher__kicker"><i className="simple-icon-settings"/> SPAD SETTINGS HUB</span>
+     <h2 id="spad-v8-settings-title">دسترسی سریع به تمام تنظیمات اسپاد</h2>
+     <p>تمام بخش‌های مدیریتی و تنظیمات تخصصی، مستقیم و بدون جستجو در منو</p>
+    </div><span className="spad-v8-settings-launcher__total">{n(settingsLinks.length)} بخش مدیریتی</span>
+   </div>
+   <div className="spad-v8-settings-launcher__grid">
+    {settingsLinks.map(item=><Link className="spad-v8-settings-launcher__link" key={item.url} to={item.url} title={item.name}>
+     <span className="spad-v8-settings-launcher__icon"><i className={item.icon}/></span>
+     <span className="spad-v8-settings-launcher__name"><strong>{item.name}</strong><small>{item.sub}</small></span>
+     <i className="simple-icon-arrow-left spad-v8-settings-launcher__arrow" aria-hidden="true"/>
+    </Link>)}
+   </div>
+  </section>}
   {error&&<div className="spad-v8-alert" role="alert">{error} <button onClick={load} type="button">تلاش مجدد</button></div>}
   <div className="spad-v8-section-heading"><div><span>OVERVIEW / مرور عملکرد</span><h2>وضعیت امروز کسب‌وکار</h2></div><button type="button" onClick={load} disabled={loading}><i className="simple-icon-refresh"/> {loading?'در حال دریافت':'به‌روزرسانی داده‌ها'}</button></div>
   <div className="spad-v8-metrics" aria-busy={loading}>
