@@ -14,6 +14,7 @@ import "../../assets/css/sass/spad-admin-v10-compact.scss";
 import "../../assets/css/sass/spad-admin-crm-pro.scss";
 import "../../assets/css/sass/spad-admin-health-v11.scss";
 import "../../assets/css/sass/spad-admin-command-v12.scss";
+import "../../assets/css/sass/spad-admin-ops-v13.scss";
 import LegacySectionHeader, {isLegacyAdminRoute} from "./LegacySectionHeader";
 
 // import { ProtectedRoute, UserRole } from '../../helpers/authHelper';
