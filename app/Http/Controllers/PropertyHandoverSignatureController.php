@@ -102,7 +102,16 @@ class PropertyHandoverSignatureController extends Controller {
     'snapshot_hash'=>$digest,'signature_started_at'=>now(),'updated_at'=>now()
    ]);
   });
-  return $this->status($r,$id);
+  $result=$this->summary(DB::table('spad_handover_checklists')->where('id',$record->id)->first());
+  $delivered=[];$failed=[];
+  foreach(['from','to'] as $party){
+   $signature=DB::table('spad_handover_signatures')->where('checklist_id',$record->id)->where('party',$party)->first();
+   try { $this->sendCode($signature); $delivered[]=$party; }
+   catch(\Throwable $e) { $failed[]=$party; }
+  }
+  return response()->json(['data'=>$result,'sent_to'=>$delivered,'send_failed_for'=>$failed,
+    'message'=>count($failed)?'پرونده برای امضا قفل شد؛ ارسال کد برای برخی طرف‌ها موفق نبود. از گزینه ارسال مجدد استفاده کنید.'
+      :'درخواست کد تأیید برای هر دو طرف ثبت شد.'],count($failed)?202:200);
  }
  private function sendCode($signature) {
   $this->template();
