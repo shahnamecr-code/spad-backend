@@ -1,177 +1,103 @@
-import React, {useCallback, useEffect, useState} from 'react';
+import React,{useCallback,useEffect,useMemo,useState} from 'react';
 import {Link} from 'react-router-dom';
 import {useSelector} from 'react-redux';
 import axios from 'axios';
-import {adminPathApi, adminRoot} from '../../../constants/defaultValues';
-
-const number = (value) => Number(value || 0).toLocaleString('fa-IR');
-const safeArray = (value) => Array.isArray(value) ? value : [];
-const percentage = (value, total) => total > 0 ? Math.min(100, Math.max(0, Number(value || 0) * 100 / total)) : 0;
-
-const DashboardStat = ({label, value, icon, to}) => (
-  <Link className="spad-v7-stat" to={to}>
-    <span className="spad-v7-stat__icon"><i className={icon}/></span>
-    <span className="spad-v7-stat__copy"><small>{label}</small><strong>{number(value)}</strong></span>
-    <i className="simple-icon-arrow-left spad-v7-stat__arrow"/>
-  </Link>
-);
-
-const DashboardPanel = ({title, subtitle, action, children}) => (
-  <section className="spad-v7-panel">
-    <div className="spad-v7-panel__heading">
-      <div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>
-      {action}
-    </div>
-    {children}
-  </section>
-);
-
-const DashboardDefault = () => {
-  const [dashboard, setDashboard] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const user = useSelector((state) => state.authUser.currentUser);
-  const isSuperAdmin = safeArray(user && user.roles).includes('Super Admin');
-
-  const loadDashboard = useCallback(() => {
-    setLoading(true);
-    setError(false);
-    return axios.get(`${adminPathApi}/dashboard`)
-      .then(({data}) => setDashboard(data || {}))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    axios.get(`${adminPathApi}/dashboard`)
-      .then(({data}) => {if (active) setDashboard(data || {});})
-      .catch(() => {if (active) setError(true);})
-      .finally(() => {if (active) setLoading(false);});
-    return () => {active = false;};
-  }, []);
-
-  const states = safeArray(dashboard && dashboard.ads_by_state && dashboard.ads_by_state.value);
-  const waitingCount = states[2] || 0;
-  const dates = safeArray(dashboard && dashboard.ads_by_time && dashboard.ads_by_time.label);
-  const volumes = safeArray(dashboard && dashboard.ads_by_time && dashboard.ads_by_time.value);
-  const chart = dates.map((label, index) => ({label, count: Number(volumes[index] || 0)}));
-  const maxCount = Math.max(1, ...chart.map((item) => item.count));
-  const categories = safeArray(dashboard && dashboard.ads_by_category && dashboard.ads_by_category.label)
-    .map((label, index) => ({
-      label,
-      count: Number(safeArray(dashboard.ads_by_category.value)[index] || 0),
-    })).sort((a, b) => b.count - a.count).slice(0, 5);
-  const maxCategory = Math.max(1, ...categories.map((item) => item.count));
-  const recent = safeArray(dashboard && dashboard.last_ads);
-  const shortcuts = [
-    ['آگهی‌های ثبت‌شده', 'simple-icon-list', `${adminRoot}/advertisements/adver-list`],
-    ['درخواست‌های مشتریان', 'simple-icon-people', `${adminRoot}/crm/all-requests`],
-    ['تورهای مجازی', 'simple-icon-picture', `${adminRoot}/virtual-tours/list`],
-    ['استعلامات', 'simple-icon-magnifier', `${adminRoot}/inquiries/requests`],
-    ...(isSuperAdmin ? [
-      ['مدیریت ساختمان', 'iconsminds-building', `${adminRoot}/building-management`],
-      ['سازندگان برتر', 'iconsminds-business-man', `${adminRoot}/top-builders`],
-      ['مزایده املاک', 'iconsminds-gavel', `${adminRoot}/property-auctions`],
-      ['وام مسکن', 'iconsminds-bank', `${adminRoot}/mortgage`],
-      ['تنظیمات پنل', 'simple-icon-settings', `${adminRoot}/settings/main`],
-    ] : []),
-  ];
-
-  return (
-    <div className="spad-v7-dashboard">
-      <header className="spad-v7-hero">
-        <div className="spad-v7-hero__text">
-          <span className="spad-v7-eyebrow">SPAD ESTATE / ADMIN CONSOLE</span>
-          <h1>داشبورد مدیریت اسپاد</h1>
-          <p>آمار، فعالیت‌های ملکی و درخواست‌های مجموعه در یک نگاه</p>
-        </div>
-        <div className="spad-v7-hero__actions">
-          <Link to={`${adminRoot}/advertisements/add`}><i className="simple-icon-plus"/> ثبت ملک جدید</Link>
-          <Link to={`${adminRoot}/crm/all-requests`}><i className="simple-icon-people"/> مدیریت درخواست‌ها</Link>
-        </div>
-      </header>
-
-      {error && <div className="spad-v7-alert" role="alert">
-        دریافت آمار داشبورد انجام نشد. اطلاعات قبلی، در صورت وجود، نمایش داده می‌شود.
-        <button type="button" className="btn btn-link" onClick={loadDashboard}>تلاش مجدد</button>
-      </div>}
-
-      <div className="spad-v7-stats" aria-busy={loading}>
-        <DashboardStat label="کل آگهی‌های ملکی" value={dashboard && dashboard.all_ads_count} icon="iconsminds-building" to={`${adminRoot}/advertisements/adver-list`}/>
-        <DashboardStat label="درخواست‌های CRM" value={dashboard && dashboard.crm_requests_count} icon="simple-icon-people" to={`${adminRoot}/crm/all-requests`}/>
-        <DashboardStat label="درخواست‌های کارشناسی" value={dashboard && dashboard.expert_requests_count} icon="simple-icon-user-following" to={`${adminRoot}/expert-requests/list`}/>
-        <DashboardStat label="آگهی در انتظار تأیید" value={waitingCount} icon="simple-icon-clock" to={`${adminRoot}/advertisements/unapproved`}/>
-      </div>
-
-      <div className="spad-v7-grid">
-        <DashboardPanel title="روند ثبت آگهی‌ها" subtitle="اطلاعات ثبت‌شده در بازه زمانی ارائه‌شده توسط سرور"
-          action={<button type="button" onClick={loadDashboard} disabled={loading}><i className="simple-icon-refresh"/> {loading ? 'در حال دریافت' : 'به‌روزرسانی'}</button>}>
-          {chart.length > 0 ? (
-            <div className="spad-v7-bars" role="img" aria-label="نمودار تعداد آگهی‌های ثبت شده">
-              {chart.map((item, index) => (
-                <div className="spad-v7-bar-item" key={`${index}-${item.label}`} title={`${item.label}: ${number(item.count)} آگهی`}>
-                  <span className="spad-v7-bar-count">{number(item.count)}</span>
-                  <div className="spad-v7-bar-track"><span className="spad-v7-bar-fill" style={{height: `${Math.max(2, percentage(item.count, maxCount))}%`}}/></div>
-                  <span className="spad-v7-bar-label">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          ) : <div className={`spad-v7-empty ${loading ? 'spad-v7-skeleton' : ''}`}>{loading ? 'در حال دریافت نمودار…' : 'داده‌ای برای نمایش وجود ندارد'}</div>}
-        </DashboardPanel>
-
-        <DashboardPanel title="وضعیت انتشار آگهی‌ها" subtitle="توزیع آگهی‌ها بر اساس وضعیت بررسی">
-          <div className="spad-v7-breakdown">
-            {['تأیید شده', 'رد شده', 'در انتظار بررسی'].map((name, i) => (
-              <div className="spad-v7-breakdown__item" key={name}>
-                <div className="spad-v7-breakdown__row"><span>{name}</span><b>{number(states[i])}</b></div>
-                <div className="spad-v7-progress" role="progressbar" aria-label={name} aria-valuenow={Number(states[i] || 0)} aria-valuemin={0} aria-valuemax={Number(dashboard && dashboard.all_ads_count || 0) || 1}>
-                  <span style={{width: `${percentage(states[i], Number(dashboard && dashboard.all_ads_count || 0))}%`}}/>
-                </div>
-              </div>
-            ))}
-          </div>
-        </DashboardPanel>
-      </div>
-
-      <div className="spad-v7-grid">
-        <DashboardPanel title="تازه‌ترین املاک ثبت‌شده" subtitle="آخرین آگهی‌های موجود در سامانه"
-          action={<Link to={`${adminRoot}/advertisements/adver-list`}>مشاهده همه</Link>}>
-          {recent.length ? (
-            <div className="spad-v7-recent">
-              {recent.slice(0, 6).map((item, i) => (
-                <Link to={`${adminRoot}/advertisements/edit/${item.id}`} key={item.id || i} className="spad-v7-recent__item">
-                  {item.image ? <img src={item.image} alt="" className="spad-v7-recent__photo" loading="lazy"/> : <span className="spad-v7-recent__photo spad-v7-recent__placeholder"><i className="iconsminds-building"/></span>}
-                  <span className="spad-v7-recent__content"><strong>{item.title || 'ملک بدون عنوان'}</strong><small>{item.date || '—'}</small></span>
-                  <span className="spad-v7-recent__status">{item.status_text || 'ثبت‌شده'}</span>
-                </Link>
-              ))}
-            </div>
-          ) : <div className="spad-v7-empty">{loading ? 'در حال دریافت املاک…' : 'آگهی جدیدی وجود ندارد'}</div>}
-        </DashboardPanel>
-        <DashboardPanel title="دسته‌بندی املاک" subtitle="پراکندگی تعداد آگهی‌ها در دسته‌های اصلی">
-          {categories.length ? (
-            <div className="spad-v7-breakdown">
-              {categories.map((item, i) => (
-                <div className="spad-v7-breakdown__item" key={i}>
-                  <div className="spad-v7-breakdown__row"><span>{item.label}</span><b>{number(item.count)}</b></div>
-                  <div className="spad-v7-progress"><span style={{width: `${percentage(item.count, maxCategory)}%`}}/></div>
-                </div>
-              ))}
-            </div>
-          ) : <div className="spad-v7-empty">{loading ? 'در حال دریافت دسته‌بندی‌ها…' : 'اطلاعاتی برای نمایش وجود ندارد'}</div>}
-        </DashboardPanel>
-      </div>
-
-      <DashboardPanel title="دسترسی سریع به بخش‌های مدیریت" subtitle="میانبرهای عملیاتی پرکاربرد">
-        <div className="spad-v7-shortcuts">
-          {shortcuts.map(([label, icon, to]) => (
-            <Link to={to} className="spad-v7-shortcut" key={to}><i className={icon}/>{label}</Link>
-          ))}
-        </div>
-      </DashboardPanel>
-    </div>
-  );
+import {adminPathApi,adminRoot} from '../../../constants/defaultValues';
+const n=v=>Number(v||0).toLocaleString('fa-IR');
+const list=v=>Array.isArray(v)?v:[];
+const pct=(v,t)=>t>0?Math.min(100,Math.max(0,Number(v||0)/t*100)):0;
+const today=()=>new Date().toLocaleDateString('fa-IR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+const paths={
+ ads:adminRoot+'/advertisements/adver-list',
+ crm:adminRoot+'/crm/all-requests',
+ expert:adminRoot+'/expert-requests/list',
+ approval:adminRoot+'/advertisements/unapproved',
+ services:adminRoot+'/web-services',
+ property:adminRoot+'/building-management'
+};
+const Stat=({title,value,icon,link,color})=><Link to={link} className={'spad-v8-metric '+(color||'')}>
+ <div className="spad-v8-metric-top"><span className="spad-v8-metric-icon"><i className={icon}/></span><i className="simple-icon-arrow-left"/></div>
+ <div className="spad-v8-metric-value">{n(value)}</div><div className="spad-v8-metric-title">{title}</div>
+ </Link>;
+const Pane=({title,sub,children,action,klass=''})=><section className={'spad-v8-pane '+klass}>
+ <div className="spad-v8-pane-head"><div><h2>{title}</h2>{sub&&<p>{sub}</p>}</div>{action}</div>{children}
+ </section>;
+const DashboardDefault=()=>{
+ const [dashboard,setDashboard]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
+ const [services,setServices]=useState(null);
+ const user=useSelector(s=>s.authUser.currentUser);
+ const superAdmin=list(user?.roles).includes('Super Admin');
+ const load=useCallback(async()=>{
+  setLoading(true);setError('');
+  try{const {data}=await axios.get(adminPathApi+'/dashboard');setDashboard(data||{});}
+  catch(e){setError('آمار فعلی دریافت نشد؛ اطلاعات پیشین در صورت وجود نمایش داده می‌شود.');}
+  finally{setLoading(false);}
+ },[]);
+ useEffect(()=>{load();},[load]);
+ useEffect(()=>{if(!superAdmin)return;let active=true;
+  axios.get(adminPathApi+'/web-services').then(({data})=>{if(active)setServices({total:list(data.data).length,registered:list(data.data).filter(x=>x.id).length,configured:list(data.data).filter(x=>x.id&&x.mode==='configured').length,env:data.environment||{}});}).catch(()=>{if(active)setServices(null);});
+  return ()=>{active=false;};
+ },[superAdmin]);
+ const states=list(dashboard?.ads_by_state?.value);
+ const days=list(dashboard?.ads_by_time?.label),volumes=list(dashboard?.ads_by_time?.value);
+ const trend=days.map((name,i)=>({name,value:Number(volumes[i]||0)}));
+ const max=Math.max(1,...trend.map(x=>x.value));
+ const categories=list(dashboard?.ads_by_category?.label).map((name,i)=>({name,value:Number(list(dashboard?.ads_by_category?.value)[i]||0)})).sort((a,b)=>b.value-a.value).slice(0,6);
+ const maxCat=Math.max(1,...categories.map(x=>x.value));
+ const recent=list(dashboard?.last_ads);
+ const actions=[
+  {title:'مدیریت ملک‌ها',sub:'فهرست و وضعیت آگهی‌ها',icon:'iconsminds-building',url:paths.ads},
+  {title:'درخواست‌ها',sub:'پیگیری CRM و متقاضیان',icon:'simple-icon-people',url:paths.crm},
+  {title:'تور مجازی',sub:'مدیریت تورهای ثبت‌شده',icon:'simple-icon-picture',url:adminRoot+'/virtual-tours/list'},
+  {title:'استعلامات',sub:'درخواست‌ها و سرویس‌ها',icon:'simple-icon-shield',url:adminRoot+'/inquiries/requests'},
+  ...(superAdmin?[
+   {title:'وب‌سرویس‌ها',sub:'درگاه API و امنیت اتصال',icon:'simple-icon-puzzle',url:paths.services},
+   {title:'مدیریت ساختمان',sub:'ساختمان‌ها و ساکنان',icon:'iconsminds-building',url:paths.property},
+   {title:'تنظیمات اصلی',sub:'پیکربندی سامانه',icon:'simple-icon-settings',url:adminRoot+'/settings/main'},
+   {title:'بازسازی آنلاین',sub:'پروژه‌ها و درخواست‌ها',icon:'simple-icon-layers',url:adminRoot+'/online-renovation'}
+  ]:[])
+ ];
+ return <div className="spad-v8-dashboard" dir="rtl">
+  <header className="spad-v8-dash-hero">
+   <div className="spad-v8-dash-content">
+    <span className="spad-v8-kicker"><span className="spad-v8-live-dot"/> SPAD ESTATE / COMMAND CENTER</span>
+    <h1>مرکز فرماندهی هوشمند اسپاد</h1>
+    <p>نمای یکپارچه عملکرد مجموعه، پرونده‌های ملکی و خدمات دیجیتال</p>
+    <div className="spad-v8-dash-meta"><span><i className="simple-icon-calendar"/> {today()}</span><span><i className="simple-icon-chart"/> داده‌های واقعی سامانه</span></div>
+   </div>
+   <div className="spad-v8-hero-panel"><div><i className="iconsminds-building"/><span>SPAD</span></div><small>ADMINISTRATIVE INTELLIGENCE</small>
+    <Link to={paths.ads}>مدیریت املاک <i className="simple-icon-arrow-left"/></Link>
+   </div>
+  </header>
+  {error&&<div className="spad-v8-alert" role="alert">{error} <button onClick={load} type="button">تلاش مجدد</button></div>}
+  <div className="spad-v8-section-heading"><div><span>OVERVIEW / مرور عملکرد</span><h2>وضعیت امروز کسب‌وکار</h2></div><button type="button" onClick={load} disabled={loading}><i className="simple-icon-refresh"/> {loading?'در حال دریافت':'به‌روزرسانی داده‌ها'}</button></div>
+  <div className="spad-v8-metrics" aria-busy={loading}>
+   <Stat title="کل ملک‌های ثبت‌شده" value={dashboard?.all_ads_count} icon="iconsminds-building" link={paths.ads} color="blue"/>
+   <Stat title="درخواست‌های CRM" value={dashboard?.crm_requests_count} icon="simple-icon-people" link={paths.crm} color="violet"/>
+   <Stat title="درخواست‌های کارشناسی" value={dashboard?.expert_requests_count} icon="simple-icon-user-following" link={paths.expert} color="cyan"/>
+   <Stat title="در انتظار بررسی" value={states[2]} icon="simple-icon-clock" link={paths.approval} color="amber"/>
+  </div>
+  <div className="spad-v8-dash-grid">
+   <Pane title="ضربان ثبت ملک‌ها" sub="روند تعداد آگهی‌ها در بازه ثبت‌شده روی سرور" action={<span className="spad-v8-small-tag">SPAD LIVE DATA</span>}>
+    {trend.length?<div className="spad-v8-trend" role="img" aria-label="نمودار تعداد ثبت آگهی‌ها">{trend.map((point,i)=><div key={i} className="spad-v8-trend-column"><small>{n(point.value)}</small><div className="spad-v8-trend-rail"><span style={{height:(Math.max(2,pct(point.value,max)))+'%'}}/></div><b>{point.name}</b></div>)}</div>:<div className="spad-v8-placeholder">{loading?'در حال دریافت نمودار…':'داده‌ای برای این بازه ثبت نشده است'}</div>}
+   </Pane>
+   <Pane title="وضعیت بررسی آگهی‌ها" sub="کنترل فرایند انتشار و کیفیت آگهی">
+    <div className="spad-v8-status-bars">{['تأییدشده','ردشده','در انتظار تأیید'].map((name,i)=><div key={name}><div><span>{name}</span><strong>{n(states[i])}</strong></div><div className="spad-v8-meter"><span className={'s'+i} style={{width:pct(states[i],Number(dashboard?.all_ads_count||0))+'%'}}/></div></div>)}</div>
+    {superAdmin&&<div className="spad-v8-connection-summary"><div><i className="simple-icon-puzzle"/><strong>زیرساخت وب‌سرویس‌ها</strong></div><p>{services? n(services.registered)+' مورد ثبت‌شده از '+n(services.total)+' مورد فهرست‌شده':'وضعیت اتصال هنوز دریافت نشده است'}</p><Link to={paths.services}>مدیریت APIها <i className="simple-icon-arrow-left"/></Link></div>}
+   </Pane>
+  </div>
+  <div className="spad-v8-dash-grid">
+   <Pane title="تازه‌ترین ملک‌های ثبت‌شده" sub="آخرین فعالیت‌های ملکی سامانه" action={<Link to={paths.ads}>مشاهده همه</Link>}>
+    {recent.length?<div className="spad-v8-latest">{recent.slice(0,6).map((item,i)=><Link key={item.id||i} to={adminRoot+'/advertisements/edit/'+item.id}>
+     <span className="spad-v8-latest-icon">{item.image?<img src={item.image} alt="" loading="lazy"/>:<i className="iconsminds-building"/>}</span><div><strong>{item.title||'ملک بدون عنوان'}</strong><small>{item.date||'تاریخ نامشخص'}</small></div><em>{item.status_text||'ثبت‌شده'}</em><i className="simple-icon-arrow-left"/></Link>)}</div>:<div className="spad-v8-placeholder">{loading?'در حال دریافت املاک…':'آگهی جدیدی برای نمایش وجود ندارد'}</div>}
+   </Pane>
+   <Pane title="سهم دسته‌های ملکی" sub="پراکندگی آگهی‌های فعلی بر اساس نوع ملک">
+    {categories.length?<div className="spad-v8-category-bars">{categories.map((item,i)=><div key={i}><div><span>{item.name}</span><b>{n(item.value)}</b></div><div className="spad-v8-meter"><span style={{width:pct(item.value,maxCat)+'%'}}/></div></div>)}</div>:<div className="spad-v8-placeholder">هنوز داده‌ای ثبت نشده است.</div>}
+   </Pane>
+  </div>
+  <Pane title="میز کار مدیر اسپاد" sub="دسترسی مستقیم به خدمات کلیدی و بخش‌های مدیریتی" klass="spad-v8-workspace">
+   <div className="spad-v8-action-grid">{actions.map((action,i)=><Link to={action.url} key={action.url}><span className="spad-v8-action-icon"><i className={action.icon}/></span><div><strong>{action.title}</strong><small>{action.sub}</small></div><i className="simple-icon-arrow-left"/></Link>)}</div>
+  </Pane>
+ </div>;
 };
 export default DashboardDefault;
