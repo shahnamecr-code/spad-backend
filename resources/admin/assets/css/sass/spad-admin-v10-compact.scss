@@ -1,0 +1,112 @@
+/* SPAD ADMIN V10 — compact unified lists and measured server-health panel.
+ * CSS only on admin shell. Preserve data, actions and custom modern widgets.
+ */
+.spad-admin-shell{--spad-v10-border:#e3ebf3;--spad-v10-blue:#0b87d0;--spad-v10-ink:#254a66}
+
+/* Dashboard: truthful, timestamped server observations, no invented success history. */
+.spad-v8-dash-hero{gap:22px;min-height:192px}
+.spad-v10-hero-kicker{direction:rtl!important;letter-spacing:0!important;font-family:inherit!important}
+.spad-v10-health{flex:0 0 350px;width:350px;max-width:100%;position:relative;z-index:1;
+ display:flex;flex-direction:column;gap:11px;padding:15px 17px;border-radius:18px;
+ border:1px solid rgba(255,255,255,.22);background:rgba(3,35,72,.3);
+ box-shadow:inset 0 1px rgba(255,255,255,.1);backdrop-filter:blur(7px);color:#fff;
+}
+.spad-v10-health__heading{display:flex;justify-content:space-between;align-items:center;gap:9px}
+.spad-v10-health__heading span{display:flex;align-items:center;gap:8px;color:#e8f7ff;font-size:11px;font-weight:750}
+.spad-v10-health__heading button{width:28px;height:28px;display:grid;place-items:center;border-radius:9px;border:1px solid #ffffff36;color:#fff;background:#ffffff17;cursor:pointer}
+.spad-v10-health__primary{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.spad-v10-health__primary>div{display:flex;flex-direction:column;gap:3px}
+.spad-v10-health__primary strong{font-size:22px;font-weight:800;color:#fff}
+.spad-v10-health__primary small{font-size:9px;color:#b9d8ed}
+.spad-v10-health__badge{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;
+ border-radius:30px;font-size:9px;white-space:nowrap;background:#ffffff18;color:#e7f5ff;border:1px solid #ffffff29}
+.spad-v10-health__badge.good{background:#1de4ac1c;color:#bcffe6;border-color:#4debc554}
+.spad-v10-health__badge.bad{background:#f3a0652b;color:#ffe2cb;border-color:#f0b38d55}
+.spad-v10-health__plot{display:flex;align-items:flex-end;gap:3px;width:100%;height:56px;
+ padding:7px 0 0;border-bottom:1px solid #ffffff2c}
+.spad-v10-health__bar{flex:1;min-width:3px;max-width:15px;border-radius:3px 3px 1px 1px;position:relative}
+.spad-v10-health__bar.good{background:linear-gradient(0deg,#20bcaa,#91ffe2);box-shadow:0 0 7px #1adfb444}
+.spad-v10-health__bar.bad{background:linear-gradient(0deg,#e66e5f,#fbb987)}
+.spad-v10-health__no-data{display:flex;align-items:center;justify-content:center;text-align:center;
+ min-height:56px;background:#ffffff10;border-radius:8px;font-size:9px;color:#bde2f3;padding:7px}
+.spad-v10-health__foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+ color:#d7effe;font-size:9px;line-height:1.65}
+.spad-v10-health__caveat{line-height:1.7;color:#b4d7ef;font-size:8px}
+@media(max-width:1200px){.spad-v10-health{flex-basis:300px;width:300px}}
+@media(max-width:800px){.spad-v8-dash-hero{flex-wrap:wrap}.spad-v10-health{flex:1 1 100%;width:100%}}
+@media(max-width:560px){.spad-v10-health{padding:13px;border-radius:13px}.spad-v10-health__primary strong{font-size:19px}}
+
+/* Shared compact density across old and new lists: no oversized controls. */
+.spad-admin-shell .spad-admin-content :is(.table,.table-responsive,.ReactTable,.rt-table,.data-table,.react-table){
+ font-size:11px;line-height:1.55}
+.spad-admin-shell .spad-admin-content .table-responsive{
+ border:1px solid var(--spad-v10-border);border-radius:12px;overflow-x:auto;background:#fff;
+ scrollbar-width:thin;scrollbar-color:#b4d1e5 #f8fbfd}
+.spad-admin-shell .spad-admin-content :is(.table,.table-striped,.table-bordered){
+ width:100%;margin:0;background:#fff;border:0!important;border-collapse:separate;border-spacing:0}
+.spad-admin-shell .spad-admin-content :is(.table,.table-striped,.table-bordered)>thead>tr>th,
+.spad-admin-shell .spad-admin-content :is(.rt-thead .rt-th,.ReactTable .rt-thead .rt-th){
+ height:39px;min-height:39px;padding:9px 10px!important;border:0!important;
+ border-bottom:1px solid #e3edf4!important;background:#f4f9fd!important;
+ color:#416982!important;font-size:10px!important;font-weight:700;white-space:nowrap;vertical-align:middle}
+.spad-admin-shell .spad-admin-content :is(.table,.table-striped,.table-bordered)>tbody>tr>td,
+.spad-admin-shell .spad-admin-content :is(.rt-tbody .rt-td,.ReactTable .rt-tbody .rt-td){
+ padding:8px 10px!important;min-height:42px;height:auto!important;border:0!important;
+ border-bottom:1px solid #edf1f5!important;color:#355971;font-size:10.5px!important;
+ background:transparent!important;vertical-align:middle!important;line-height:1.65}
+.spad-admin-shell .spad-admin-content :is(table tbody tr,.rt-tbody .rt-tr){background:#fff!important}
+.spad-admin-shell .spad-admin-content :is(table tbody tr:hover,.rt-tbody .rt-tr:hover){background:#f1f8fe!important}
+.spad-admin-shell .spad-admin-content :is(table tbody tr:last-child td,.rt-tbody .rt-tr:last-child .rt-td){border-bottom:0!important}
+.spad-admin-shell .spad-admin-content .table td img{max-height:40px;max-width:60px;object-fit:cover;border-radius:8px}
+.spad-admin-shell .spad-admin-content .table :is(h3,h4,h5){font-size:12px;margin:0}
+.spad-admin-shell .spad-admin-content .table .dropdown-toggle{
+ width:33px;min-width:33px;min-height:32px;height:32px;padding:5px 6px!important;border-radius:9px!important}
+.spad-admin-shell .spad-admin-content .table .dropdown-toggle i{font-size:13px}
+.spad-admin-shell .spad-admin-content .table :is(.btn,.badge,.button){
+ font-size:10px!important;line-height:1.5!important;min-height:28px;padding:5px 9px!important}
+.spad-admin-shell .spad-admin-content .table :is(.badge,.badge-pill){border-radius:7px;padding:4px 7px!important}
+.spad-admin-shell .spad-admin-content :is(.pagination,.pagination-container,.dataTables_paginate){
+ display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:14px;font-size:10px}
+.spad-admin-shell .spad-admin-content .page-link{display:grid;place-items:center;min-width:30px;min-height:30px;
+ padding:4px 7px!important;background:#fff;border:1px solid #dfeaf2;border-radius:9px!important;color:#426e8c}
+.spad-admin-shell .spad-admin-content .page-item.active .page-link{background:#0e82c7;border-color:#0e82c7;color:#fff}
+.spad-admin-shell .spad-admin-content :is(.card,.list-card){border-radius:14px!important;box-shadow:0 6px 24px #0b49780b!important}
+.spad-admin-shell .spad-admin-content .card-header{padding:12px 16px!important;min-height:47px}
+.spad-admin-shell .spad-admin-content .card-body{padding:15px 17px!important}
+.spad-admin-shell .spad-admin-content .card-title{margin-bottom:11px!important;font-size:13px!important}
+.spad-admin-shell .spad-admin-content .form-group{margin-bottom:12px!important}
+.spad-admin-shell .spad-admin-content :is(.form-control,.custom-select,select.form-control,.input-group-text){
+ min-height:37px!important;height:auto;padding:7px 11px!important;font-size:11px!important;border-radius:9px!important}
+.spad-admin-shell .spad-admin-content textarea.form-control{min-height:90px!important;line-height:1.95}
+.spad-admin-shell .spad-admin-content :is(.btn,.top-right-button){font-size:10.5px!important;
+ min-height:34px;padding:7px 12px!important;border-radius:9px!important}
+.spad-admin-shell .spad-admin-content .btn-group :is(.btn,.dropdown-toggle){min-width:0}
+.spad-admin-shell .spad-admin-content .nav-tabs .nav-link{font-size:10px!important;
+ padding:8px 11px!important;min-height:35px}
+.spad-admin-shell .spad-admin-content :is(.modal-body,.modal-header,.modal-footer){padding:14px 17px}
+.spad-admin-shell .spad-admin-content .modal-title{font-size:15px!important}
+.spad-admin-shell .spad-admin-content .top-right-button-container{gap:7px}
+.spad-admin-shell .spad-admin-content .separator{margin-top:10px!important;margin-bottom:17px!important}
+.spad-admin-shell .spad-admin-content :is(.breadcrumb-container,.breadcrumb){font-size:9.5px}
+.spad-admin-shell .spad-admin-content .file-manager__icon{font-size:17px!important}
+.spad-admin-shell .spad-admin-content .file-manager .card{padding:8px!important;border-radius:11px!important}
+.spad-admin-shell .spad-admin-content .file-manager__content{padding:13px!important}
+.spad-admin-shell .spad-admin-content .file-manager__file-name{font-size:10px!important}
+.spad-admin-shell .spad-admin-content .spad-v9-route-head{margin-bottom:15px;padding:16px 19px;border-radius:15px}
+.spad-admin-shell .spad-admin-content .spad-v9-route-head h2{font-size:18px!important;margin:5px 0}
+.spad-admin-shell .spad-admin-content .spad-v9-route-head p{font-size:10px}
+.spad-admin-shell .spad-admin-content .spad-v9-route-head__actions a{font-size:10px;min-height:31px;padding:7px 9px}
+.spad-admin-shell .spad-admin-content .spad-v8-service-card{padding:14px;border-radius:14px;gap:9px}
+.spad-admin-shell .spad-admin-content .spad-v8-service-card h3{font-size:13px}
+.spad-admin-shell .spad-admin-content .spad-v8-service-card>p{min-height:35px}
+.spad-admin-shell .spad-admin-content .spad-v8-metric{padding:13px 14px;border-radius:13px}
+.spad-admin-shell .spad-admin-content .spad-v8-metric-icon{width:37px;height:37px;font-size:17px}
+.spad-admin-shell .spad-admin-content .spad-v8-metric-value{font-size:24px}
+.spad-admin-shell .spad-admin-content .spad-v8-pane{padding:17px;border-radius:14px}
+.spad-admin-shell .spad-admin-content .spad-v8-action-grid>a{padding:10px}
+@media(max-width:750px){
+ .spad-admin-shell .spad-admin-content .card-body{padding:11px!important}
+ .spad-admin-shell .spad-admin-content :is(.table,.table-bordered) > :is(thead,tbody)>tr>:is(th,td){padding:7px 8px!important}
+ .spad-admin-shell .spad-admin-content .spad-v8-pane{padding:12px}
+ .spad-admin-shell .spad-admin-content .spad-v9-route-head{padding:12px}
+}
