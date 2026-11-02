@@ -136,6 +136,12 @@ const data = [
     to: `${adminRoot}/crm`,
     subs: [
       {
+        icon: "simple-icon-grid",
+        label: "menu.crm-pro",
+        to: `${adminRoot}/crm/pro`,
+        roles: [UserRole.Admin],
+      },
+      {
         icon: "simple-icon-user-follow",
         label: "menu.crm.add-customer",
         to: `${adminRoot}/crm/add-customer`,
