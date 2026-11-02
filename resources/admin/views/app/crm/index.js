@@ -1,6 +1,7 @@
 import React, { Suspense } from "react";
 import { Redirect, Route, Switch } from "react-router-dom";
 
+const CrmPro = React.lazy(() => import("./crm-pro"));
 const AddCustomer = React.lazy(() =>
   import(/* webpackChunkName: "add-customer" */ "./add-customer")
 );
@@ -24,6 +25,7 @@ const Crm = ({ match }) => {
   return (
     <Suspense fallback={<div className="loading" />}>
       <Switch>
+        <Route exact path={`${match.url}/pro`} render={(props) => <CrmPro {...props} />} />
         <Route
           path={`${match.url}/add-customer`}
           render={(props) => <AddCustomer {...props} />}
