@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\WalletController;
 Route::prefix('wallets')->group(function () {
     Route::get('/', [WalletController::class, 'index']);
     Route::get('stats', [WalletController::class, 'stats']);
+    Route::get('center/overview', [WalletController::class, 'centerOverview'])->middleware('throttle:30,1');
     Route::get('transactions/all', [WalletController::class, 'transactions']);
 
     Route::get('settings/all', [WalletController::class, 'settings']);
