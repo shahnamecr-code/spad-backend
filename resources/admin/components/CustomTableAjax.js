@@ -120,7 +120,7 @@ const CustomTableAjax = ({
         </code>
       </pre>
       }
-      <Table {...getTableProps()} responsive bordered striped={striped}>
+      <Table {...getTableProps()} className="spad-v10-list-table" responsive bordered={false} striped={false}>
         <thead>
         {headerGroups.map(headerGroup => (
           <tr {...headerGroup.getHeaderGroupProps()}>
@@ -152,12 +152,7 @@ const CustomTableAjax = ({
             </tr>
           )
         })}
-        <tr>
-          {loading && (
-            // Use our custom loading state to show a loading indicator
-            <td colSpan="10000">Loading...</td>
-          )}
-        </tr>
+        {loading && <tr><td colSpan={Math.max(1, columns.length)} className="spad-v10-loading-row">در حال دریافت اطلاعات…</td></tr>}
         </tbody>
       </Table>
       <CustomDatatablePagination
@@ -167,7 +162,7 @@ const CustomTableAjax = ({
         pages={pageCount}
         canPrevious={canPreviousPage}
         canNext={canNextPage}
-        pageSizeOptions={[1, 4, 10, 20, 30, 40, 50]}
+        pageSizeOptions={[10, 20, 30, 50, 100]}
         showPageSizeOptions={true}
         showPageJump={false}
         defaultPageSize={pageSize}
