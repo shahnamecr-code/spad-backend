@@ -17,6 +17,7 @@ const CHANNELS=[
  {id:'gateways',label:'درگاه پرداخت',icon:'simple-icon-credit-card'},
  {id:'wallets',label:'کیف پول کاربران',icon:'simple-icon-wallet'},
  {id:'transactions',label:'تراکنش‌ها',icon:'simple-icon-list'},
+ {id:'deposits',label:'بیعانه املاک',icon:'simple-icon-home'},
  {id:'settings',label:'تنظیمات کیف پول',icon:'simple-icon-settings'}
 ];
 const PAID={paid:'پرداخت موفق',pending:'در انتظار پرداخت',failed:'ناموفق',cancelled:'لغوشده',expired:'منقضی‌شده'};
@@ -42,6 +43,7 @@ export default function WalletCenter(){
  const [failure,setFailure]=useState(''),[notice,setNotice]=useState('');
  const [users,setUsers]=useState(null),[userPage,setUserPage]=useState(1),[userSearch,setUserSearch]=useState(''),[userQuery,setUserQuery]=useState('');
  const [transactions,setTransactions]=useState(null),[txPage,setTxPage]=useState(1),[txSearch,setTxSearch]=useState(''),[txQuery,setTxQuery]=useState(''),[direction,setDirection]=useState('');
+ const [deposits,setDeposits]=useState(null),[depositPage,setDepositPage]=useState(1),[depositSearch,setDepositSearch]=useState(''),[depositQuery,setDepositQuery]=useState(''),[depositStatus,setDepositStatus]=useState('');
  const load=useCallback(async()=>{
   if(!superAdmin)return;
   setLoading(true);setFailure('');
@@ -68,10 +70,18 @@ export default function WalletCenter(){
    setTransactions(data);
   }catch(e){setFailure(errorText(e));}
  },[superAdmin,txPage,txQuery,direction]);
+ const loadDeposits=useCallback(async()=>{
+  if(!superAdmin)return;
+  try{
+   const {data}=await axios.get(BASE+'/property-deposits',{params:{page:depositPage,per_page:15,search:depositQuery,status:depositStatus}});
+   setDeposits(data);
+  }catch(e){setFailure(errorText(e));}
+ },[superAdmin,depositPage,depositQuery,depositStatus]);
  useEffect(()=>{load();},[load]);
  useEffect(()=>{const value=new URLSearchParams(location.search).get('tab');setTab(CHANNELS.some(x=>x.id===value)?value:'overview');},[location.search]);
  useEffect(()=>{if(tab==='wallets')loadUsers();},[tab,loadUsers]);
  useEffect(()=>{if(tab==='transactions')loadTx();},[tab,loadTx]);
+ useEffect(()=>{if(tab==='deposits')loadDeposits();},[tab,loadDeposits]);
  const selectTab=value=>{setTab(value);setFailure('');setNotice('');history.replace({pathname:location.pathname,search:'?tab='+value});};
  const commit=async(action,success)=>{
   setBusy(true);setFailure('');setNotice('');
@@ -221,6 +231,47 @@ export default function WalletCenter(){
      <td>{x.description||x.title||x.type||'—'}</td><td>{date(x.created_at)}</td>
     </tr>)}{transactions&&!transactions.data?.length&&<tr><td colSpan="6" className="empty">تراکنشی یافت نشد.</td></tr>}</tbody></table></div>
    {transactions?<Pagination data={transactions} onPage={setTxPage}/>:<Loading/>}
+  </section>}
+  {tab==='deposits'&&<section className="spad-payment-card">
+   <div className="spad-payment-section-head"><div>
+     <h2>دفتر پرداخت بیعانه املاک</h2>
+     <p>اطلاعات هر پرداخت به کد ملک و سفارش بانکی متصل و به‌صورت مستقل از کیف پول نگهداری می‌شود.</p>
+    </div><Badge>{n(deposits?.totals?.total)} تراکنش</Badge></div>
+   <div className="spad-payment-metrics" style={{marginBottom:14}}>
+    <article><small>پرداخت‌های تأییدشده</small><strong>{n(deposits?.totals?.paid)}</strong></article>
+    <article><small>مجموع بیعانه‌های موفق</small><strong>{money(deposits?.totals?.paid_amount)}</strong></article>
+    <article><small>در انتظار بررسی</small><strong>{n(deposits?.totals?.pending)}</strong></article>
+   </div>
+   <form className="spad-payment-filter" onSubmit={e=>{e.preventDefault();setDepositPage(1);setDepositQuery(depositSearch);}}>
+    <input placeholder="کد ملک، کد پیگیری، مرجع بانکی یا موبایل" value={depositSearch} onChange={e=>setDepositSearch(e.target.value)}/>
+    <select value={depositStatus} onChange={e=>{setDepositStatus(e.target.value);setDepositPage(1);}}>
+      <option value="">همه وضعیت‌ها</option><option value="paid">موفق</option><option value="pending">در انتظار</option><option value="failed">ناموفق</option>
+    </select>
+    <button type="submit" className="primary">جست‌وجو</button>
+    <button type="button" onClick={loadDeposits}>به‌روزرسانی</button>
+   </form>
+   <div className="spad-payment-table-wrap"><table><thead><tr>
+    <th>ملک و کد</th><th>پرداخت‌کننده</th><th>مبلغ و درگاه</th><th>وضعیت</th>
+    <th>کدها و شناسه پرداخت</th><th>زمان‌های تراکنش</th>
+   </tr></thead><tbody>
+    {(deposits?.data?.data||[]).map(x=><tr key={x.id}>
+     <td><b>بیعانه ملک کد {x.property_code||x.advertisement_id}</b>
+       <small>{x.property_title||'—'}</small><small>{x.property_location||'—'}</small>
+       <Link to={adminRoot+'/advertisements/adver-edit/'+x.advertisement_id}>مشاهده/ویرایش ملک</Link></td>
+     <td><b>{x.user?.full_name||'—'}</b><small dir="ltr">{x.user?.mobile||'—'}</small><small>کاربر #{n(x.user?.id)}</small></td>
+     <td><b>{money(x.amount)}</b><small>{x.gateway?.title||'—'} · {x.gateway?.driver||'—'}</small>
+       <small>مبلغ درگاه: {n(x.gateway_amount)} {x.gateway_currency==='R'?'ریال':'تومان'}</small></td>
+     <td><Badge tone={moneyStatus(x.status)}>{PAID[x.status]||x.status}</Badge></td>
+     <td><small>رهگیری اسپاد: <b dir="ltr">{x.tracking_code}</b></small>
+       <small>مرجع بانکی: <b dir="ltr">{x.reference_id||'—'}</b></small>
+       <small>شناسه درگاه: <b dir="ltr">{x.gateway_transaction_id||'—'}</b></small></td>
+     <td><small>ثبت: {date(x.created_at)}</small><small>تأیید: {date(x.paid_at)}</small>
+       <small>انقضا: {date(x.expires_at)}</small></td>
+    </tr>)}
+    {deposits&&!deposits.data?.data?.length&&<tr><td className="empty" colSpan="6">تراکنش بیعانه‌ای با این مشخصات یافت نشد.</td></tr>}
+   </tbody></table></div>
+   {deposits?.data?<Pagination data={deposits.data} onPage={setDepositPage}/>:<Loading/>}
+   <div className="spad-payment-provider-hint">موفق بودن پرداخت فقط بعد از تأیید درگاه ثبت می‌شود. اطلاعات تراکنش برای پیگیری مالی نگهداری می‌شود و به معنی انعقاد قرارداد یا انتقال مالکیت نیست.</div>
   </section>}
   {editing&&<div className="spad-payment-overlay" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setEditing(null);}}>
    <form className="spad-payment-modal" onSubmit={saveGateway} role="dialog" aria-modal="true" aria-label="تنظیم درگاه پرداخت">
