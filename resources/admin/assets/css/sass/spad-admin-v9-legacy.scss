@@ -1,0 +1,324 @@
+/*
+ SPAD Admin UI / V9 legacy-page transformation.
+ Scoped to route-matched Gogo/Bootstrap modules; modern V8 custom panels are
+ deliberately excluded. This file changes presentation only: no form or
+ table behavior, API requests, validation, permissions, or data are altered.
+*/
+.spad-admin-shell {
+ --spad-v9-blue:#087bc5;
+ --spad-v9-azure:#089be0;
+ --spad-v9-text:#173d5c;
+ --spad-v9-muted:#728ea4;
+ --spad-v9-line:#dfeaf4;
+ --spad-v9-elevation:0 12px 38px rgba(9,61,106,.065);
+}
+.spad-admin-legacy-theme {
+ color:var(--spad-v9-text);
+ min-width:0;
+}
+.spad-v9-route-head {
+ display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;
+ gap:15px;position:relative;isolation:isolate;overflow:hidden;
+ margin:0 0 22px;padding:24px 28px;
+ border:1px solid #137ec2;border-radius:21px;
+ color:#fff;background:linear-gradient(115deg,#06385d 0%,#075fa9 57%,#098bd6 100%);
+ box-shadow:0 15px 36px rgba(7,72,131,.13);
+}
+.spad-v9-route-head::before {
+ content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background-image:radial-gradient(rgba(255,255,255,.16) 1px,transparent 1px);
+ background-size:20px 20px;mask-image:linear-gradient(90deg,#000,transparent 85%);
+}
+.spad-v9-route-head::after {
+ content:"";position:absolute;z-index:-1;left:-95px;bottom:-135px;pointer-events:none;
+ width:280px;height:280px;border:38px solid rgba(255,255,255,.085);border-radius:50%;
+}
+.spad-v9-route-head__copy{max-width:670px;min-width:0}
+.spad-v9-route-head__eyebrow {
+ display:inline-flex;align-items:center;gap:9px;color:#bee6ff;
+ font:700 10px/1.6 Arial,sans-serif;letter-spacing:.9px;direction:ltr;
+}
+.spad-v9-route-head__eyebrow i{font-size:17px}
+.spad-v9-route-head h2 {
+ margin:8px 0 3px!important;font-size:22px!important;line-height:1.7;
+ font-weight:800!important;color:#fff!important;
+}
+.spad-v9-route-head p {font-size:11.5px;line-height:2;color:#d2eafa;margin:0}
+.spad-v9-route-head__actions{display:flex;align-items:center;flex-wrap:wrap;justify-content:flex-end;gap:7px}
+.spad-v9-route-head__actions a {
+ display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ padding:9px 13px;border-radius:10px;min-height:35px;
+ color:#ecf9ff!important;text-decoration:none!important;
+ font-size:10.5px;font-weight:650;line-height:1.65;
+ border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.14);
+ transition:background .2s,border-color .2s,transform .2s;
+}
+.spad-v9-route-head__actions a:hover,
+.spad-v9-route-head__actions a:focus-visible {
+ background:rgba(255,255,255,.3);border-color:rgba(255,255,255,.63);transform:translateY(-1px);
+}
+.spad-v9-route-head__actions a.active{background:#fff;color:#0c72b6!important;border-color:#fff}
+.spad-v9-route-head__home{background:rgba(3,34,74,.25)!important}
+
+/* Internal legacy breadcrumbs and page controls */
+.spad-admin-shell .spad-admin-legacy-theme .breadcrumb-container,
+.spad-admin-shell .spad-admin-legacy-theme .breadcrumb {
+ background:transparent!important;color:#8ca3b6;font-size:10px;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.page-title,h1:not(.spad-v9-route-head h1)) {
+ color:#174a6e!important;font-weight:750!important;font-size:19px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .separator,
+.spad-admin-shell .spad-admin-legacy-theme .separator-tabs{
+ margin:14px 0 24px!important;background:#dfeaf3!important;min-height:1px;height:1px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .top-right-button-container {
+ display:flex;gap:8px;align-items:center;flex-wrap:wrap;position:relative;
+}
+
+/* Cards and panels. A soft blue top highlight makes old white forms modern. */
+.spad-admin-shell .spad-admin-legacy-theme :is(.card,.list-card,.accordion,.list-group) {
+ border:1px solid var(--spad-v9-line)!important;
+ border-radius:17px!important;background:#fff!important;
+ box-shadow:var(--spad-v9-elevation)!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .card {overflow:visible}
+.spad-admin-shell .spad-admin-legacy-theme .card-header {
+ background:linear-gradient(120deg,#f5faff,#fff)!important;
+ border:0!important;border-bottom:1px solid #e7f0f8!important;
+ padding:17px 20px!important;border-radius:17px 17px 0 0!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .card-body{padding:21px!important}
+.spad-admin-shell .spad-admin-legacy-theme .card-title {
+ font-size:15px!important;font-weight:750!important;color:#1a5174!important;line-height:1.85;
+}
+.spad-admin-shell .spad-admin-legacy-theme .card-footer {
+ background:#f8fbfe!important;border-top:1px solid #e5eef6!important;
+ border-radius:0 0 17px 17px!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.card-subtitle,.text-muted){color:#8198ab!important}
+.spad-admin-shell .spad-admin-legacy-theme .card:hover {
+ border-color:#bed9ed!important;box-shadow:0 14px 39px rgba(7,66,119,.075)!important;
+}
+
+/* Form design for settings, customer edit/create, listing filters and editors. */
+.spad-admin-shell .spad-admin-legacy-theme .form-group{margin-bottom:17px!important}
+.spad-admin-shell .spad-admin-legacy-theme :is(.form-group > label,.form-label,.control-label,.has-float-label > label) {
+ color:#456d89!important;font-size:11px!important;font-weight:650!important;line-height:1.8;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.form-control,.custom-select,select.form-control,.input-group-text) {
+ min-height:44px!important;color:#28526d!important;background:#fbfdff!important;
+ border:1px solid #d8e7f2!important;border-radius:10px!important;
+ font-size:12px!important;box-shadow:none!important;transition:border-color .18s,box-shadow .18s;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.form-control,.custom-select,select.form-control):focus {
+ border-color:#50aae0!important;background:#fff!important;
+ box-shadow:0 0 0 3px rgba(10,143,223,.11)!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme textarea.form-control {
+ min-height:115px!important;resize:vertical;line-height:2.05;
+}
+.spad-admin-shell .spad-admin-legacy-theme .input-group-text{
+ background:#eff7fc!important;color:#2b739c!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.react-select__control,.select__control,[class*="-control"].css-1s2u09g-control) {
+ min-height:43px;border-radius:10px;border-color:#dbe8f1;box-shadow:none;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(input[type="checkbox"],input[type="radio"]) {accent-color:#087dcb}
+.spad-admin-shell .spad-admin-legacy-theme .custom-control-label{color:#476c83;font-size:11px}
+.spad-admin-shell .spad-admin-legacy-theme .form-control::placeholder{color:#a5b5c2!important;opacity:1}
+.spad-admin-shell .spad-admin-legacy-theme .has-float-label > label {
+ background:#fff!important;padding:0 6px;right:9px;left:auto;
+}
+
+/* Buttons: preserve semantic colors and disabled states. */
+.spad-admin-shell .spad-admin-legacy-theme :is(.btn,.top-right-button) {
+ min-height:38px;border-radius:10px!important;
+ font-weight:650;font-size:11px!important;line-height:1.65;
+ transition:background .18s,transform .18s,box-shadow .18s;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.btn-primary,.btn-outline-primary:hover,.top-right-button.btn-primary) {
+ background:linear-gradient(110deg,#087acb,#0b9be0)!important;
+ color:#fff!important;border-color:#087acb!important;
+ box-shadow:0 6px 15px #087bc321!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .btn-primary:hover{filter:brightness(1.04);transform:translateY(-1px)}
+.spad-admin-shell .spad-admin-legacy-theme :is(.btn-secondary,.btn-outline-secondary) {
+ color:#347398!important;background:#f2f8fc!important;border-color:#d3e5f0!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .btn-outline-primary{
+ background:#f1faff;color:#087ac2;border:1px solid #b9dbed;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.btn-danger,.btn-outline-danger:hover){border-radius:10px}
+.spad-admin-shell .spad-admin-legacy-theme :is(.btn:disabled,.btn.disabled){opacity:.5;cursor:not-allowed;transform:none}
+
+/* Tables, pagination, filters, older react-table and reactstrap datatables. */
+.spad-admin-shell .spad-admin-legacy-theme :is(.table-responsive,.table-wrapper,.react-table) {
+ border-radius:12px;min-width:0;
+ scrollbar-color:#b8d7e8 #f4f8fc;scrollbar-width:thin;
+}
+.spad-admin-shell .spad-admin-legacy-theme table {
+ width:100%;border-spacing:0;color:#31556e;font-size:11.5px;line-height:1.75;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(table thead th,.rt-thead .rt-th) {
+ padding:13px 11px!important;white-space:nowrap;
+ background:#eff7fd!important;color:#23658e!important;font-size:10.5px!important;
+ border-bottom:1px solid #d8e9f3!important;font-weight:750!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(table tbody td,.rt-tbody .rt-td) {
+ padding:11px!important;border-color:#edf2f6!important;vertical-align:middle;
+ background:transparent;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(table tbody tr,.rt-tbody .rt-tr) {
+ transition:background-color .15s;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(table tbody tr:hover,.rt-tbody .rt-tr:hover) {
+ background:#f2f9ff!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.list-item-heading,.table a) {
+ color:#1b648f!important;font-weight:600;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.pagination,.pagination-container) {
+ display:flex;flex-wrap:wrap;align-items:center;gap:5px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .page-link{
+ min-width:33px;min-height:33px;display:grid;place-items:center;
+ border:1px solid #dfebf4!important;border-radius:9px!important;
+ background:#fff;color:#437c9f;font-size:11px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .page-item.active .page-link{
+ background:#087fce!important;color:#fff!important;border-color:#087fce!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .pagination .disabled .page-link{opacity:.45}
+.spad-admin-shell .spad-admin-legacy-theme :is(.badge,.badge-pill) {
+ border-radius:6px;font-size:9px;font-weight:700;padding:5px 8px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .dropdown-menu {
+ border:1px solid #dfebf3!important;border-radius:12px!important;
+ box-shadow:0 15px 35px rgba(13,63,107,.13)!important;padding:7px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .dropdown-item {
+ border-radius:8px;color:#38627c;font-size:11px;padding:9px 12px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .dropdown-item:hover{color:#0876ba;background:#eaf7ff}
+
+/* General settings and multi-tab panels. */
+.spad-admin-shell .spad-admin-legacy-theme .nav-tabs {
+ display:flex;flex-wrap:wrap;gap:7px;padding:8px 8px 2px;
+ border-bottom:1px solid #dfeaf4!important;background:#f8fbfe;
+ border-radius:13px 13px 0 0;
+}
+.spad-admin-shell .spad-admin-legacy-theme .nav-tabs .nav-link {
+ min-height:39px;padding:9px 13px!important;border:1px solid transparent!important;
+ border-radius:9px!important;color:#567f99!important;
+ font-size:11px;font-weight:650;cursor:pointer;line-height:1.8;
+}
+.spad-admin-shell .spad-admin-legacy-theme .nav-tabs .nav-link:hover{color:#087cc5!important;background:#ecf7ff!important}
+.spad-admin-shell .spad-admin-legacy-theme .nav-tabs .nav-link.active {
+ background:#e3f3ff!important;color:#0876b5!important;border-color:#a7d3ec!important;
+ box-shadow:0 3px 7px rgba(7,100,170,.05)!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .tab-content{min-width:0}
+.spad-admin-shell .spad-admin-legacy-theme :is(.modal-content,.popover) {
+ background:#fff;border:1px solid #dbe9f4;border-radius:15px;
+ box-shadow:0 18px 55px rgba(9,60,101,.17);
+}
+.spad-admin-shell .spad-admin-legacy-theme .modal-header{
+ background:#f4faff;border-bottom:1px solid #e1ecf4;
+ border-radius:15px 15px 0 0;min-height:56px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .modal-title{font-size:16px;font-weight:750;color:#245b80}
+.spad-admin-shell .spad-admin-legacy-theme .modal-footer{background:#fcfdff;border-top:1px solid #e9f0f5}
+.spad-admin-shell .spad-admin-legacy-theme :is(.alert,.notification-container) {
+ border-radius:12px;font-size:11px;
+}
+
+/* Media library is used on the media page and several editing forms. */
+.spad-admin-shell .spad-admin-legacy-theme .file-manager {
+ padding:14px;border:1px solid #e0ebf3;border-radius:18px;
+ background:linear-gradient(180deg,#fcfeff,#f6faff);
+ box-shadow:0 10px 30px rgba(9,64,107,.055);
+}
+.spad-admin-shell .spad-admin-legacy-theme .file-manager__content {
+ padding:16px!important;border-radius:13px;background:#fff;
+}
+.spad-admin-shell .spad-admin-legacy-theme .file-manager__directories,
+.spad-admin-shell .spad-admin-legacy-theme .file-manager__files {
+ display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;
+ padding:8px 0;
+}
+.spad-admin-shell .spad-admin-legacy-theme .file-manager__icon{color:#0f87c9!important}
+.spad-admin-shell .spad-admin-legacy-theme .file-manager .card {
+ border:1px solid #e0ebf5!important;border-radius:12px!important;
+ background:#fff!important;box-shadow:none!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .file-manager .card:hover{
+ border-color:#94cdeb!important;box-shadow:0 9px 24px rgba(13,94,144,.1)!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .file-manager__file-name {
+ color:#385d78;font-size:10px;line-height:1.8;overflow-wrap:anywhere;
+}
+.spad-admin-shell .spad-admin-legacy-theme .dropzone,
+.spad-admin-shell .spad-admin-legacy-theme .dropzone-component .dz-message{
+ border:1px dashed #8dc8eb!important;border-radius:14px!important;
+ background:#f0f9ff!important;color:#3981a9;
+}
+.spad-admin-shell .spad-admin-legacy-theme .dz-preview {
+ border-radius:11px;background:#f8fbfe;
+}
+
+/* Additional modules: widgets, filter bars, calendars, lists, article editors */
+.spad-admin-shell .spad-admin-legacy-theme :is(.list-group-item,.accordion .card,.accordion .card-header) {
+ border-color:#e2edf5!important;
+}
+.spad-admin-shell .spad-admin-legacy-theme .list-group-item.active {
+ color:#fff;background:#087bc8;border-color:#087bc8;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.rmdp-container,.DatePicker,.react-datepicker-wrapper) {
+ max-width:100%;
+}
+.spad-admin-shell .spad-admin-legacy-theme .react-datepicker,
+.spad-admin-shell .spad-admin-legacy-theme .rmdp-wrapper{
+ border-color:#d6e7f3;border-radius:13px;box-shadow:0 12px 30px rgba(13,65,107,.1);
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.ql-toolbar,.tox-editor-header,.ck-toolbar) {
+ background:#f5faff;border-color:#d9e8f3;border-radius:10px 10px 0 0;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.ql-container,.tox-editor-container,.ck-editor__editable) {
+ border-color:#d9e8f3;border-radius:0 0 10px 10px;min-height:140px;
+}
+.spad-admin-shell .spad-admin-legacy-theme :is(.progress,.progress-bar-container){
+ background:#eaf3fa;border-radius:20px;
+}
+.spad-admin-shell .spad-admin-legacy-theme .progress-bar{background:linear-gradient(90deg,#1bb6ed,#087bd1);border-radius:20px}
+.spad-admin-shell .spad-admin-legacy-theme :is(.text-small,.text-extra-small){line-height:1.8}
+
+/* Keep interactive overlays above the cards and restore mobile legibility. */
+.spad-admin-shell .spad-admin-legacy-theme :is(.dropdown-menu,.react-select__menu,.select__menu){z-index:1050}
+.spad-admin-shell .spad-admin-legacy-theme .card .table-responsive{overflow-x:auto}
+@media(max-width:1200px){
+ .spad-v9-route-head{align-items:flex-start}
+ .spad-v9-route-head__actions{justify-content:flex-start}
+}
+@media(max-width:750px) {
+ .spad-v9-route-head{padding:17px 18px;border-radius:16px;margin-bottom:15px}
+ .spad-v9-route-head h2{font-size:18px!important}
+ .spad-v9-route-head p{font-size:10.5px}
+ .spad-v9-route-head__actions{width:100%;gap:6px}
+ .spad-v9-route-head__actions a{min-height:33px;padding:7px 9px;font-size:9.5px}
+ .spad-admin-shell .spad-admin-legacy-theme .card-body{padding:13px!important}
+ .spad-admin-shell .spad-admin-legacy-theme .card-header{padding:13px!important}
+ .spad-admin-shell .spad-admin-legacy-theme :is(table thead th,table tbody td){padding:9px!important;font-size:10px!important}
+ .spad-admin-shell .spad-admin-legacy-theme .top-right-button-container{margin:0 0 12px}
+ .spad-admin-shell .spad-admin-legacy-theme .file-manager {padding:9px;border-radius:13px}
+ .spad-admin-shell .spad-admin-legacy-theme .file-manager__content{padding:10px!important}
+}
+@media(prefers-reduced-motion:reduce) {
+ .spad-v9-route-head__actions a,.spad-admin-shell .spad-admin-legacy-theme *{transition:none!important}
+}
+@media print{
+ .spad-v9-route-head{border:1px solid #d3e3ef;background:#fff;box-shadow:none;color:#235879}
+ .spad-v9-route-head h2{color:#245879!important}
+ .spad-v9-route-head__actions{display:none}
+ .spad-admin-shell .spad-admin-legacy-theme .card{box-shadow:none!important}
+}
