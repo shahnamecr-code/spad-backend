@@ -653,4 +653,5 @@ module.exports = {
   "menu.property-auctions": "مزایده ملک",
   "menu.property-affairs": "امور ملکی",
   "menu.online-renovation": "مدیریت بازسازی آنلاین",
+  "menu.web-services": "مدیریت وب‌سرویس‌ها",
 };
