@@ -110,3 +110,38 @@
  .spad-admin-shell .spad-admin-content .spad-v8-pane{padding:12px}
  .spad-admin-shell .spad-admin-content .spad-v9-route-head{padding:12px}
 }
+
+/* Card-based advertisements and CRM requests use legacy grids rather than HTML tables. */
+.spad-admin-shell .spad-admin-content .spad-ad-list-page .spad-ad-list-hero {
+ min-height:0!important;padding:16px 20px!important;margin-bottom:12px!important;border-radius:15px!important}
+.spad-admin-shell .spad-admin-content .spad-ad-list-hero h1{font-size:19px!important}
+.spad-admin-shell .spad-admin-content .spad-ad-list-hero p{font-size:10px;line-height:1.8}
+.spad-admin-shell .spad-admin-content .spad-ad-list-hero__stats{gap:7px}
+.spad-admin-shell .spad-admin-content .spad-ad-list-stat{min-height:48px;padding:7px 9px;border-radius:10px}
+.spad-admin-shell .spad-admin-content .spad-ad-list-stat strong{font-size:17px}
+.spad-admin-shell .spad-admin-content .spad-ad-list-toolbar{padding:12px 14px;border-radius:13px;margin-bottom:12px}
+.spad-admin-shell .spad-admin-content .ads-wrapper.list-card,
+.spad-admin-shell .spad-admin-content .requests-wrapper .crm-card{
+ padding:9px!important;border:1px solid #e1ebf2!important;border-radius:12px!important;
+ box-shadow:0 4px 16px #10547c0b!important;background:#fff!important;margin-bottom:8px!important}
+.spad-admin-shell .spad-admin-content .ads-wrapper :is(.ads-detail,.ads-detail-main-props,.ads-detail-cod),
+.spad-admin-shell .spad-admin-content .crm-card :is(p,span){font-size:10px;line-height:1.65}
+.spad-admin-shell .spad-admin-content .ads-wrapper .ads-card-thumbnail{
+ max-height:95px;object-fit:cover;border-radius:9px}
+.spad-admin-shell .spad-admin-content .ads-wrapper :is(.ads-detail-status,.ads-detail-cate){
+ font-size:9px!important;padding:4px 7px!important;border-radius:7px}
+.spad-admin-shell .spad-admin-content :is(.crm-card,.ads-wrapper) .btn-group .btn{
+ min-height:29px;padding:5px 8px!important}
+.spad-admin-shell .spad-admin-content .ads-wrapper .adver-list-footer{
+ padding-top:7px!important;padding-bottom:7px!important}
+.spad-admin-shell .spad-admin-content .spad-v10-list-table thead th{
+ font-size:10px!important}
+.spad-admin-shell .spad-admin-content .spad-v10-loading-row{
+ padding:18px!important;text-align:center;color:#6b8da6;font-size:11px}
+.spad-admin-shell .spad-admin-content .requests-wrapper .card-body{
+ padding:9px 13px!important}
+@media(max-width:750px){
+ .spad-admin-shell .spad-admin-content .spad-ad-list-page .spad-ad-list-hero{padding:13px!important}
+ .spad-admin-shell .spad-admin-content .spad-ad-list-stat{padding:6px}
+ .spad-admin-shell .spad-admin-content .ads-wrapper.list-card{padding:7px!important}
+}
