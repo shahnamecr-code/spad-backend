@@ -165,6 +165,11 @@ class SpadCrmProController extends Controller {
    'request_id'=>'required|uuid'
   ]);
   $channel=$v['channel'];$uid=$request->user()->id;
+  $existing=DB::table('spad_crm_outbound')->where('request_id',$v['request_id'])->first();
+  if($existing){
+   abort_unless((int)$existing->contact_id===(int)$id && $existing->channel===$channel,409,'شناسه درخواست برای عملیات دیگری استفاده شده است.');
+   return response()->json(['message'=>'این درخواست قبلاً ثبت شده؛ برای جلوگیری از تماس مجدد تکرار نمی‌شود.','outbound_id'=>$existing->id,'status'=>$existing->status]);
+  }
   $ready=SpadCrmDeliveryService::readiness();
   abort_unless($ready[$channel],503,'وب‌سرویس این کانال هنوز فعال نشده است.');
   // One admin-confirmed contact; no bulk dispatch, no unattended campaigns.
@@ -182,7 +187,7 @@ class SpadCrmProController extends Controller {
    abort_if(DB::table('spad_crm_outbound')->where('contact_id',$id)->whereDate('created_at',today())->count()>=3,429,'سقف سه ارتباط روزانه با این مشتری پر شده است.');
    abort_if(DB::table('spad_crm_outbound')->whereDate('created_at',today())->count()>=30,429,'سقف سی درخواست ارتباط روزانه سامانه پر شده است.');
    return DB::table('spad_crm_outbound')->insertGetId([
-    'contact_id'=>$id,'admin_id'=>$uid,'channel'=>$channel,'message'=>$v['message'],
+    'contact_id'=>$id,'admin_id'=>$uid,'channel'=>$channel,'message'=>$v['message'],'request_id'=>$v['request_id'],
     'status'=>'processing','provider'=>$channel==='sms'?'SMS.ir':'خودگو',
     'created_at'=>now(),'updated_at'=>now()
    ]);
