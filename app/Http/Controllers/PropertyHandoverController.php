@@ -59,11 +59,14 @@ class PropertyHandoverController extends Controller
             'type' => 'required|in:sale,rental_in,rental_out',
             'title' => 'required|string|min:3|max:150',
             'address' => 'nullable|string|max:500',
+            'user_role' => 'required|in:owner,tenant',
+            'handover_note' => 'nullable|string|max:3000',
         ]);
         abort_if(DB::table('spad_handover_checklists')->where('user_id', $uid)->count() >= 200, 422, 'سقف ۲۰۰ پرونده برای این حساب تکمیل شده است.');
         $id = DB::table('spad_handover_checklists')->insertGetId([
             'user_id' => $uid, 'type' => $input['type'],
             'status' => 'draft', 'title' => $input['title'],
+            'user_role' => $input['user_role'], 'handover_note' => $input['handover_note'] ?? null,
             'address' => $input['address'] ?? null,
             'details' => '{}', 'items' => '{}',
             'created_at' => now(), 'updated_at' => now()
@@ -90,6 +93,10 @@ class PropertyHandoverController extends Controller
             'handover_from' => 'nullable|string|max:150',
             'handover_to' => 'nullable|string|max:150',
             'handover_date' => 'nullable|date_format:Y-m-d',
+            'user_role' => 'sometimes|required|in:owner,tenant',
+            'handover_note' => 'nullable|string|max:3000',
+            'from_phone' => 'nullable|string|max:15',
+            'to_phone' => 'nullable|string|max:15',
             'details' => 'sometimes|array|max:25',
             'items' => 'sometimes|array|max:80',
         ]);
@@ -123,17 +130,12 @@ class PropertyHandoverController extends Controller
         return $this->show($request, $id);
     }
 
+    // Completion requires both participants' actual SMS verification.
     public function complete(Request $request, $id)
     {
         $this->ready();
-        $row = $this->owned($request, $id);
-        abort_if($row->status !== 'draft', 422, 'این گزارش قبلاً نهایی شده است.');
-        $items = json_decode($row->items ?: '{}', true) ?: [];
-        $verified = count(array_filter($items, function ($v) { return ($v['status'] ?? 'pending') !== 'pending'; }));
-        abort_if($verified < 1, 422, 'پیش از نهایی‌کردن، حداقل یک مورد را بررسی کنید.');
-        DB::table('spad_handover_checklists')->where('id', $row->id)->where('user_id', $row->user_id)
-            ->update(['status' => 'completed', 'completed_at' => now(), 'updated_at' => now()]);
-        return $this->show($request, $id);
+        $this->owned($request, $id);
+        abort(422, 'نهایی‌سازی فقط پس از تأیید پیامکی مستقل هر دو طرف انجام می‌شود.');
     }
 
     public function uploadPhoto(Request $request, $id)
