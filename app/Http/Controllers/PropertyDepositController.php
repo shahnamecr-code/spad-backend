@@ -206,7 +206,7 @@ class PropertyDepositController extends Controller
         $orders->getCollection()->transform(function ($order) {
             return $this->orderPayload($order);
         });
-        return $orders->response()->header('Cache-Control', 'private, no-store');
+        return response()->json($orders)->header('Cache-Control', 'private, no-store');
     }
 
     public function status(Request $request, PropertyDepositOrder $order)
