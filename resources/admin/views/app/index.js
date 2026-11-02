@@ -69,6 +69,7 @@ const MaterialsAdmin = React.lazy(() => import("./material-prices"));
 const CommunityAdmin = React.lazy(() => import("./community"));
 const PropertyAffairsAdmin = React.lazy(() => import("./property-affairs"));
 const RenovationAdmin = React.lazy(() => import("./renovation"));
+const WebServicesAdmin = React.lazy(() => import("./web-services"));
 class CommunityPageErrorBoundary extends React.Component {
  constructor(props){super(props);this.state={hasError:false};}
  static getDerivedStateFromError(){return {hasError:true};}
@@ -206,6 +207,7 @@ const App = ({ match, step, location }) => {
                   path={`${match.url}/partner-panels`}
                   render={(props) => <PartnerPanels {...props} />}
                 />
+                <Route path={`${match.url}/web-services`} render={(props) => <WebServicesAdmin {...props} />} />
                 <Route
                   path={`${match.url}/settings`}
                   render={(props) => <Settings {...props}/>}
