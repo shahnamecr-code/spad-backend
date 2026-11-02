@@ -10,6 +10,7 @@ import "../../assets/css/sass/spad-admin-modernize-v6.scss";
 import "../../assets/css/sass/spad-admin-v7.scss";
 import "../../assets/css/sass/spad-admin-v8.scss";
 import "../../assets/css/sass/spad-admin-v9-legacy.scss";
+import "../../assets/css/sass/spad-admin-v10-compact.scss";
 import LegacySectionHeader, {isLegacyAdminRoute} from "./LegacySectionHeader";
 
 // import { ProtectedRoute, UserRole } from '../../helpers/authHelper';
