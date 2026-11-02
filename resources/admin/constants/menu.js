@@ -121,12 +121,14 @@ const data = [
     id: "wallets",
     icon: "iconsminds-wallet",
     label: "menu.wallets",
-    to: `${adminRoot}/wallets/list`,
+    to: `${adminRoot}/wallets/center`,
     roles: [UserRole.Admin],
     subs: [
-      { icon: "simple-icon-wallet", label: "menu.wallets.list", to: `${adminRoot}/wallets/list`, roles: [UserRole.Admin] },
-      { icon: "simple-icon-list", label: "menu.wallets.transactions", to: `${adminRoot}/wallets/transactions`, roles: [UserRole.Admin] },
-      { icon: "simple-icon-settings", label: "menu.wallets.settings", to: `${adminRoot}/wallets/settings`, roles: [UserRole.Admin] },
+      { icon: "simple-icon-grid", label: "menu.wallets.center", to: `${adminRoot}/wallets/center`, roles: [UserRole.Admin] },
+      { icon: "simple-icon-credit-card", label: "menu.wallets.gateway", to: `${adminRoot}/wallets/center?tab=gateways`, roles: [UserRole.Admin] },
+      { icon: "simple-icon-wallet", label: "menu.wallets.list", to: `${adminRoot}/wallets/center?tab=wallets`, roles: [UserRole.Admin] },
+      { icon: "simple-icon-list", label: "menu.wallets.transactions", to: `${adminRoot}/wallets/center?tab=transactions`, roles: [UserRole.Admin] },
+      { icon: "simple-icon-settings", label: "menu.wallets.settings", to: `${adminRoot}/wallets/center?tab=settings`, roles: [UserRole.Admin] },
     ],
   },
   {
