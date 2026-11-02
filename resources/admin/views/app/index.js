@@ -9,6 +9,8 @@ import "../../assets/css/sass/spad-admin-modern.scss";
 import "../../assets/css/sass/spad-admin-modernize-v6.scss";
 import "../../assets/css/sass/spad-admin-v7.scss";
 import "../../assets/css/sass/spad-admin-v8.scss";
+import "../../assets/css/sass/spad-admin-v9-legacy.scss";
+import LegacySectionHeader, {isLegacyAdminRoute} from "./LegacySectionHeader";
 
 // import { ProtectedRoute, UserRole } from '../../helpers/authHelper';
 
@@ -98,7 +100,8 @@ const App = ({ match, step, location }) => {
   return (
     <AxiosInterceptor>
       <AppLayout>
-        <div className="dashboard-wrapper spad-admin-modern">
+        <div className={`dashboard-wrapper spad-admin-modern ${isLegacyAdminRoute(location.pathname) ? "spad-admin-legacy-theme" : ""}`}>
+          {!step && isLegacyAdminRoute(location.pathname) && <LegacySectionHeader pathname={location.pathname} />}
           <Suspense fallback={<div className="loading" />}>
             {step ? (
               <>
