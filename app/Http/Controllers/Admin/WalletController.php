@@ -144,6 +144,76 @@ class WalletController extends Controller
         return $query->latest()->paginate(min(100, max(10, (int) $request->get('per_page', 30))));
     }
 
+    /**
+     * Read-only operational snapshot for the unified gateway & wallet admin center.
+     * A configured gateway is NOT a verified live transaction.
+     * Never expose config_encrypted, callback tokens, or raw payment secrets.
+     */
+    public function centerOverview(Request $request)
+    {
+        $admin = auth('admin')->user();
+        abort_unless($admin && $admin->roles()->where('name', 'Super Admin')->exists(), 403);
+
+        $topups = WalletTopup::query()
+            ->with(['user:id,first_name,last_name,mobile', 'gateway:id,title,driver'])
+            ->latest('id')->limit(12)->get()->map(function ($item) {
+                return [
+                    'id' => $item->id,
+                    'amount' => (int) $item->amount,
+                    'status' => $item->status,
+                    'tracking_code' => $item->tracking_code,
+                    'reference_id' => $item->reference_id,
+                    'created_at' => optional($item->created_at)->toIso8601String(),
+                    'user' => $item->user ? [
+                        'id' => $item->user->id,
+                        'full_name' => $item->user->full_name,
+                        'mobile' => $item->user->mobile,
+                    ] : null,
+                    'gateway' => $item->gateway ? [
+                        'id' => $item->gateway->id,
+                        'title' => $item->gateway->title,
+                        'driver' => $item->gateway->driver,
+                    ] : null,
+                ];
+            });
+
+        $gateways = WalletGateway::query()->orderByDesc('is_default')->get()->map(function ($gateway) {
+            $config = $gateway->secureConfig();
+            $credential = trim((string) ($config['merchantId'] ?? ''));
+            return [
+                'id' => $gateway->id,
+                'title' => $gateway->title,
+                'driver' => $gateway->driver,
+                'enabled' => (bool) $gateway->enabled,
+                'is_default' => (bool) $gateway->is_default,
+                'credential_registered' => $credential !== '',
+                'currency' => $config['currency'] ?? 'T',
+                'mode' => $config['mode'] ?? 'normal',
+                'connection_status' => !$gateway->enabled ? 'disabled' : ($credential !== '' ? 'configured_not_tested' : 'missing_credentials'),
+            ];
+        });
+
+        $statusCounts = WalletTopup::query()
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
+        return response()->json([
+            'data' => [
+                'gateways' => $gateways,
+                'topups' => $topups,
+                'topup_counts' => $statusCounts,
+                'total_paid_amount' => (int) WalletTopup::query()->where('status', 'paid')->sum('amount'),
+                'total_wallet_balance' => (int) Wallet::query()->sum('balance'),
+                'total_wallet_users' => Wallet::query()->count(),
+                'total_transactions' => WalletTransaction::query()->count(),
+                'wallet_enabled' => WalletSetting::valueOf('wallet_enabled', '1') === '1',
+                'topup_enabled' => WalletSetting::valueOf('topup_enabled', '1') === '1',
+                'connection_note' => 'اطلاعات اتصال، نشانه ثبت تنظیمات است و نه تأیید پرداخت واقعی.',
+            ],
+        ])->header('Cache-Control', 'private, no-store');
+    }
+
     public function settings()
     {
         return response()->json([
