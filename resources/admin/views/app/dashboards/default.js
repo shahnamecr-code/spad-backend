@@ -22,46 +22,72 @@ const Stat=({title,value,icon,link,color})=><Link to={link} className={'spad-v8-
 const Pane=({title,sub,children,action,klass=''})=><section className={'spad-v8-pane '+klass}>
  <div className="spad-v8-pane-head"><div><h2>{title}</h2>{sub&&<p>{sub}</p>}</div>{action}</div>{children}
  </section>;
-const ServerHealthPanel=({info,loading,error,onRefresh})=>{
- const samples=info&&Array.isArray(info.samples)?info.samples:[];
- const recent=samples.slice(-32);
- const ok=recent.length?recent[recent.length-1].app_ok&&recent[recent.length-1].db_ok:false;
- const observed=info&&info.observed_success_percent!==null&&info.observed_success_percent!==undefined?Number(info.observed_success_percent).toLocaleString('fa-IR',{maximumFractionDigits:1})+'٪':null;
+const ServerHealthPanel=({info,loading,error,onRefresh,period,onPeriod})=>{
+ const samples=Array.isArray(info?.samples)?info.samples:[];
+ const recent=samples.slice(-52);
  const last=recent.length?recent[recent.length-1]:null;
- const ms=last&&last.app_ms!==null&&Number.isFinite(Number(last.app_ms))?Number(last.app_ms).toLocaleString('fa-IR')+' میلی‌ثانیه':'نامشخص';
- return <div className="spad-v10-health" role="region" aria-label="پایش واقعی سلامت سایت و پایگاه داده">
-   <div className="spad-v10-health__heading"><span><i className="simple-icon-heart"/> پایش پایداری سرور</span>
-    <button type="button" onClick={onRefresh} disabled={loading} title="تازه‌سازی وضعیت پایداری"><i className="simple-icon-refresh"/></button></div>
-   <div className="spad-v10-health__primary">
-    <div><strong>{observed||'در حال گردآوری'}</strong><small>{observed?'درصد موفقیت نمونه‌های ثبت‌شده':'نیازمند حداقل ۱۲ نمونه'}</small></div>
-    <span className={'spad-v10-health__badge '+(last?(ok?'good':'bad'):'unknown')}>
-      <i className="simple-icon-check"/> {last?(ok?'آخرین بررسی سالم':'نیازمند بررسی'):'هنوز داده‌ای موجود نیست'}</span>
-   </div>
-   {recent.length?
-    <div className="spad-v10-health__plot" role="img" aria-label={'آخرین '+recent.length.toLocaleString('fa-IR')+' نمونه ثبت‌شده پایش'}>
-     {recent.map((p,i)=><span key={p.at||i} className={'spad-v10-health__bar '+(p.app_ok&&p.db_ok?'good':'bad')}
-      style={{height:(p.app_ms===null?25:Math.max(20,Math.min(92,25+Number(p.app_ms)/30)))+'%'}}
-      title={(p.at||'')+' | '+(p.app_ok&&p.db_ok?'پاسخ موفق':'پاسخ ناموفق')+' | '+(p.app_ms||'—')+' میلی‌ثانیه'}/>)}
-    </div>:
-    <div className="spad-v10-health__no-data">داده تاریخی موجود نیست؛ نخستین بررسی از سرور درخواست شده است.</div>}
-   <div className="spad-v10-health__foot"><span>زمان پاسخ آخرین نمونه: {ms}</span><span>{info?.sample_count?Number(info.sample_count).toLocaleString('fa-IR')+' نمونه واقعی':'در انتظار ثبت نمونه'}</span></div>
-   <small className="spad-v10-health__caveat">{error||'این نمودار نتایج بررسی‌های ثبت‌شده را نشان می‌دهد، نه تضمین آپتایم شبانه‌روزی.'}</small>
-  </div>;
+ const healthy=Boolean(last&&last.app_ok&&last.db_ok);
+ const stale=!last||Number(info?.latest_age_seconds||0)>900;
+ const observed=info?.observed_success_percent!==null&&info?.observed_success_percent!==undefined?
+ Number(info.observed_success_percent).toLocaleString('fa-IR',{maximumFractionDigits:1})+'٪':'—';
+ const maxLatency=Math.max(100,...recent.map(x=>Number(x.app_ms)||0));
+ const dots=recent.map((p,i)=>({x:8+(i/Math.max(1,recent.length-1))*404,
+  y:84-Math.min(74,Math.max(0,(Number(p.app_ms)||0)/maxLatency*70)),
+  ok:p.app_ok&&p.db_ok,time:p.at,ms:p.app_ms}));
+ const points=dots.filter(x=>x.ok&&x.ms!==null);
+ const speed=val=>val===null||val===undefined?'—':Number(val).toLocaleString('fa-IR')+' میلی‌ثانیه';
+ const incidents=Array.isArray(info?.incidents)?info.incidents:[];
+ return <section className="spad-v11-health" aria-label="گزارش دقیق پایداری سامانه">
+  <div className="spad-v11-health__top">
+   <div><span className="spad-v11-health__pulse"/><strong>پایش سلامت و پایداری سامانه</strong></div>
+   <button type="button" disabled={loading} aria-label="بررسی مجدد سلامت سرور" onClick={onRefresh}><i className="simple-icon-refresh"/></button>
+  </div>
+  <div className="spad-v11-health__period" role="group" aria-label="بازه بررسی سلامت">
+   <button type="button" className={period==='24h'?'active':''} onClick={()=>onPeriod('24h')}>۲۴ ساعت</button>
+   <button type="button" className={period==='7d'?'active':''} onClick={()=>onPeriod('7d')}>۷ روز</button>
+   <span className={'spad-v11-health__state '+(stale?'unknown':healthy?'good':'bad')}>
+    {stale?'داده تازه موجود نیست':healthy?'آخرین بررسی سالم':'آخرین بررسی ناموفق'}</span>
+  </div>
+  <div className="spad-v11-health__metrics">
+   <div><small>موفقیت نمونه‌ها</small><strong>{observed}</strong></div>
+   <div><small>میانگین پاسخ</small><strong>{speed(info?.average_response_ms)}</strong></div>
+   <div><small>صدک ۹۵ پاسخ</small><strong>{speed(info?.p95_response_ms)}</strong></div>
+  </div>
+  <div className="spad-v11-health__plot">
+   <div className="spad-v11-health__plot-label"><b>روند تأخیر پاسخ سایت</b><small>آخرین {recent.length.toLocaleString('fa-IR')} نمونه ثبت‌شده</small></div>
+   {points.length>1?<svg viewBox="0 0 420 94" preserveAspectRatio="none" role="img" aria-label="روند زمان پاسخ براساس اندازه‌گیری‌های واقعی">
+     <line x1="5" y1="84" x2="415" y2="84" stroke="#ffffff22" strokeWidth="1"/>
+     <line x1="5" y1="49" x2="415" y2="49" stroke="#ffffff16" strokeDasharray="4 5"/>
+     <polyline fill="none" stroke="#7ce7f7" strokeWidth="2.3" strokeLinejoin="round" strokeLinecap="round"
+      points={points.map(x=>x.x+','+x.y).join(' ')}/>
+     {dots.map((p,i)=><circle key={p.time||i} cx={p.x} cy={p.y} r={p.ok?2.8:4.2} fill={p.ok?'#aafbec':'#ffc38b'}/>)}
+    </svg>:<div className="spad-v11-health__empty">برای رسم روند به دست‌کم دو اندازه‌گیری موفق نیاز است.</div>}
+  </div>
+  <div className="spad-v11-health__samples">
+   <div><span>نمونه‌های بررسی‌شده</span><b>{Number(info?.sample_count||0).toLocaleString('fa-IR')}</b></div>
+   <div><span>بررسی‌های ناموفق</span><b>{Number(info?.failed_count||0).toLocaleString('fa-IR')}</b></div>
+   <div><span>پوشش زمانی نمونه‌برداری</span><b>{info?.coverage_percent!==undefined?Number(info.coverage_percent).toLocaleString('fa-IR')+'٪':'—'}</b></div>
+  </div>
+  {incidents.length>0?<div className="spad-v11-health__incident"><i className="simple-icon-exclamation"/><span>{Number(incidents.length).toLocaleString('fa-IR')} نمونه ناموفق در تاریخچه؛ آخرین مورد: {incidents[0].at}</span></div>
+  :<div className="spad-v11-health__incident ok"><i className="simple-icon-check"/><span>در نمونه‌های ثبت‌شده این بازه، خطایی دیده نشده است.</span></div>}
+  <div className="spad-v11-health__bottom"><small>{error||'داده‌ها از بررسی HTTPS سایت و پایگاه داده ثبت می‌شوند. فاصله‌های فاقد نمونه، وضعیت نامشخص دارند.'}</small><span>{info?.last_at?'آخرین نمونه: '+info.last_at:'در انتظار نمونه'}</span></div>
+ </section>;
 };
 const DashboardDefault=()=>{
  const [dashboard,setDashboard]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const [services,setServices]=useState(null);
  const [health,setHealth]=useState(null);
+ const [healthPeriod,setHealthPeriod]=useState('24h');
  const [healthLoading,setHealthLoading]=useState(true);
  const [healthError,setHealthError]=useState('');
  const loadHealth=useCallback(async()=>{
   setHealthLoading(true);
   try{
-   const response=await axios.get(adminPathApi+'/dashboard/server-health');
+   const response=await axios.get(adminPathApi+'/dashboard/server-health',{params:{period:healthPeriod}});
    setHealth(response?.data?.data||null);setHealthError('');
   }catch(e){setHealthError('ارتباط با سامانه پایش برقرار نشد.');}
   finally{setHealthLoading(false);}
- },[]);
+ },[healthPeriod]);
  useEffect(()=>{loadHealth();const timer=setInterval(loadHealth,300000);return()=>clearInterval(timer);},[loadHealth]);
  const user=useSelector(s=>s.authUser.currentUser);
  const superAdmin=list(user?.roles).includes('Super Admin');
@@ -125,7 +151,7 @@ const DashboardDefault=()=>{
     <p>نمای یکپارچه عملکرد مجموعه، پرونده‌های ملکی و خدمات دیجیتال</p>
     <div className="spad-v8-dash-meta"><span><i className="simple-icon-calendar"/> {today()}</span><span><i className="simple-icon-chart"/> داده‌های واقعی سامانه</span></div>
    </div>
-   <ServerHealthPanel info={health} loading={healthLoading} error={healthError} onRefresh={loadHealth}/>
+   <ServerHealthPanel info={health} loading={healthLoading} error={healthError} onRefresh={loadHealth} period={healthPeriod} onPeriod={setHealthPeriod}/>
   </header>
   {superAdmin&&<section className="spad-v8-settings-launcher" aria-labelledby="spad-v8-settings-title">
    <div className="spad-v8-settings-launcher__heading">
