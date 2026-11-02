@@ -19,6 +19,7 @@ include 'media.php';
 
 include 'raffle.php';
 include 'wallet.php';
+require_once __DIR__ . '/ai-assistant.php';
 include 'inquiry.php';
 
 include 'virtual-tour.php';
