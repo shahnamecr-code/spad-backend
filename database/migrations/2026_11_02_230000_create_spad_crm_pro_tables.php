@@ -29,7 +29,7 @@ class CreateSpadCrmProTables extends Migration {
   });
   Schema::create('spad_crm_outbound',function(Blueprint $t){
    $t->bigIncrements('id');$t->unsignedBigInteger('contact_id')->index();$t->unsignedBigInteger('admin_id')->index();
-   $t->string('channel',16);$t->string('status',25)->default('pending');$t->string('provider',45);
+   $t->uuid('request_id')->unique();$t->string('channel',16);$t->string('status',25)->default('pending');$t->string('provider',45);
    $t->text('message');$t->string('provider_ref',140)->nullable();$t->string('failure_code',70)->nullable();
    $t->timestamp('attempted_at')->nullable();$t->timestamps();
    $t->index(['contact_id','channel','created_at'],'spad_crm_outbound_contact_channel');
