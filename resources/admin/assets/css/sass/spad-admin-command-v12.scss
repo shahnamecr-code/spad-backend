@@ -1,0 +1,86 @@
+/*
+ * SPAD command center V12.
+ * Only the top dashboard hero is affected. All other dashboard cards, route
+ * sections, provider settings, and health API behavior remain unchanged.
+ */
+.spad-v8-dashboard .spad-v12-command-hero {
+ display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+ gap:16px;min-height:0;margin-bottom:20px;padding:20px 24px 24px;
+ border-radius:21px;background:linear-gradient(112deg,#052d53 0%,#075c9f 57%,#0786c9 100%);
+}
+.spad-v12-command-hero__heading {
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+ gap:12px;min-width:0;position:relative;z-index:1;
+}
+.spad-v12-command-hero__label {
+ display:inline-flex;align-items:center;gap:11px;max-width:100%;
+ min-height:37px;padding:9px 14px;border-radius:11px;
+ background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.3);
+ color:#fff;font-weight:800;font-size:13px;line-height:1.8;
+}
+.spad-v12-command-hero__label .spad-v8-live-dot{flex:0 0 8px}
+.spad-v12-command-hero__datetime {
+ display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;
+}
+.spad-v12-command-hero__datetime>span {
+ min-height:34px;display:inline-flex;align-items:center;gap:7px;
+ padding:7px 12px;background:rgba(4,37,69,.29);
+ border:1px solid rgba(255,255,255,.2);border-radius:10px;
+ font-size:11px;line-height:1.7;color:#eaf8ff;
+ white-space:nowrap;font-variant-numeric:tabular-nums;
+}
+.spad-v12-command-hero__datetime i{color:#96deff;font-size:13px}
+.spad-v12-command-hero__datetime small{color:#add9f2;font-size:9px}
+.spad-v8-dashboard .spad-v12-command-hero .spad-v11-health {
+ display:flex;flex:0 0 auto;align-self:stretch;width:100%;max-width:100%;
+ gap:14px;margin:0;min-height:0;padding:18px 22px 17px;
+ background:linear-gradient(115deg,rgba(2,23,52,.68),rgba(0,49,83,.55));
+ border-radius:16px;box-shadow:inset 0 1px rgba(255,255,255,.1),0 9px 26px rgba(1,24,52,.16);
+}
+.spad-v12-command-hero .spad-v11-health__top strong{font-size:13px}
+.spad-v12-command-hero .spad-v11-health__period{gap:9px}
+.spad-v12-command-hero .spad-v11-health__period button{padding:7px 15px}
+.spad-v12-command-hero .spad-v11-health__metrics{gap:11px}
+.spad-v12-command-hero .spad-v11-health__metrics>div{padding:14px 17px;gap:7px}
+.spad-v12-command-hero .spad-v11-health__metrics small{font-size:10px}
+.spad-v12-command-hero .spad-v11-health__metrics strong{font-size:19px}
+.spad-v12-command-hero .spad-v11-health__plot{padding:15px 17px;border-radius:12px}
+.spad-v12-command-hero .spad-v11-health__plot-label{margin-bottom:9px}
+.spad-v12-command-hero .spad-v11-health__plot-label b{font-size:11px}
+.spad-v12-command-hero .spad-v11-health__plot-label small{font-size:9.5px}
+.spad-v12-command-hero .spad-v11-health__plot svg{height:124px}
+.spad-v12-command-hero .spad-v11-health__empty{min-height:124px}
+.spad-v12-command-hero .spad-v11-health__samples{gap:10px}
+.spad-v12-command-hero .spad-v11-health__samples>div{
+ padding:5px 12px 5px 0;gap:8px;
+}
+.spad-v12-command-hero .spad-v11-health__samples span{font-size:10px}
+.spad-v12-command-hero .spad-v11-health__samples b{font-size:14px}
+.spad-v12-command-hero .spad-v11-health__bottom{gap:8px}
+.spad-v12-command-hero .spad-v11-health__bottom small,
+.spad-v12-command-hero .spad-v11-health__bottom span{font-size:9px}
+@media(max-width:850px){
+ .spad-v8-dashboard .spad-v12-command-hero{padding:17px;gap:12px}
+ .spad-v12-command-hero__heading{justify-content:flex-start}
+ .spad-v12-command-hero__datetime{justify-content:flex-start}
+ .spad-v8-dashboard .spad-v12-command-hero .spad-v11-health{padding:15px}
+}
+@media(max-width:560px){
+ .spad-v8-dashboard .spad-v12-command-hero{padding:12px;border-radius:15px}
+ .spad-v12-command-hero__heading{gap:8px}
+ .spad-v12-command-hero__label{font-size:11px;padding:8px 11px;min-height:33px}
+ .spad-v12-command-hero__datetime{gap:6px;width:100%}
+ .spad-v12-command-hero__datetime>span{font-size:9.5px;padding:7px 9px;min-height:31px}
+ .spad-v8-dashboard .spad-v12-command-hero .spad-v11-health{padding:11px;gap:10px;border-radius:12px}
+ .spad-v12-command-hero .spad-v11-health__top strong{font-size:11px}
+ .spad-v12-command-hero .spad-v11-health__metrics{gap:5px}
+ .spad-v12-command-hero .spad-v11-health__metrics>div{padding:9px 7px}
+ .spad-v12-command-hero .spad-v11-health__metrics strong{font-size:12px}
+ .spad-v12-command-hero .spad-v11-health__metrics small{font-size:8px}
+ .spad-v12-command-hero .spad-v11-health__plot{padding:10px}
+ .spad-v12-command-hero .spad-v11-health__plot svg{height:90px}
+ .spad-v12-command-hero .spad-v11-health__empty{min-height:90px}
+ .spad-v12-command-hero .spad-v11-health__samples>div{padding-right:5px}
+ .spad-v12-command-hero .spad-v11-health__samples span{font-size:8px}
+ .spad-v12-command-hero .spad-v11-health__samples b{font-size:11px}
+}
