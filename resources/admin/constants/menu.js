@@ -351,6 +351,13 @@ const data = [
     // ],
   },
   {
+    id: "ai-assistant",
+    icon: "simple-icon-bubbles",
+    label: "دستیار هوشمند ملکی",
+    to: `${adminRoot}/ai-assistant`,
+    roles: [UserRole.Admin],
+  },
+  {
     id: "web-services",
     icon: "simple-icon-puzzle",
     label: "menu.web-services",
