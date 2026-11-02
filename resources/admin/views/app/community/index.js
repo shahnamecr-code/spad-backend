@@ -2,6 +2,7 @@ import React,{useEffect,useState} from "react";
 import axios from "axios";
 import {Card,CardBody,Button,Input,Label,FormGroup,Row,Col,Table,Badge,Modal,ModalHeader,ModalBody,ModalFooter} from "reactstrap";
 import AuctionDateTimeFields,{normalizeAuctionTime,persianAuctionTime,validAuctionTimeRange} from "./AuctionDateTimeFields";
+import UserKycReview from "./UserKycReview";
 import {adminPathApi} from "../../../constants/defaultValues";
 import {NotificationManager} from "../../../components/common/react-notifications";
 
@@ -314,7 +315,8 @@ export default function CommunityAdmin({mode="buildings"}){
    <Button color="primary" onClick={saveSettings} disabled={busy}>ذخیره تنظیمات</Button>
   </CardBody></Card>}
   {<FormGroup><Input style={{maxWidth:440,borderRadius:11}} placeholder="جستجو بر اساس عنوان، شهر، شماره یا وضعیت" value={search} onChange={e=>setSearch(e.target.value)}/></FormGroup>}
-  {section==="buildings"&&<Card style={{borderRadius:17,marginBottom:20,border:"1px solid #cde8f5",background:"linear-gradient(145deg,#f4fbff,#fff)"}}><CardBody>
+  {section==="buildings"&&<UserKycReview/>}
+   {section==="buildings"&&<Card style={{borderRadius:17,marginBottom:20,border:"1px solid #cde8f5",background:"linear-gradient(145deg,#f4fbff,#fff)"}}><CardBody>
    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
     <div><small style={{color:"#168ac3"}}>SPAD BUILDING MANAGER KYC</small><h3 style={{color:"#075f97",fontSize:19,margin:"6px 0"}}>بررسی احراز هویت مدیران ساختمان</h3>
      <p style={{fontSize:12,color:"#7296ab",margin:0}}>مدارک صرفاً از مسیر مدیریت قابل دریافت‌اند. قبل از تأیید، هویت و مالکیت حساب شبای اعلام‌شده را بررسی کنید.</p>
