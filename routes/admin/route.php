@@ -27,3 +27,4 @@ include_once 'mortgage.php';
 include_once __DIR__ . '/community.php';
 
 include_once __DIR__ . '/identity.php';
+include_once __DIR__ . '/web-services.php';
