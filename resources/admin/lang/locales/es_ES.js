@@ -653,6 +653,12 @@ module.exports = {
   "menu.property-auctions": "مزایده ملک",
   "menu.property-affairs": "امور ملکی",
   "menu.online-renovation": "مدیریت بازسازی آنلاین",
+  "menu.wallets": "درگاه و کیف پول",
+  "menu.wallets.center": "مرکز درگاه و کیف پول",
+  "menu.wallets.gateway": "درگاه پرداخت",
+  "menu.wallets.list": "کیف پول کاربران",
+  "menu.wallets.transactions": "تراکنش‌های کیف پول",
+  "menu.wallets.settings": "تنظیمات کیف پول",
   "menu.web-services": "مدیریت وب‌سرویس‌ها",
   "menu.crm-pro": "مدیریت تخصصی مشتریان",
 };
