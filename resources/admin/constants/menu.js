@@ -343,6 +343,13 @@ const data = [
     // ],
   },
   {
+    id: "web-services",
+    icon: "simple-icon-puzzle",
+    label: "menu.web-services",
+    to: `${adminRoot}/web-services`,
+    roles: [UserRole.Admin],
+  },
+  {
     id: "settings",
     icon: "simple-icon-settings",
     label: "menu.settings",
