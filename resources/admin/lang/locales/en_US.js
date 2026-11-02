@@ -805,7 +805,9 @@ module.exports = {
   "menu.contact": "ارتباط با ما",
 
   "menu.license":"فعالسازی قالب",
-  "menu.wallets": "کیف پول کاربران",
+  "menu.wallets": "درگاه و کیف پول",
+  "menu.wallets.center": "مرکز درگاه و کیف پول",
+  "menu.wallets.gateway": "درگاه پرداخت",
   "menu.wallets.list": "مدیریت کیف پول",
   "menu.wallets.transactions": "تراکنش‌های کیف پول",
   "menu.wallets.settings": "تنظیمات کیف پول",
