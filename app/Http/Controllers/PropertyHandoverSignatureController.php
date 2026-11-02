@@ -162,6 +162,16 @@ class PropertyHandoverSignatureController extends Controller {
    'mobile_masked'=>$this->mask($sig->mobile),
    'verified_at'=>$sig->verified_at,'status'=>$row->status,
    'expires_at'=>$sig->expires_at,'snapshot_hash'=>$row->snapshot_hash,
+   'report'=>[
+    'type'=>$row->type,'title'=>$row->title,'address'=>$row->address,
+    'unit'=>$row->unit,'contract_reference'=>$row->contract_reference,
+    'handover_date'=>$row->handover_date,
+    'handover_from'=>$row->handover_from,'handover_to'=>$row->handover_to,
+    'user_role'=>$row->user_role,'handover_note'=>$row->handover_note,
+    'details'=>json_decode($row->details?:'{}',true)?:[],
+    'items'=>json_decode($row->items?:'{}',true)?:[],
+    'photo_count'=>DB::table('spad_handover_photos')->where('checklist_id',$row->id)->count(),
+   ],
   ]])->header('Cache-Control','no-store')->header('X-Robots-Tag','noindex, nofollow');
  }
  public function publicSend(Request $r,$token) {
