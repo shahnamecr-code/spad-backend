@@ -19,6 +19,7 @@ class AddSpadHandoverSignatures extends Migration {
    $t->string('party',8);
    $t->string('mobile',15);
    $t->string('invitation_hash',64)->unique();
+   $t->text('invitation_cipher');
    $t->string('otp_hash',255)->nullable();
    $t->timestamp('expires_at')->nullable();
    $t->unsignedTinyInteger('attempts')->default(0);
