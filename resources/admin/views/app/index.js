@@ -8,6 +8,7 @@ import AxiosInterceptor from "../../helpers/AxiosInterceptor";
 import "../../assets/css/sass/spad-admin-modern.scss";
 import "../../assets/css/sass/spad-admin-modernize-v6.scss";
 import "../../assets/css/sass/spad-admin-v7.scss";
+import "../../assets/css/sass/spad-admin-v8.scss";
 
 // import { ProtectedRoute, UserRole } from '../../helpers/authHelper';
 
