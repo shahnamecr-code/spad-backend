@@ -1,4 +1,5 @@
 import React, { Suspense, useState } from "react";
+import axios from "axios";
 import {
   TabContent,
   TabPane,
@@ -146,13 +147,13 @@ const Settings = ({ match }) => {
   }
 
   return (
-    <React.Fragment>
+    <div className="spad-v9-settings-page">
       <Breadcrumb heading="menu.settings" match={match} />
       <Separator className="mb-5" />
       <Row>
         <Colxx md="12">
           <Card>
-            <Nav tabs>
+            <Nav tabs className="spad-v9-settings-tabs">
               {Object.keys(tabs).map((index) => (
                 <NavItem>
                   <NavLink
@@ -178,7 +179,7 @@ const Settings = ({ match }) => {
           </Card>
         </Colxx>
       </Row>
-    </React.Fragment>
+    </div>
   );
 };
 
