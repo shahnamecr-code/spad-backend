@@ -53,7 +53,7 @@ class SpadAdminHealthService
   );
   return true;
  }
- public static function report()
+ public static function report($hours=24)
  {
   if(!self::available())return ['ready'=>false,'samples'=>[],'message'=>'سرویس پایش نصب نشده است.'];
   try {
@@ -61,7 +61,8 @@ class SpadAdminHealthService
   }catch(\Throwable $e) {
    // A read-only report can still render cached samples if fresh probe fails.
   }
-  $since=now()->subHours(24)->startOfMinute();
+  $hours=$hours===168?168:24;
+  $since=now()->subHours($hours)->startOfMinute();
   $points=DB::table(self::TABLE)->where('sampled_at','>=',$since)
     ->orderBy('sampled_at')->get([
       'sampled_at','database_ok','application_ok','db_latency_ms','app_latency_ms','note'
@@ -78,11 +79,25 @@ class SpadAdminHealthService
   })->values()->all();
   $count=count($samples);
   $success=count(array_filter($samples,function($item){return $item['app_ok'] && $item['db_ok'];}));
+  $failures=array_values(array_filter($samples,function($item){return !$item['app_ok']||!$item['db_ok'];}));
+  $latencies=array_values(array_filter(array_map(function($item){return $item['app_ok'] ? $item['app_ms'] : null;},$samples),function($v){return $v!==null;}));
+  sort($latencies);
+  $latencyCount=count($latencies);
+  $avg=$latencyCount?(int)round(array_sum($latencies)/$latencyCount):null;
+  $p95=$latencyCount?$latencies[max(0,(int)ceil($latencyCount*0.95)-1)]:null;
+  $expected=(int)($hours*60/self::INTERVAL);
+  // Elapsed since last recorded observation, not an uptime claim.
+  $latestAge=$count?abs((int)now()->diffInSeconds(\Carbon\Carbon::parse($samples[$count-1]['at']))):null;
   // Samples are observations, not proof of 24h continuous uptime.
   return [
    'ready'=>true,'source'=>'server_probe','probe_target'=>'https://www.spad.estate/',
    'interval_minutes'=>self::INTERVAL,'sample_count'=>$count,'samples'=>$samples,
-   'success_count'=>$success,
+   'success_count'=>$success,'failed_count'=>count($failures),
+   'coverage_percent'=>round(min(100,$count/max(1,$expected)*100),1),
+   'window_hours'=>$hours,'expected_samples'=>$expected,
+   'average_response_ms'=>$avg,'p95_response_ms'=>$p95,
+   'latest_age_seconds'=>$latestAge,
+   'incidents'=>array_slice(array_reverse($failures),0,12),
    'observed_success_percent'=>$count>=12?round($success/$count*100,1):null,
    'last_at'=>$count?$samples[$count-1]['at']:null,
    'message'=>$count<12?'پایش تازه آغاز شده و هنوز نمونه کافی برای درصد موفقیت وجود ندارد.':
