@@ -90,6 +90,7 @@ include_once 'raffle/route.php';
 include_once 'wallet/route.php';
 include_once 'inquiry/route.php';
 include_once 'property-tools.php';
+require_once __DIR__ . '/handover.php';
 include_once 'partner-panel.php';
 
 include_once 'virtual-tour.php';
