@@ -1,0 +1,61 @@
+/* SPAD Admin V13: compact real operational status. Overrides only command hero. */
+.spad-v8-dashboard .spad-v12-command-hero{
+ gap:10px!important;padding:13px 17px 15px!important;margin-bottom:16px!important;
+ border-radius:17px!important;min-height:0!important;
+}
+.spad-v8-dashboard .spad-v12-command-hero .spad-v13-ops{
+ width:100%;max-width:100%;display:flex;flex-direction:column;
+ padding:11px 13px 9px!important;gap:8px!important;margin:0!important;
+ min-height:0!important;border-radius:12px!important;overflow:visible;
+}
+.spad-v13-ops-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.spad-v13-ops-head__title{display:flex;align-items:center;gap:9px}
+.spad-v13-ops-head__title strong{color:#f4fbff;font-size:11px;font-weight:750;line-height:1.7}
+.spad-v13-ops-head__buttons{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.spad-v13-ops-head__buttons button{display:inline-flex;align-items:center;justify-content:center;gap:7px;
+ background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.22);color:#dcf3ff;
+ min-height:28px;padding:6px 9px;font-size:9px;border-radius:8px;cursor:pointer}
+.spad-v13-ops-head__buttons button:hover{background:rgba(255,255,255,.21)}
+.spad-v13-ops-head__buttons button:disabled{opacity:.4;cursor:not-allowed}
+.spad-v13-ops-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;min-width:0}
+.spad-v13-ops-tile{position:relative;min-width:0;min-height:84px;display:flex;flex-direction:column;
+ gap:5px;align-items:flex-start;justify-content:flex-start;overflow:hidden;
+ padding:10px 11px 8px;border:1px solid #ffffff26;background:#ffffff0e;border-radius:10px}
+.spad-v13-ops-tile.good{border-color:#66efbf55;background:#10bfa412}
+.spad-v13-ops-tile.warning{border-color:#f8ad7a72;background:#e8915e16}
+.spad-v13-ops-tile__label{color:#bbd9ee;font-size:9px;font-weight:600;line-height:1.6}
+.spad-v13-ops-tile__value{display:block;max-width:100%;font-size:13px;color:#fff;font-weight:800;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.55}
+.spad-v13-ops-tile.good .spad-v13-ops-tile__value{color:#baffdf}
+.spad-v13-ops-tile.warning .spad-v13-ops-tile__value{color:#ffd7bc}
+.spad-v13-ops-tile>small{display:block;color:#a9d2e9;font-size:8px;line-height:1.6;
+ max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.spad-v13-ops-tile__rail{width:100%;height:3px;background:#ffffff2b;border-radius:8px;overflow:hidden;margin-top:auto}
+.spad-v13-ops-tile__rail span{display:block;background:#52d4f7;height:100%;border-radius:8px}
+.spad-v13-ops-tile.warning .spad-v13-ops-tile__rail span{background:#ffc18e}
+.spad-v13-ops-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:5px 11px;
+ color:#a9d1e6;font-size:8px;line-height:1.7}
+.spad-v13-ops-foot>span{display:inline-flex;align-items:center;gap:5px}
+.spad-v13-ops-error{color:#ffd6b6!important}
+.spad-v13-ops-details{display:flex;flex-direction:column;gap:10px;padding:12px;
+ border:1px solid #ffffff23;border-radius:11px;background:#001f3d38}
+.spad-v13-ops-details .spad-v11-health__plot{padding:10px 12px}
+.spad-v12-command-hero .spad-v13-ops-details .spad-v11-health__plot svg{height:95px}
+.spad-v13-ops-disclaimer{font-size:8.5px;line-height:1.8;color:#aacde1;margin:0}
+@media(max-width:1500px){
+ .spad-v13-ops-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:780px){
+ .spad-v8-dashboard .spad-v12-command-hero{padding:11px!important}
+ .spad-v8-dashboard .spad-v12-command-hero .spad-v13-ops{padding:10px!important}
+ .spad-v13-ops-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .spad-v13-ops-head__title strong{font-size:10px}
+ .spad-v13-ops-tile{min-height:79px;padding:9px}
+ .spad-v13-ops-tile__value{font-size:12px}
+}
+@media(max-width:440px){
+ .spad-v13-ops-head__buttons button span{display:none}
+ .spad-v13-ops-head__buttons button{padding:6px}
+ .spad-v13-ops-head__buttons{gap:4px}
+ .spad-v13-ops-foot{font-size:7.5px}
+}
