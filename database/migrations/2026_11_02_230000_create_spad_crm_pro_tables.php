@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Schema;
 class CreateSpadCrmProTables extends Migration {
  public function up() {
   Schema::create('spad_crm_contacts',function(Blueprint $t){
-   $t->bigIncrements('id');$t->string('full_name',150);$t->string('mobile',18)->unique();
+   $t->bigIncrements('id');$t->unsignedBigInteger('site_user_id')->nullable()->unique();$t->string('full_name',150);$t->string('mobile',18)->unique();
    $t->string('email',190)->nullable();$t->string('source',50)->default('manual');
    $t->string('stage',32)->default('new')->index();$t->string('interest',35)->default('buy');
    $t->string('city',90)->nullable();$t->string('budget',90)->nullable();$t->string('preferred_location',170)->nullable();
