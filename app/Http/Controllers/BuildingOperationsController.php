@@ -64,6 +64,12 @@ class BuildingOperationsController extends Controller {
   DB::table('spad_building_polls')->where('id',$id)->where('building_id',$b->id)->update(['status'=>'closed','updated_at'=>now()]);
   return response()->json(['message'=>'رأی‌گیری بسته شد.']);
  }
+ private function requireIdentityLevelOne(Request $r){
+  abort_unless(Schema::hasTable('spad_user_verifications'),503,'بخش احراز هویت در حال راه‌اندازی است.');
+  $ok=DB::table('spad_user_verifications')->where('user_id',optional($r->user())->id)
+   ->where('status','approved')->where('level','>=',1)->exists();
+  abort_unless($ok,403,'برای رأی‌گیری یا رزرو مشاعات، ابتدا احراز هویت سطح یک را از پنل کاربری تکمیل کنید.');
+ }
  private function residentUnit(Request $r,$buildingId){
   $this->ready();abort_unless($r->user(),401);$phone=preg_replace('/\D/','',(string)$r->user()->mobile);
   abort_unless(preg_match('/^09\d{9}$/D',$phone),403);
@@ -85,6 +91,7 @@ class BuildingOperationsController extends Controller {
   ]]);
  }
  public function vote(Request $r,$buildingId,$pollId){
+  $this->requireIdentityLevelOne($r);
   $unit=$this->residentUnit($r,$buildingId);
   $d=$r->validate(['vote'=>'required|in:yes,no,abstain']);
   $poll=$this->row('spad_building_polls',$pollId,$buildingId);
@@ -95,6 +102,7 @@ class BuildingOperationsController extends Controller {
   return response()->json(['message'=>'رأی واحد ثبت شد.']);
  }
  public function reserve(Request $r,$buildingId,$facilityId){
+  $this->requireIdentityLevelOne($r);
   $unit=$this->residentUnit($r,$buildingId);
   $facility=$this->row('spad_building_facilities',$facilityId,$buildingId);
   abort_unless($facility->active,422);
