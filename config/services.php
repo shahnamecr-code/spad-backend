@@ -34,4 +34,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'spad_crm' => [
+        'sms_enabled' => env('SPAD_CRM_SMS_ENABLED', false),
+        'sms_key' => env('SMSIR_API_KEY', ''),
+        'sms_line' => env('SPAD_CRM_SMS_LINE', ''),
+        'voice_enabled' => env('SPAD_CRM_VOICE_ENABLED', false),
+        'voice_key' => env('SPAD_CRM_VOICE_API_KEY', ''),
+    ],
 ];
