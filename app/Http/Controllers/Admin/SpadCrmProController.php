@@ -129,6 +129,32 @@ class SpadCrmProController extends Controller {
   $this->audit($id,$request->user()->id,'opt_out','عدم تمایل به دریافت پیامک و تماس خودکار ثبت شد.');
   return response()->json(['message'=>'عدم تمایل مشتری ثبت شد. ارسال پیام و تماس مسدود است.']);
  }
+ public function importCustomers(Request $request) {
+  $this->guard($request);
+  $data=$request->validate(['after_id'=>'nullable|integer|min:0','limit'=>'nullable|integer|min:1|max:100']);
+  $after=(int)($data['after_id']??0);$limit=(int)($data['limit']??100);
+  // Explicit, limited admin-initiated import; never infer marketing consent
+  // or modify/delete any existing website user.
+  $users=\App\Models\User::query()->select(['id','first_name','last_name','mobile'])
+   ->where('id','>',$after)->whereNotNull('mobile')->orderBy('id')->limit($limit)->get();
+  $created=0;$skipped=0;
+  foreach($users as $user) {
+   $mobile=$this->normalize($user->mobile);
+   if(!preg_match('/^09[0-9]{9}$/D',$mobile)){$skipped++;continue;}
+   if(DB::table(self::C)->where('mobile',$mobile)->exists()){$skipped++;continue;}
+   $id=DB::table(self::C)->insertGetId([
+    'site_user_id'=>$user->id,'full_name'=>trim($user->first_name.' '.$user->last_name)?:'کاربر اسپاد',
+    'mobile'=>$mobile,'source'=>'spad_website','stage'=>'new','interest'=>'other',
+    'priority'=>2,'assigned_to'=>$request->user()->id,'created_by'=>$request->user()->id,
+    'sms_consent'=>false,'voice_consent'=>false,'created_at'=>now(),'updated_at'=>now()
+   ]);
+   $this->audit($id,$request->user()->id,'imported','پرونده کاربر سایت، بدون مجوز پیامک یا تماس، وارد CRM شد.');
+   $created++;
+  }
+  return response()->json(['message'=>'واردسازی محدود انجام شد؛ رضایت ارتباطی به هیچ کاربری داده نشده است.',
+   'created'=>$created,'skipped'=>$skipped,'next_cursor'=>$users->count()?$users->last()->id:$after,
+   'has_more'=>$users->count()===$limit]);
+ }
  public function note(Request $request,$id){
   $this->guard($request);
   abort_unless(DB::table(self::C)->where('id',$id)->whereNull('deleted_at')->exists(),404);
