@@ -6,7 +6,13 @@ import {adminPathApi,adminRoot} from '../../../constants/defaultValues';
 const n=v=>Number(v||0).toLocaleString('fa-IR');
 const list=v=>Array.isArray(v)?v:[];
 const pct=(v,t)=>t>0?Math.min(100,Math.max(0,Number(v||0)/t*100)):0;
-const today=()=>new Date().toLocaleDateString('fa-IR',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+// Localized live clock for SPAD's operational timezone, independent of device timezone.
+const iranDate=timestamp=>new Date(timestamp).toLocaleDateString('fa-IR-u-ca-persian',{
+ timeZone:'Asia/Tehran',weekday:'long',year:'numeric',month:'long',day:'numeric'
+});
+const iranTime=timestamp=>new Date(timestamp).toLocaleTimeString('fa-IR',{
+ timeZone:'Asia/Tehran',hour:'2-digit',minute:'2-digit',hour12:false
+});
 const paths={
  ads:adminRoot+'/advertisements/adver-list',
  crm:adminRoot+'/crm/all-requests',
@@ -74,6 +80,11 @@ const ServerHealthPanel=({info,loading,error,onRefresh,period,onPeriod})=>{
  </section>;
 };
 const DashboardDefault=()=>{
+ const [clock,setClock]=useState(()=>Date.now());
+ useEffect(()=>{
+  const timer=setInterval(()=>setClock(Date.now()),30000);
+  return ()=>clearInterval(timer);
+ },[]);
  const [dashboard,setDashboard]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const [services,setServices]=useState(null);
  const [health,setHealth]=useState(null);
@@ -144,12 +155,13 @@ const DashboardDefault=()=>{
   ]:[])
  ];
  return <div className="spad-v8-dashboard" dir="rtl">
-  <header className="spad-v8-dash-hero">
-   <div className="spad-v8-dash-content">
-    <span className="spad-v8-kicker spad-v10-hero-kicker"><span className="spad-v8-live-dot"/> پنل مدیریت و نظارت اسپاد</span>
-    <h1>مرکز فرماندهی هوشمند اسپاد</h1>
-    <p>نمای یکپارچه عملکرد مجموعه، پرونده‌های ملکی و خدمات دیجیتال</p>
-    <div className="spad-v8-dash-meta"><span><i className="simple-icon-calendar"/> {today()}</span><span><i className="simple-icon-chart"/> داده‌های واقعی سامانه</span></div>
+  <header className="spad-v8-dash-hero spad-v12-command-hero" aria-label="مرکز فرماندهی هوشمند اسپاد">
+   <div className="spad-v12-command-hero__heading">
+    <span className="spad-v12-command-hero__label"><span className="spad-v8-live-dot" aria-hidden="true"/> مرکز فرماندهی هوشمند اسپاد</span>
+    <div className="spad-v12-command-hero__datetime" aria-label="تاریخ و ساعت به وقت ایران">
+     <span><i className="simple-icon-calendar" aria-hidden="true"/> {iranDate(clock)}</span>
+     <span><i className="simple-icon-clock" aria-hidden="true"/> {iranTime(clock)} <small>به وقت ایران</small></span>
+    </div>
    </div>
    <ServerHealthPanel info={health} loading={healthLoading} error={healthError} onRefresh={loadHealth} period={healthPeriod} onPeriod={setHealthPeriod}/>
   </header>
