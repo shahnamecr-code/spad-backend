@@ -24,7 +24,11 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')->hourly();
+        // Records one genuine public HTTPS + database probe every five minutes,
+        // provided the hosting server invokes Laravel schedule:run.
+        $schedule->call(function () {
+            \App\Services\\SpadAdminHealthService::sample();
+        })->everyFiveMinutes()->withoutOverlapping();
     }
 
     /**
