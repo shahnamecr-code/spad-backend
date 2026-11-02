@@ -123,9 +123,9 @@ const CustomersList = ({match, location, history}) => {
         </Colxx>
       </Row>
       <Colxx>
-        <Card className="mb-4">
+        <Card className="mb-4 spad-v9-list-card">
           <CardBody>
-            <CardTitle>مشتری ها</CardTitle>
+            <CardTitle>لیست مشتریان اسپاد</CardTitle>
             <TableAjax columns={cols} data={data} fetchData={fetchData} loading={loading} pageCount={pageCount}/>
           </CardBody>
         </Card>
