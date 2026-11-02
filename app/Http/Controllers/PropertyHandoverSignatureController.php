@@ -49,7 +49,7 @@ class PropertyHandoverSignatureController extends Controller {
    $out[$party]=[
     'party'=>$party,'mobile_masked'=>$this->mask($s->mobile),
     'verified_at'=>$s->verified_at,'last_sent_at'=>$s->last_sent_at,
-    'invitation_url'=>url('/property-toolkit/handover/verify/'.Crypt::decryptString($s->invitation_cipher)),
+    'invitation_url'=>'https://spad.estate/property-toolkit/handover/verify/'.Crypt::decryptString($s->invitation_cipher),
    ];
   }
   return ['status'=>$record->status,'snapshot_hash'=>$record->snapshot_hash,
