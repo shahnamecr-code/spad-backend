@@ -1,6 +1,9 @@
 <?php
 
 return [
+    'kyc_template' => env('SMSIR_KYC_TEMPLATE_ID'),
+    'kyc_parameter' => env('SMSIR_KYC_PARAMETER', 'code'),
+
     /*
     |--------------------------------------------------------------------------
     | Default Driver
