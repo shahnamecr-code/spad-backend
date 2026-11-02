@@ -22,9 +22,47 @@ const Stat=({title,value,icon,link,color})=><Link to={link} className={'spad-v8-
 const Pane=({title,sub,children,action,klass=''})=><section className={'spad-v8-pane '+klass}>
  <div className="spad-v8-pane-head"><div><h2>{title}</h2>{sub&&<p>{sub}</p>}</div>{action}</div>{children}
  </section>;
+const ServerHealthPanel=({info,loading,error,onRefresh})=>{
+ const samples=info&&Array.isArray(info.samples)?info.samples:[];
+ const recent=samples.slice(-32);
+ const ok=recent.length?recent[recent.length-1].app_ok&&recent[recent.length-1].db_ok:false;
+ const observed=info&&info.observed_success_percent!==null&&info.observed_success_percent!==undefined?Number(info.observed_success_percent).toLocaleString('fa-IR',{maximumFractionDigits:1})+'٪':null;
+ const last=recent.length?recent[recent.length-1]:null;
+ const ms=last&&Number.isFinite(Number(last.app_ms))?Number(last.app_ms).toLocaleString('fa-IR')+' میلی‌ثانیه':'نامشخص';
+ return <div className="spad-v10-health" role="region" aria-label="پایش واقعی سلامت سایت و پایگاه داده">
+   <div className="spad-v10-health__heading"><span><i className="simple-icon-heart"/> پایش پایداری سرور</span>
+    <button type="button" onClick={onRefresh} disabled={loading} title="تازه‌سازی وضعیت پایداری"><i className="simple-icon-refresh"/></button></div>
+   <div className="spad-v10-health__primary">
+    <div><strong>{observed||'در حال گردآوری'}</strong><small>{observed?'درصد موفقیت نمونه‌های ثبت‌شده':'نیازمند حداقل ۱۲ نمونه'}</small></div>
+    <span className={'spad-v10-health__badge '+(last?(ok?'good':'bad'):'unknown')}>
+      <i className="simple-icon-check"/> {last?(ok?'آخرین بررسی سالم':'نیازمند بررسی'):'هنوز داده‌ای موجود نیست'}</span>
+   </div>
+   {recent.length?
+    <div className="spad-v10-health__plot" role="img" aria-label={'آخرین '+recent.length.toLocaleString('fa-IR')+' نمونه ثبت‌شده پایش'}>
+     {recent.map((p,i)=><span key={p.at||i} className={'spad-v10-health__bar '+(p.app_ok&&p.db_ok?'good':'bad')}
+      style={{height:(p.app_ms===null?25:Math.max(20,Math.min(92,25+Number(p.app_ms)/30)))+'%'}}
+      title={(p.at||'')+' | '+(p.app_ok&&p.db_ok?'پاسخ موفق':'پاسخ ناموفق')+' | '+(p.app_ms||'—')+' میلی‌ثانیه'}/>)}
+    </div>:
+    <div className="spad-v10-health__no-data">داده تاریخی موجود نیست؛ نخستین بررسی از سرور درخواست شده است.</div>}
+   <div className="spad-v10-health__foot"><span>زمان پاسخ آخرین نمونه: {ms}</span><span>{info?.sample_count?Number(info.sample_count).toLocaleString('fa-IR')+' نمونه واقعی':'در انتظار ثبت نمونه'}</span></div>
+   <small className="spad-v10-health__caveat">{error||'این نمودار نتایج بررسی‌های ثبت‌شده را نشان می‌دهد، نه تضمین آپتایم شبانه‌روزی.'}</small>
+  </div>;
+};
 const DashboardDefault=()=>{
  const [dashboard,setDashboard]=useState(null),[loading,setLoading]=useState(true),[error,setError]=useState('');
  const [services,setServices]=useState(null);
+ const [health,setHealth]=useState(null);
+ const [healthLoading,setHealthLoading]=useState(true);
+ const [healthError,setHealthError]=useState('');
+ const loadHealth=useCallback(async()=>{
+  setHealthLoading(true);
+  try{
+   const response=await axios.get(adminPathApi+'/dashboard/server-health');
+   setHealth(response?.data?.data||null);setHealthError('');
+  }catch(e){setHealthError('ارتباط با سامانه پایش برقرار نشد.');}
+  finally{setHealthLoading(false);}
+ },[]);
+ useEffect(()=>{loadHealth();const timer=setInterval(loadHealth,300000);return()=>clearInterval(timer);},[loadHealth]);
  const user=useSelector(s=>s.authUser.currentUser);
  const superAdmin=list(user?.roles).includes('Super Admin');
  const load=useCallback(async()=>{
@@ -82,14 +120,12 @@ const DashboardDefault=()=>{
  return <div className="spad-v8-dashboard" dir="rtl">
   <header className="spad-v8-dash-hero">
    <div className="spad-v8-dash-content">
-    <span className="spad-v8-kicker"><span className="spad-v8-live-dot"/> SPAD ESTATE / COMMAND CENTER</span>
+    <span className="spad-v8-kicker spad-v10-hero-kicker"><span className="spad-v8-live-dot"/> پنل مدیریت و نظارت اسپاد</span>
     <h1>مرکز فرماندهی هوشمند اسپاد</h1>
     <p>نمای یکپارچه عملکرد مجموعه، پرونده‌های ملکی و خدمات دیجیتال</p>
     <div className="spad-v8-dash-meta"><span><i className="simple-icon-calendar"/> {today()}</span><span><i className="simple-icon-chart"/> داده‌های واقعی سامانه</span></div>
    </div>
-   <div className="spad-v8-hero-panel"><div><i className="iconsminds-building"/><span>SPAD</span></div><small>ADMINISTRATIVE INTELLIGENCE</small>
-    <Link to={paths.ads}>مدیریت املاک <i className="simple-icon-arrow-left"/></Link>
-   </div>
+   <ServerHealthPanel info={health} loading={healthLoading} error={healthError} onRefresh={loadHealth}/>
   </header>
   {superAdmin&&<section className="spad-v8-settings-launcher" aria-labelledby="spad-v8-settings-title">
    <div className="spad-v8-settings-launcher__heading">
