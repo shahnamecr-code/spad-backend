@@ -21,7 +21,7 @@ const Toggle=({checked,onChange,disabled,label,description})=><label style={{dis
 
 export default function ApiIrPanel(){
  const [state,setState]=useState(null),[token,setToken]=useState(''),[enabled,setEnabled]=useState(false);
- const [smsOtp,setSmsOtp]=useState(false),[personInfo,setPersonInfo]=useState(false),[otpTemplate,setOtpTemplate]=useState(1);
+ const [smsOtp,setSmsOtp]=useState(false),[shahkarPro,setShahkarPro]=useState(false),[otpTemplate,setOtpTemplate]=useState(1);
  const [drafts,setDrafts]=useState({}),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState('identity'),[notice,setNotice]=useState(''),[isError,setIsError]=useState(false);
  const notify=(message,error=false)=>{setNotice(message);setIsError(error);};
@@ -31,7 +31,7 @@ export default function ApiIrPanel(){
    const d=data.data;setState(d);setEnabled(Boolean(d.enabled));
    setDrafts(Object.fromEntries((d.services||[]).map(s=>[s.slug,String(s.price||0)])));
    setSmsOtp(Boolean(d.account_features?.sms_otp));
-   setPersonInfo(Boolean(d.account_features?.person_info));
+   setShahkarPro(Boolean(d.account_features?.shahkar_pro));
    setOtpTemplate(Number(d.account_features?.otp_template??1));
    return d;
   }catch(e){notify(e.response?.data?.message||'خطا در دریافت وضعیت سرویس‌های API.ir.',true);throw e;}
@@ -51,8 +51,8 @@ export default function ApiIrPanel(){
   setToken('');
  };
  const saveFeatures=()=>run(()=>axios.post(URL+'/account-features',{
-  sms_otp:smsOtp,person_info:personInfo,otp_template:otpTemplate,
- }),'تنظیمات احراز هویت نسخه سوم ذخیره شد.');
+  sms_otp:smsOtp,shahkar_pro:shahkarPro,otp_template:otpTemplate,
+ }),'تنظیمات موتور جدید شاهکار پرو ذخیره شد.');
  const changeService=(service,next)=>run(async()=>{
   const price=Number(drafts[service.slug]||0);
   if(!Number.isSafeInteger(price)||price<0)throw Error('تعرفه باید عدد صحیح معتبر باشد.');
@@ -63,14 +63,14 @@ export default function ApiIrPanel(){
  const checks=state?.identity_checks||[];
  const providerRow=(check)=><div key={check.code} style={{display:'flex',gap:14,justifyContent:'space-between',alignItems:'center',border:'1px solid #e3edf5',background:'#f9fcfe',borderRadius:13,padding:16,flexWrap:'wrap'}}>
   <div style={{minWidth:0}}><div style={{display:'flex',alignItems:'center',gap:9,flexWrap:'wrap'}}><strong style={{color:palette.navy,fontSize:14}}>{check.operation}</strong><span style={{fontSize:10,color:palette.muted}}>{check.name}</span></div>
-   <p style={{fontSize:10,color:palette.muted,margin:'6px 0 0',lineHeight:2}}>{check.code==='sms_otp'?'تأیید دسترسی کاربر به شماره همراه حساب':'استعلام کد ملی، تاریخ تولد، نام و وضعیت حیات فرد'}</p>
+   <p style={{fontSize:10,color:palette.muted,margin:'6px 0 0',lineHeight:2}}>{check.code==='sms_otp'?'تأیید دسترسی کاربر به شماره همراه حساب':'تطبیق مالکیت شماره همراه با کد ملی از API.ir'}</p>
   </div>
   <Badge ok={check.enabled}>{check.enabled?'فعال در تنظیمات':'غیرفعال در تنظیمات'}</Badge>
  </div>;
  return <div dir="rtl" style={{background:palette.pale,borderRadius:22,padding:'clamp(15px,2.6vw,28px)',margin:'20px 0',color:palette.navy,border:'1px solid #d9e8f4',fontFamily:'inherit'}}>
   <header style={{background:'linear-gradient(115deg,#073e69,#0877b2 75%,#159dcc)',borderRadius:20,padding:'25px 28px',color:'white',display:'flex',alignItems:'center',justifyContent:'space-between',gap:20,flexWrap:'wrap'}}>
    <div style={{flex:'1 1 270px'}}><div style={{fontSize:10,letterSpacing:1,color:'#c7efff',direction:'ltr',textAlign:'right'}}>SPAD · API.IR CONTROL</div>
-    <h2 style={{fontSize:22,fontWeight:650,color:'white',margin:'12px 0 8px'}}>مرکز مدیریت وب‌سرویس‌های اسپاد</h2>
+    <h2 style={{fontSize:22,fontWeight:650,color:'white',margin:'12px 0 8px'}}>مدیریت یکپارچه وب‌سرویس‌ها و احراز هویت اسپاد</h2>
     <p style={{fontSize:12,color:'#dfecfa',lineHeight:2,margin:0}}>مدیریت امن اتصال، احراز هویت کاربران و استعلام‌های ملکی از یک نقطه.</p></div>
    <div style={{border:'1px solid #ffffff50',borderRadius:15,background:'#ffffff20',padding:'13px 18px',minWidth:175}}>
     <div style={{fontSize:10,color:'#d5effe'}}>اتصال API.ir</div>
@@ -96,10 +96,10 @@ export default function ApiIrPanel(){
   {tab==='identity'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:17,alignItems:'start'}}>
    <div style={card}>
     <div style={{display:'flex',gap:11,alignItems:'center',justifyContent:'space-between',flexWrap:'wrap'}}>
-     <div><small style={{fontSize:10,color:palette.blue}}>IDENTITY ENGINE V3</small><h3 style={{fontSize:16,fontWeight:630,margin:'7px 0 0'}}>موتور احراز هویت خودکار</h3></div>
+     <div><small style={{fontSize:10,color:palette.blue}}>IDENTITY ENGINE V4</small><h3 style={{fontSize:16,fontWeight:630,margin:'7px 0 0'}}>موتور احراز هویت خودکار</h3></div>
      <Badge ok={ready}>{ready?'هر دو سرویس پیکربندی شده':'پیکربندی ناقص'}</Badge>
     </div>
-    <p style={{color:palette.muted,fontSize:11,lineHeight:2.2,margin:'14px 0'}}>مسیر سه‌مرحله‌ای شامل ثبت مشخصات، کد تأیید پیامکی و استعلام مشخصات هویتی است. تأیید دستی یا سرویس شاهکار در این فرایند وجود ندارد.</p>
+    <p style={{color:palette.muted,fontSize:11,lineHeight:2.2,margin:'14px 0'}}>نسخه جدید از ابتدا با SmsOTP و ShahkarPro پیاده‌سازی شده است. تنها پس از تأیید شماره همراه و تطبیق مثبت کد ملی با مالک سیم‌کارت، سطح یک صادر می‌شود. نتیجه PersonInfo یا تاییدهای قدیمی معتبر این نسخه نیست.</p>
     <div style={{display:'grid',gap:10}}>{checks.length?checks.map(providerRow):<p style={{fontSize:11,color:palette.amber}}>داده سرویس‌ها هنوز دریافت نشده است.</p>}</div>
     <div style={{display:'flex',gap:7,alignItems:'flex-start',background:'#fff8ec',color:'#976f2c',fontSize:10,lineHeight:2,marginTop:15,padding:12,borderRadius:10}}>
      این وضعیت فقط تنظیمات سرویس‌هاست؛ صحت پاسخ ارائه‌دهنده بدون مجوز کاربر و استعلام واقعی قابل تأیید نیست.
@@ -108,14 +108,14 @@ export default function ApiIrPanel(){
    <div style={card}>
     <small style={{color:palette.blue,fontSize:10}}>SERVICE CONFIGURATION</small><h3 style={{fontSize:16,margin:'7px 0 4px',fontWeight:630}}>تنظیمات احراز هویت</h3>
     <Toggle checked={smsOtp} onChange={setSmsOtp} disabled={busy||!state} label="تأیید موبایل با SmsOTP" description="ارسال کد شش‌رقمی به شماره همراه حساب کاربر"/>
-    <Toggle checked={personInfo} onChange={setPersonInfo} disabled={busy||!state} label="استعلام هویتی PersonInfo" description="تطبیق کد ملی، نام، تاریخ تولد و وضعیت حیات"/>
+    <Toggle checked={shahkarPro} onChange={setShahkarPro} disabled={busy||!state} label="تطبیق با ShahkarPro" description="استعلام مالکیت شماره موبایل نسبت به کد ملی صاحب حساب"/>
     <label style={{display:'block',margin:'17px 0 12px',fontSize:11,color:palette.muted}}>قالب پیامک
      <select value={otpTemplate} disabled={busy} onChange={e=>setOtpTemplate(Number(e.target.value))} style={{...field,marginTop:8}}>
       <option value={0}>کد</option><option value={1}>کد ورود</option><option value={2}>کد تأیید</option><option value={3}>رمز</option><option value={4}>رمز ورود</option>
      </select>
     </label>
     <button type="button" disabled={busy||!state} style={primary} onClick={saveFeatures}>{busy?'در حال ذخیره...':'ذخیره تنظیمات احراز هویت'}</button>
-    <p style={{fontSize:10,lineHeight:2.2,color:palette.muted,marginTop:17}}>PersonInfo مالکیت سیم‌کارت را به کد ملی تأیید نمی‌کند. اعتبارسنجی درخواست‌ها، محدودیت روزانه و جلوگیری از استعلام تکراری در بک‌اند اعمال می‌شود.</p>
+    <p style={{fontSize:10,lineHeight:2.2,color:palette.muted,marginTop:17}}>ShahkarPro فقط تطبیق کد ملی و شماره همراه را برمی‌گرداند؛ نام، تاریخ تولد و اطلاعات ثبت‌احوال را تأیید نمی‌کند. محدودیت روزانه و جلوگیری از درخواست تکراری در بک‌اند فعال است.</p>
    </div>
   </div>}
 
