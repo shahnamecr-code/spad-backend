@@ -67,7 +67,19 @@ class ApiIrController extends Controller
                 })->count();
         }
         $feature = app(\App\Services\ApiIrAccountServices::class);
+        $biometric=app(\App\Services\SpadBiometricAccess::class);
+        $tierTwoCount=Schema::hasTable('spad_biometric_verifications')
+            ? DB::table('spad_biometric_verifications')
+                ->where('status','matched')->where('expires_at','>',now())->count() : 0;
         return response()->json(['data' => [
+            'biometric_verified_count'=>$tierTwoCount,
+            'biometric_policy'=>[
+                'video_live'=>$feature->enabled('video_live'),
+                'video_live_configured'=>!empty($feature->settings()['video_live']),
+                'special_services'=>$biometric->specialServices(),
+                'available_services'=>$biometric->catalog(),
+                'storage_note'=>'ویدئو و سریال کارت ملی در اسپاد ذخیره نمی‌شوند؛ تنها نتیجه و زمان اعتبار سطح ویژه ثبت می‌شود.',
+            ],
             'identity_version'=>4,
             'identity_stats'=>$identityStats,
             'identity_checks'=>[
@@ -75,6 +87,8 @@ class ApiIrController extends Controller
                  'enabled'=>$feature->enabled('sms_otp'),'status'=>'configuration_only'],
                 ['code'=>'shahkar_pro','name'=>'تطبیق مالکیت سیم‌کارت و کد ملی','operation'=>'ShahkarPro',
                  'enabled'=>$feature->enabled('shahkar_pro'),'status'=>'configuration_only'],
+                ['code'=>'video_live','name'=>'بایومتریک و زنده‌سنجی سطح دو','operation'=>'VideoLive',
+                 'enabled'=>$feature->enabled('video_live'),'status'=>'configuration_only'],
             ],
             'identity_note'=>'احراز هویت پایه پس از تأیید OTP و تطبیق شاهکار پرو انجام می‌شود؛ نام و تاریخ تولد در این سرویس تأیید نمی‌شوند.',
             'last_config_change'=>$row ? $row->updated_at : null,
@@ -101,7 +115,7 @@ class ApiIrController extends Controller
         $fields = [
             'title' => 'اتصال یکپارچه API.IR', 'category' => 'inquiries',
             'provider' => 'api.ir', 'endpoint' => 'https://s.api.ir',
-            'description' => 'هفت استعلام رسمی در اسپاد با یک کلید محرمانه',
+            'description' => 'استعلام‌های رسمی و احراز هویت چندسطحی اسپاد با یک اتصال محرمانه',
             'enabled' => (bool) $data['enabled'],
             'mode' => $hasKey ? 'configured' : 'planned',
             'health_status' => 'not_tested',
@@ -144,6 +158,42 @@ class ApiIrController extends Controller
         $this->audit($request,$row->id,'apiir_account_features','تنظیمات احراز هویت نسخه شاهکار پرو ذخیره شد.');
         return $this->index($request);
     }
+    public function saveBiometricPolicy(Request $request)
+    {
+        $this->guard($request);
+        $data=$request->validate([
+            'video_live'=>'required|boolean',
+            'special_services'=>'required|array|max:200',
+            'special_services.*'=>'required|string|max:160',
+        ]);
+        $access=app(\App\Services\SpadBiometricAccess::class);
+        $allowed=array_column($access->catalog(),'code');
+        $selected=array_values(array_unique($data['special_services']));
+        abort_if(count(array_diff($selected,$allowed))>0,422,
+            'بعضی خدمات انتخاب‌شده فاقد کنترل دسترسی سمت سرور هستند.');
+        abort_unless(Schema::hasTable('spad_biometric_verifications'),503,
+            'ابتدا جدول احراز هویت ویدئویی نصب شود.');
+        $row=$this->row();
+        abort_unless($row,422,'اتصال API.ir تنظیم نشده است.');
+        if ($data['video_live']) {
+            abort_unless($row->enabled && $row->mode==='configured' && $row->secrets_encrypted,
+                422,'ابتدا اتصال اصلی API.ir را فعال کنید.');
+            abort_unless(app(\App\Services\ApiIrAccountServices::class)->enabled('shahkar_pro'),
+                422,'احراز هویت پایه شاهکار پرو باید فعال باشد.');
+        }
+        $config=json_decode((string)$row->config_public,true);
+        if(!is_array($config))$config=[];
+        $config['video_live_enabled']=$data['video_live']?'1':'0';
+        $config['biometric_special_services']=$selected;
+        DB::table('spad_web_service_connections')->where('id',$row->id)->update([
+            'config_public'=>json_encode($config,JSON_UNESCAPED_UNICODE),
+            'updated_by'=>$request->user()->id,'updated_at'=>now(),
+        ]);
+        $this->audit($request,$row->id,'apiir_biometric_policy',
+            'فهرست خدمات ویژه و وضعیت VideoLive تغییر یافت؛ تعداد خدمات: '.count($selected));
+        return $this->index($request);
+    }
+
     public function service(Request $request, string $slug)
     {
         $this->guard($request);
