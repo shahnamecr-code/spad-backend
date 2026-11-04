@@ -94,6 +94,9 @@ class InquiryController extends Controller
             return response()->json(['status' => false, 'message' => 'ترکیب سرویس‌های ارسالی معتبر نیست.'], 422);
         }
         foreach ($services as $service) {
+            // Enforce service-specific tier before any batch wallet debit.
+            app(\App\Services\SpadBiometricAccess::class)->assertFor(
+                $user,'inquiries:'.$service->slug);
             $normalized = $service->normalizeSubmittedInputs(
                 isset($rawInputs[$service->slug]) && is_array($rawInputs[$service->slug])
                     ? $rawInputs[$service->slug] : []
