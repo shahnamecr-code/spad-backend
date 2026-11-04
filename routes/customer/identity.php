@@ -10,6 +10,7 @@ Route::middleware('auth:sanctum')->prefix('identity')->group(function(){
  // This billable route has its own per-user quotas + atomic DB reservation.
  Route::post('shahkar-pro',[Identity::class,'shahkarPro']);
  Route::get('biometric/status',[\App\Http\Controllers\SpadBiometricController::class,'status'])->middleware('throttle:24,1');
+ Route::post('biometric/challenge',[\App\Http\Controllers\SpadBiometricController::class,'challenge'])->middleware('throttle:5,1');
  Route::post('biometric/verify',[\App\Http\Controllers\SpadBiometricController::class,'verify'])->middleware('throttle:6,1');
  // Deprecated routes reject with 410 and never incur a paid API request.
  Route::post('shahkar',[Identity::class,'legacyEndpoint']);
