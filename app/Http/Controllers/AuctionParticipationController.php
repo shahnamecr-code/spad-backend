@@ -34,7 +34,10 @@ class AuctionParticipationController extends Controller
   $entry=DB::table('spad_auction_participations')->where('auction_id',$id)->where('user_id',$uid)->first();
   $hasBid=DB::table('spad_auction_bids')->where('auction_id',$id)->where('user_id',$uid)->exists();
   $wallet=$wallets->walletFor($user);
+  $access=app(\App\Services\SpadBiometricAccess::class);
   return response()->json(['data'=>[
+   'biometric_required'=>$access->requiredFor('property-auctions'),
+   'biometric_verified'=>$access->verified($user),
    'deposit_required'=>(bool)$settings->auction_deposit_enabled && !$hasBid && (!$entry || $entry->status!=='held'),
    'deposit_enabled'=>(bool)$settings->auction_deposit_enabled,
    'deposit_toman'=>(int)$settings->auction_deposit_toman,
