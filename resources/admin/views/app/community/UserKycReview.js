@@ -29,7 +29,7 @@ export default function UserKycReview(){
  return <Card style={{border:"1px solid #d3e5f4",borderRadius:18,marginBottom:22,background:"#fafdff"}}><CardBody dir="rtl" style={{padding:22}}>
   <header style={{display:"flex",justifyContent:"space-between",gap:15,flexWrap:"wrap",alignItems:"center"}}>
    <div><small style={{color:"#0685c8",letterSpacing:1}}>SPAD IDENTITY CENTER</small><h3 style={{color:"#174b73",fontSize:20,margin:"9px 0"}}>مرکز احراز هویت یکپارچه اسپاد</h3>
-    <p style={{fontSize:12,color:"#62839b",margin:0,lineHeight:2}}>احراز هویت سطح پایه فقط با SmsOTP، Shahkar و PersonInfo شرکت api.ir انجام می‌شود. هیچ دکمه تأیید دستی در این پنل وجود ندارد.</p></div>
+    <p style={{fontSize:12,color:"#62839b",margin:0,lineHeight:2}}>احراز هویت سطح پایه با تأیید پیامک SmsOTP و استعلام مشخصات هویتی PersonInfo شرکت api.ir انجام می‌شود. هیچ دکمه تأیید دستی در این پنل وجود ندارد.</p></div>
    <Button color="info" outline disabled={loading} onClick={load}>تازه‌سازی</Button>
   </header>
   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:11,margin:"22px 0"}}>
@@ -48,10 +48,10 @@ export default function UserKycReview(){
      <p style={{fontSize:11,color:"#708ca0",margin:"10px 0"}}>شناسه کاربر: {fa(v.user_id)} · {v.mobile||"—"}</p>
      <div style={{background:"#f8fbff",borderRadius:10,padding:10,lineHeight:2,fontSize:11,color:"#567e98"}}>
       <div>تأیید موبایل: <strong>{v.phone_verified?"انجام شده":"انجام نشده"}</strong></div>
-      <div>شاهکار: <strong>{v.shahkar_status==="matched"?"تطبیق مثبت":v.shahkar_status==="mismatch"?"عدم تطبیق":"انجام نشده"}</strong></div>
+      <div>وضعیت سازگاری قدیمی: <strong>{v.shahkar_status==="matched"?"تطبیق مثبت":v.shahkar_status==="mismatch"?"عدم تطبیق":"انجام نشده"}</strong></div>
       <div>ثبت‌احوال: <strong>{v.person_info_status==="matched"?"تطبیق مثبت":v.person_info_status==="mismatch"?"عدم تطبیق":"انجام نشده"}</strong></div>
       <div>منبع احراز: <strong>{newVerified?"api.ir · خودکار":"تأیید با api.ir ثبت نشده"}</strong></div>
-      <div>آخرین استعلام شاهکار: {date(v.shahkar_checked_at)}</div>
+      <div>آخرین بررسی قدیمی: {date(v.shahkar_checked_at)}</div>
       <div>آخرین استعلام ثبت‌احوال: {date(v.person_info_checked_at)}</div>
      </div>
      {v.status!=="rejected"&&<div style={{marginTop:12}}>
