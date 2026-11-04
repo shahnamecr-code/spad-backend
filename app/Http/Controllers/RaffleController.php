@@ -167,6 +167,7 @@ class RaffleController extends Controller
 
     public function purchase(Request $request, PropertyRaffle $raffle)
     {
+        app(\App\Services\SpadBiometricAccess::class)->assertFor($request->user(),'raffles');
         $data = $request->validate([
             'ticket_count' => ['required', 'integer', 'min:1', 'max:20'],
             'gateway_id' => ['required', 'exists:raffle_gateways,id'],
@@ -261,6 +262,7 @@ class RaffleController extends Controller
 
     public function purchaseWithWallet(Request $request, PropertyRaffle $raffle, WalletService $wallets)
     {
+        app(\App\Services\SpadBiometricAccess::class)->assertFor($request->user(),'raffles');
         $data = $request->validate([
             'ticket_count' => ['required', 'integer', 'min:1', 'max:20'],
             'accept_terms' => ['accepted'],
