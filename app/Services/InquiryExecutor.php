@@ -139,10 +139,12 @@ class InquiryExecutor
 
     private function executeApiIr(InquiryRequest $request)
     {
-        // Atomic claim: webhook retries and repeated browser clicks cannot bill api.ir twice.
+        // Only first-time orders can trigger a paid API.ir call.
+        // An unsuccessful/uncertain response MUST NOT be billed again via retry:
+        // provider may have processed the first request before timing out.
         $claimed = InquiryRequest::query()->whereKey($request->id)
             ->where('payment_status', 'paid')
-            ->whereIn('status', ['pending_payment', 'failed'])
+            ->where('status', 'pending_payment')
             ->update(['status' => 'processing', 'failure_message' => null]);
         if (!$claimed) return $request->fresh();
 
@@ -160,11 +162,32 @@ class InquiryExecutor
             ]);
             $this->log($request, 'api_completed', 'استعلام api.ir تکمیل شد.');
         } catch (\Throwable $e) {
+            // Bank/credit data and upstream response bodies must never be logged.
+            // Only a controlled error category is persisted for support diagnostics.
+            $code = (int) $e->getCode();
+            $category = $code === 401 || $code === 403 ? 'provider_permission_or_kyc'
+                : ($code === 402 ? 'provider_credit'
+                : ($code === 429 ? 'provider_rate_limit'
+                : ($code === 503 ? 'service_unavailable'
+                : ($code === 422 ? 'identity_input_invalid'
+                : ($code === 502 ? 'provider_response_invalid' : 'unknown')))));
+            $safeMessages = [
+                'provider_permission_or_kyc'=>'مجوز سرویس API.ir یا احراز هویت صاحب درخواست نیاز به بررسی دارد. درخواست خود را تکرار نکنید؛ وضعیت پرداخت با پشتیبانی بررسی شود.',
+                'provider_credit'=>'اعتبار حساب API.ir برای استعلام کافی نیست. درخواست خود را تکرار نکنید؛ وضعیت پرداخت با پشتیبانی بررسی شود.',
+                'provider_rate_limit'=>'سقف درخواست سرویس API.ir تکمیل شده است. این استعلام نباید خودکار دوباره ارسال شود.',
+                'service_unavailable'=>'اتصال به سرویس استعلام برقرار نشد. نتیجه و وضعیت پرداخت باید توسط پشتیبانی بررسی شود.',
+                'identity_input_invalid'=>'مشخصات یا مجوز دسترسی صاحب درخواست معتبر نیست. وضعیت پرداخت باید بررسی شود.',
+                'provider_response_invalid'=>'API.ir پاسخ معتبر قابل ثبت برنگرداند. نتیجه استعلام و وضعیت پرداخت نیازمند بررسی است.',
+                'unknown'=>'استعلام به نتیجه قطعی نرسید. جهت جلوگیری از پرداخت یا درخواست تکراری، با پشتیبانی تماس بگیرید.',
+            ];
             $request->update([
-                'status' => 'failed',
-                'failure_message' => 'انجام استعلام ممکن نشد؛ لطفاً با پشتیبانی اسپاد تماس بگیرید.',
+                'status'=>'failed',
+                'failure_message'=>$safeMessages[$category],
             ]);
-            $this->log($request, 'api_failed', 'اجرای استعلام api.ir ناموفق بود (بدون ثبت اطلاعات محرمانه).');
+            $this->log($request, 'api_failed',
+                'عدم تکمیل استعلام API.ir؛ علت دسته‌بندی و بدون داده بانکی ثبت شد.',
+                ['provider'=>'api_ir','category'=>$category,'operation'=>(string)$request->service->slug,
+                 'retry_policy'=>'manual_billing_review']);
         }
         return $request->fresh();
     }
