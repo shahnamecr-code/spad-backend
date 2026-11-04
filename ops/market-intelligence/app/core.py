@@ -29,7 +29,7 @@ def summarize(rows: list[dict], min_samples: int = 10) -> list[dict]:
         mid = median(values)
         deviations = sorted(abs(x - mid) for x in values)
         mad = median(deviations)
-        filtered = [x for x in values if abs(x - mid) <= 3 * 1.4826 * mad] if mad else values[:]
+        filtered = [x for x in values if abs(x - mid) <= 3 * 1.4826 * mad] if mad else [x for x in values if mid * 0.5 <= x <= mid * 2]
         # Require both a reasonable original sample and post-filter sample.
         sufficient = len(filtered) >= min_samples
         result.append({
