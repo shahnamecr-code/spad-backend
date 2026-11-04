@@ -187,6 +187,15 @@ export default function ApiIrPanel(){
       <Badge ok={service.enabled}>{service.enabled?'فعال':'غیرفعال'}</Badge>
      </div>
      <small style={{display:'block',direction:'ltr',textAlign:'right',fontSize:10,color:palette.muted,marginBottom:12}}>{service.operation}{service.restricted?' · Restricted':''}</small>
+     <div style={{background:'#f0f7fc',border:'1px solid #dfecf5',borderRadius:11,padding:'11px 12px',marginBottom:12}}>
+      <strong style={{display:'block',color:palette.navy,fontSize:11,marginBottom:8,fontWeight:600}}>اطلاعات لازم از کاربر</strong>
+      {(service.required_fields||[]).map(f=><div key={f.key} style={{display:'flex',justifyContent:'space-between',gap:9,fontSize:10,color:'#597e95',marginBottom:6}}>
+       <span>{f.label}{f.required?' *':''}</span><code dir="ltr" style={{fontSize:10,color:'#0975ad',background:'transparent'}}>{f.key}</code>
+      </div>)}
+      <small style={{display:'block',fontSize:9,lineHeight:1.9,color:palette.muted,marginTop:8}}>
+       ساختار JSON ارائه‌دهنده: {(service.provider_json_keys||[]).join(' · ')}. تأیید رضایت داخلی اسپاد جزو اطلاعات ارسال‌شده به ارائه‌دهنده نیست.
+      </small>
+     </div>
      <label style={{fontSize:11,color:palette.muted}}>تعرفه فروش (تومان)
       <input type="number" min="0" step="1" style={{...field,marginTop:8}} value={drafts[service.slug]??'0'} onChange={e=>setDrafts(old=>({...old,[service.slug]:e.target.value}))}/>
      </label>
