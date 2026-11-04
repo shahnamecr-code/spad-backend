@@ -248,6 +248,7 @@ class InquiryController extends Controller
         }
 
         $user = $request->user();
+        app(\App\Services\SpadBiometricAccess::class)->assertFor($user,'inquiries:'.$service->slug);
         $inputData = $service->normalizeSubmittedInputs((array) $request->input('inputs', []));
         [$rules, $attributes] = $this->inputRules($service);
         $inputValidator = Validator::make($inputData, $rules, [], $attributes);
