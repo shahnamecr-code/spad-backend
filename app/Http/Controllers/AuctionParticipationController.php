@@ -55,6 +55,7 @@ class AuctionParticipationController extends Controller
   ]]);
  }
  public function join(Request $request,$id,WalletService $wallets) {
+  app(\App\Services\SpadBiometricAccess::class)->assertFor($request->user(),'property-auctions');
   $user=$request->user();
   $uid=(int)$user->id;
   $result=DB::transaction(function()use($id,$uid,$user,$wallets){
