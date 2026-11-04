@@ -357,13 +357,19 @@ class SpadIdentityController extends Controller
     public function adminList()
     {
         $this->admin();
-        $rows=DB::table('spad_user_verifications as v')
+        $biometric=Schema::hasTable('spad_biometric_verifications');
+        $query=DB::table('spad_user_verifications as v')
             ->leftJoin('users as u','u.id','=','v.user_id')
             ->select('v.id','v.user_id','v.full_name','v.level',
                 'v.status','v.verification_provider','v.phone_verified',
                 'v.shahkar_status','v.shahkar_checked_at','v.reviewed_at',
-                'v.created_at','v.updated_at','u.mobile')
-            ->orderByDesc('v.updated_at')->limit(200)->get();
+                'v.created_at','v.updated_at','u.mobile');
+        if($biometric)
+            $query->leftJoin('spad_biometric_verifications as b','b.user_id','=','v.user_id')
+                ->addSelect('b.status as biometric_status',
+                    'b.verified_at as biometric_verified_at',
+                    'b.expires_at as biometric_expires_at');
+        $rows=$query->orderByDesc('v.updated_at')->limit(200)->get();
         return response()->json(['data'=>$rows])
             ->header('Cache-Control','private, no-store');
     }
