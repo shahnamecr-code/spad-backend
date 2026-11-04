@@ -48,7 +48,7 @@ export default function UserKycReview(){
      <p style={{fontSize:11,color:"#708ca0",margin:"10px 0"}}>شناسه کاربر: {fa(v.user_id)} · {v.mobile||"—"}</p>
      <div style={{background:"#f8fbff",borderRadius:10,padding:10,lineHeight:2,fontSize:11,color:"#567e98"}}>
       <div>تأیید موبایل: <strong>{v.phone_verified?"انجام شده":"انجام نشده"}</strong></div>
-      <div>وضعیت سازگاری قدیمی: <strong>{v.shahkar_status==="matched"?"تطبیق مثبت":v.shahkar_status==="mismatch"?"عدم تطبیق":"انجام نشده"}</strong></div>
+      <div>استعلام قدیمی شاهکار (صرفاً سابقه): <strong>{v.shahkar_status==="matched"?"در سابقه ثبت شده":v.shahkar_status==="mismatch"?"عدم تطبیق قدیمی":"انجام نشده"}</strong></div>
       <div>ثبت‌احوال: <strong>{v.person_info_status==="matched"?"تطبیق مثبت":v.person_info_status==="mismatch"?"عدم تطبیق":"انجام نشده"}</strong></div>
       <div>منبع احراز: <strong>{newVerified?"api.ir · خودکار":"تأیید با api.ir ثبت نشده"}</strong></div>
       <div>آخرین بررسی قدیمی: {date(v.shahkar_checked_at)}</div>
@@ -62,6 +62,6 @@ export default function UserKycReview(){
    })}
   </div>
   {!loading&&!visible.length&&<p style={{padding:20,textAlign:"center",color:"#7894a6"}}>پرونده‌ای در این دسته وجود ندارد.</p>}
-  <p style={{marginTop:18,fontSize:11,color:"#7595a8",lineHeight:2}}>پرونده‌های قدیمی برای سوابق حذف نشده‌اند، ولی در سیستم جدید تأیید سطح پایه فقط با تطبیق موفق هر سه سرویس api.ir صادر می‌شود.</p>
+  <p style={{marginTop:18,fontSize:11,color:"#7595a8",lineHeight:2}}>پرونده‌های قدیمی برای سوابق حذف نشده‌اند. در سیستم جدید، سطح پایه پس از تأیید پیامکی و تطبیق مشخصات هویتی PersonInfo صادر می‌شود و استعلام شاهکار شرط آن نیست.</p>
  </CardBody></Card>;
 }
