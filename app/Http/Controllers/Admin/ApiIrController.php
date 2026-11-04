@@ -50,7 +50,34 @@ class ApiIrController extends Controller
                 'installed' => (bool) $service,
             ];
         }
+        $identityStats = [
+            'total'=>0, 'approved'=>0, 'draft'=>0, 'rejected'=>0, 'legacy'=>0,
+        ];
+        if (Schema::hasTable('spad_user_verifications') &&
+            Schema::hasColumn('spad_user_verifications', 'verification_provider')) {
+            $query = DB::table('spad_user_verifications');
+            $identityStats['total'] = (clone $query)->count();
+            $identityStats['approved'] = (clone $query)->where('status','approved')
+                ->where('verification_provider','api_ir')->count();
+            $identityStats['draft'] = (clone $query)->where('status','draft')->count();
+            $identityStats['rejected'] = (clone $query)->where('status','rejected')->count();
+            $identityStats['legacy'] = (clone $query)->where('status','approved')
+                ->where(function ($q) {
+                    $q->whereNull('verification_provider')->orWhere('verification_provider','!=','api_ir');
+                })->count();
+        }
+        $feature = app(\App\Services\ApiIrAccountServices::class);
         return response()->json(['data' => [
+            'identity_version'=>3,
+            'identity_stats'=>$identityStats,
+            'identity_checks'=>[
+                ['code'=>'sms_otp','name'=>'تأیید پیامکی','operation'=>'SmsOTP',
+                 'enabled'=>$feature->enabled('sms_otp'),'status'=>'configuration_only'],
+                ['code'=>'person_info','name'=>'استعلام مشخصات هویتی','operation'=>'PersonInfo',
+                 'enabled'=>$feature->enabled('person_info'),'status'=>'configuration_only'],
+            ],
+            'identity_note'=>'تأیید مالکیت سیم‌کارت به کد ملی انجام نمی‌شود؛ نتیجه سرویس‌ها بدون ارسال درخواست هزینه‌دار آزمایش نشده است.',
+            'last_config_change'=>$row ? $row->updated_at : null,
             'enabled' => $row ? (bool) $row->enabled : false,
             'has_key' => $row && !empty($row->secrets_encrypted),
             'configured' => $row && $row->mode === 'configured',
@@ -98,21 +125,18 @@ class ApiIrController extends Controller
     {
         $this->guard($request);
         $data=$request->validate(['sms_otp'=>'required|boolean','person_info'=>'required|boolean',
-            'shahkar'=>'sometimes|boolean','otp_template'=>'required|integer|between:0,4']);
+            'otp_template'=>'required|integer|between:0,4']);
         $row=$this->row();
         abort_unless($row,422,'ابتدا اتصال api.ir را ثبت کنید.');
-        $existing=json_decode((string)$row->config_public,true);
-        if(!is_array($existing))$existing=[];
-        $shahkarEnabled=array_key_exists('shahkar',$data)
-            ? (bool)$data['shahkar'] : (($existing['shahkar_apiir_enabled']??'0')==='1');
-        if($data['sms_otp']||$data['person_info']||$shahkarEnabled)
+        if($data['sms_otp']||$data['person_info'])
             abort_unless($row->enabled&&$row->mode==='configured'&&$row->secrets_encrypted,
                 422,'ابتدا کلید و اتصال اصلی api.ir را فعال کنید.');
         $public=json_decode((string)$row->config_public,true);
         if(!is_array($public))$public=[];
         $public['sms_otp_enabled']=$data['sms_otp']?'1':'0';
         $public['person_info_enabled']=$data['person_info']?'1':'0';
-        $public['shahkar_apiir_enabled']=$shahkarEnabled?'1':'0';
+        // Shahkar is intentionally not part of KYC V3. Leave its old records intact.
+        $public['shahkar_apiir_enabled']='0';
         $public['otp_template']=(string)$data['otp_template'];
         DB::table('spad_web_service_connections')->where('id',$row->id)->update([
             'config_public'=>json_encode($public,JSON_UNESCAPED_UNICODE),
