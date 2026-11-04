@@ -25,6 +25,17 @@ class ApiIrClient
             'property-apiir-unpaid-cheque-pro' => ['operation' => 'UnpaidChequePro', 'field' => 'nationalCode', 'title' => 'استعلام چک برگشتی Pro', 'restricted' => true],
             'property-apiir-postal-code-location' => ['operation' => 'PostalCodeLocation', 'field' => 'postalCode', 'title' => 'دریافت لوکیشن با کدپستی'],
             'property-apiir-postal-code-pro' => ['operation' => 'PostalCodePro', 'field' => 'postalCode', 'title' => 'استعلام کدپستی Pro'],
+            // API.ir official OpenAPI operations; all disabled until admin licenses/prices them.
+            'property-apiir-cheque-color' => ['operation'=>'ChequeColor', 'field'=>'nationalCode',
+                'title'=>'استعلام رنگ چک صیادی', 'restricted'=>true, 'isCompany'=>false],
+            'property-apiir-cheque-info' => ['operation'=>'ChequeInfo', 'field'=>'chequeID',
+                'title'=>'استعلام مشخصات چک صیادی', 'restricted'=>true],
+            'property-apiir-sana' => ['operation'=>'Sana', 'field'=>'nationalCode',
+                'title'=>'استعلام سامانه ثنا', 'restricted'=>true, 'isCompany'=>false],
+            'property-apiir-iban-match' => ['operation'=>'IbanMatch', 'field'=>'nationalCode',
+                'title'=>'تطبیق کد ملی با شبا', 'restricted'=>true, 'hasIban'=>true, 'birthDate'=>true],
+            'property-apiir-iban-match-pro' => ['operation'=>'IbanMatchPro', 'field'=>'nationalCode',
+                'title'=>'تطبیق کد ملی با شبا پرو (سیاح)', 'restricted'=>true, 'hasIban'=>true],
         ];
     }
 
@@ -64,11 +75,25 @@ class ApiIrClient
         if ($field === 'billID' && !preg_match('/^[0-9]{6,24}$/D', $value)) {
             throw new RuntimeException('شناسه قبض معتبر وارد کنید.', 422);
         }
+        if ($slug === 'property-apiir-cheque-info') {
+            abort_unless(preg_match('/^[0-9]{15,16}$/D', $value), 422,
+                'شناسه چک صیادی باید ۱۵ یا ۱۶ رقم باشد.');
+            abort_unless(($inputs['consent'] ?? '') === 'بله، مجوز بررسی چک را دارم', 422,
+                'تأیید داشتن مجوز بررسی این چک ضروری است.');
+            $this->assertVerifiedAccount($user);
+            return;
+        }
         if ($field !== 'nationalCode') return;
-
         if (!preg_match('/^[0-9]{10}$/D', $value) || ($inputs['consent'] ?? '') !== 'بله، اطلاعات خودم است') {
             throw new RuntimeException('کد ملی معتبر و رضایت صریح صاحب اطلاعات الزامی است.', 422);
         }
+        if (!empty($service['hasIban']) &&
+            !preg_match('/^IR[0-9]{24}$/D', strtoupper((string)($inputs['iban']??''))))
+            throw new RuntimeException('شماره شبا باید با IR شروع شود و ۲۴ رقم داشته باشد.', 422);
+        if (!empty($service['birthDate']) &&
+            !preg_match('/^(13|14)[0-9]{2}\\/(0?[1-9]|1[0-2])\\/(0?[1-9]|[12][0-9]|3[01])$/D',
+                (string)($inputs['birthDate']??'')))
+            throw new RuntimeException('تاریخ تولد شمسی باید مانند ۱۳۷۵/۱/۲ باشد.', 422);
         if (!Schema::hasTable('spad_user_verifications')) {
             throw new RuntimeException('سامانه احراز هویت در دسترس نیست.', 503);
         }
@@ -84,9 +109,22 @@ class ApiIrClient
         }
     }
 
+    private function assertVerifiedAccount($user): void
+    {
+        if (!Schema::hasTable('spad_user_verifications'))
+            throw new RuntimeException('احراز هویت اسپاد در دسترس نیست.', 503);
+        $v=DB::table('spad_user_verifications')->where('user_id',$user->id)->first();
+        if (!$v || $v->status!=='approved' || (int)$v->level<1 ||
+            !$v->phone_verified || $v->shahkar_status!=='matched' ||
+            $v->verification_provider!=='api_ir_shahkarpro' ||
+            $v->phone!==(string)$user->mobile)
+            throw new RuntimeException('برای این استعلام ابتدا احراز هویت پایه را تکمیل کنید.', 403);
+    }
+
     public function execute(string $slug, array $inputs, $user): array
     {
         $this->authorize($slug, $inputs, $user);
+        app(\App\Services\SpadBiometricAccess::class)->assertFor($user,'inquiries:'.$slug);
         $connection = $this->connection();
         try {
             $token = Crypt::decryptString($connection->secrets_encrypted);
@@ -97,10 +135,13 @@ class ApiIrClient
             throw new RuntimeException('کلید api.ir نامعتبر است.', 503);
         }
         $meta = self::catalog()[$slug];
+        $payload=[$meta['field'] => (string)$inputs[$meta['field']]];
+        if (array_key_exists('isCompany',$meta)) $payload['isCompany']=false;
+        if (!empty($meta['hasIban'])) $payload['iban']=strtoupper((string)$inputs['iban']);
+        if (!empty($meta['birthDate'])) $payload['birthDate']=(string)$inputs['birthDate'];
+        // One billable call only: no fallback endpoint, redirect, retry or logging payloads.
         $response = Http::timeout(30)->withToken($token)->acceptJson()
-            ->post(self::ENDPOINT . $meta['operation'], [
-                $meta['field'] => (string) $inputs[$meta['field']],
-            ]);
+            ->post(self::ENDPOINT . $meta['operation'], $payload);
         if (!$response->successful()) {
             $status = $response->status();
             if ($status === 429) throw new RuntimeException('سقف درخواست سرویس api.ir تکمیل شده است (HTTP 429). بدون ارسال درخواست تکراری، بعداً تلاش کنید.', 429);
@@ -127,9 +168,21 @@ class ApiIrClient
         if (!array_key_exists('data', $json))
             throw new RuntimeException('پاسخ استعلام api.ir ناقص است.', 502);
         $data = $json['data'];
-        if (!is_array($data)) {
-            throw new RuntimeException('پاسخ استعلام ساختار قابل نمایش ندارد.', 502);
+        // A negative match/absence of Sana membership is valid successful data.
+        if (is_bool($data)) {
+            if ($slug==='property-apiir-sana') return ['registered'=>$data];
+            if ($slug==='property-apiir-iban-match' || $slug==='property-apiir-iban-match-pro')
+                return ['isMatch'=>$data];
+            throw new RuntimeException('نوع پاسخ این سرویس معتبر نیست.', 502);
         }
+        if (!is_array($data))
+            throw new RuntimeException('پاسخ استعلام ساختار قابل نمایش ندارد.', 502);
+        if ($slug==='property-apiir-cheque-color' &&
+            (!isset($data['chequeColorCode']) || !isset($data['chequeColor'])))
+            throw new RuntimeException('پاسخ استعلام رنگ چک ناقص است.', 502);
+        if ($slug==='property-apiir-cheque-info' &&
+            !isset($data['chequeType']) && !isset($data['iban']))
+            throw new RuntimeException('پاسخ مشخصات چک ناقص است.', 502);
         if ($slug === 'property-apiir-unpaid-cheque-pro') {
             // A zero count is a valid positive result, not an API failure.
             if (!isset($data['count']) || !is_numeric($data['count']) ||
