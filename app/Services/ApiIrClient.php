@@ -44,6 +44,33 @@ class ApiIrClient
         return isset(self::catalog()[$slug]);
     }
 
+    /**
+     * Pure provider payload builder. No customer input outside the official
+     * whitelist is forwarded, and consent is never sent to API.ir.
+     * Testable without credentials or charged provider calls.
+     */
+    public static function requestPayload(string $slug,array $inputs): array
+    {
+        $allowed=ApiIrInquirySchema::providerKeys()[$slug]??null;
+        if (!$allowed || !isset(self::catalog()[$slug]))
+            throw new RuntimeException('تعریف این سرویس API.ir معتبر نیست.',503);
+        $inputs=ApiIrInquirySchema::normalize($slug,$inputs);
+        $payload=[];
+        foreach ($allowed as $key) {
+            if ($key==='isCompany') {
+                // Only personal accounts are supported by the current KYC.
+                $payload[$key]=false;
+                continue;
+            }
+            if (!isset($inputs[$key]) || !is_string($inputs[$key]) ||
+                trim($inputs[$key])==='')
+                throw new RuntimeException('فیلد ضروری سرویس API.ir تکمیل نشده است.',422);
+            $payload[$key]=$inputs[$key];
+        }
+        return $payload;
+    }
+
+
     private function connection()
     {
         if (!Schema::hasTable('spad_web_service_connections')) {
@@ -145,22 +172,8 @@ class ApiIrClient
         if (!is_string($token) || trim($token) === '') {
             throw new RuntimeException('کلید api.ir نامعتبر است.', 503);
         }
-        $meta = self::catalog()[$slug];
-        $payload=[$meta['field'] => (string)$inputs[$meta['field']]];
-        if (array_key_exists('isCompany',$meta)) {
-            // Only verified natural persons can use this public flow.
-            $payload['isCompany']=false;
-        }
-        if (!empty($meta['hasIban'])) $payload['iban']=strtoupper((string)$inputs['iban']);
-        if (!empty($meta['birthDate'])) $payload['birthDate']=(string)$inputs['birthDate'];
-        // Compare with the official SDK contract before spending credits.
-        // Only fixed, allowlisted fields can be sent to the provider.
-        $expected=ApiIrInquirySchema::providerKeys()[$slug]??[];
-        $actual=array_keys($payload);
-        sort($expected);
-        sort($actual);
-        if (!$expected || $expected!==$actual)
-            throw new RuntimeException('ورودی‌های این استعلام با قرارداد رسمی API.ir تطابق ندارند.',422);
+        $meta=self::catalog()[$slug];
+        $payload=self::requestPayload($slug,$inputs);
         // One billable call only: no fallback endpoint, redirect, retry or logging payloads.
         $response = Http::timeout(30)->withToken($token)->acceptJson()
             ->post(self::ENDPOINT . $meta['operation'], $payload);
