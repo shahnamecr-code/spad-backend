@@ -163,7 +163,7 @@ class ApiIrController extends Controller
         $this->guard($request);
         $data=$request->validate([
             'video_live'=>'required|boolean',
-            'special_services'=>'required|array|max:200',
+            'special_services'=>'present|array|max:200',
             'special_services.*'=>'required|string|max:160',
         ]);
         $access=app(\App\Services\SpadBiometricAccess::class);
