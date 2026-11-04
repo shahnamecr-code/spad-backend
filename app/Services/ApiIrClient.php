@@ -76,6 +76,8 @@ class ApiIrClient
             ->where('user_id', $user->id)->first();
         if (!$verification || $verification->status !== 'approved' || (int) $verification->level < 1 ||
             !$verification->phone_verified || $verification->shahkar_status !== 'matched' ||
+            $verification->verification_provider !== 'api_ir' ||
+            $verification->phone !== (string)$user->mobile ||
             !$verification->national_code_hash ||
             !hash_equals((string) $verification->national_code_hash, hash_hmac('sha256', $value, config('app.key')))) {
             throw new RuntimeException('استعلام اطلاعات بانکی فقط برای صاحب حساب با احراز هویت تأییدشده اسپاد مجاز است.');

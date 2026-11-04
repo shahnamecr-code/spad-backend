@@ -1,269 +1,408 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Services\ApiIrAccountServices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Validation\ValidationException;
-use App\Services\ApiIrAccountServices;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
-class SpadIdentityController extends Controller {
- private function ready(){abort_unless(Schema::hasTable('spad_user_verifications')&&Schema::hasTable('spad_user_verification_documents'),503,'سامانه احراز هویت هنوز نصب نشده است.');}
- private function owner(Request $r){$this->ready();abort_unless($r->user(),401);return (int)$r->user()->id;}
- private function row($uid){return DB::table('spad_user_verifications')->where('user_id',$uid)->first();}
- private function national($v){
-  $v=strtr((string)$v,['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
-  if(!preg_match('/^\d{10}$/D',$v)||preg_match('/^(\d)\1{9}$/D',$v))return null;
-  $sum=0;for($i=0;$i<9;$i++)$sum+=(int)$v[$i]*(10-$i);
-  $rest=$sum%11;$digit=$rest<2?$rest:11-$rest;
-  return (int)$v[9]===$digit?$v:null;
- }
- private function mobile($value){
-  $v=strtr((string)$value,['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
-  if(strpos($v,'+98')===0)$v='0'.substr($v,3);
-  if(!preg_match('/^09\d{9}$/D',$v))throw ValidationException::withMessages(['mobile'=>'شماره تماس معتبر نیست.']);
-  return $v;
- }
- private function exposed($uid){
-  $gateway=app(ApiIrAccountServices::class);$required=$gateway->enabled('person_info');
-  $smsReady=$gateway->enabled('sms_otp')||(bool)config('sms.kyc_template');
-  $v=$this->row($uid);
-  if(!$v)return ['status'=>'not_submitted','level'=>0,'requested_level'=>1,'phone_verified'=>false,
-   'shahkar_status'=>'not_checked','person_info_status'=>'not_checked','person_info_required'=>$required,
-   'birth_date_set'=>false,'documents'=>[],'full_name'=>'','national_code_masked'=>null,'review_note'=>null,
-   'provider_ready'=>$gateway->enabled('shahkar')||(bool)config('services.spad_shahkar.key'),'sms_ready'=>$smsReady];
-  $docs=DB::table('spad_user_verification_documents')->where('verification_id',$v->id)->get(['id','kind','filename','created_at']);
-  $national=$v->national_code_encrypted?Crypt::decryptString($v->national_code_encrypted):'';
-  return ['status'=>$v->status,'level'=>(int)$v->level,'requested_level'=>(int)$v->requested_level,
-   'full_name'=>$v->full_name,'national_code_masked'=>$national?substr($national,0,3).'****'.substr($national,-3):null,
-   'phone_masked'=>$v->phone?substr($v->phone,0,4).'***'.substr($v->phone,-4):null,
-   'phone_verified'=>(bool)$v->phone_verified,'shahkar_status'=>$v->shahkar_status,
-   'person_info_status'=>$v->person_info_status??'not_checked','person_info_required'=>$required,
-   'birth_date_set'=>!empty($v->birth_date_encrypted),'review_note'=>$v->review_note,
-   'submitted_at'=>$v->updated_at,'documents'=>$docs,
-   'provider_ready'=>$gateway->enabled('shahkar')||(bool)config('services.spad_shahkar.key'),'sms_ready'=>$smsReady];
- }
- private function birthDate($date){
-  $v=strtr(trim((string)$date),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
-  if(!preg_match('/^(13|14)[0-9]{2}\/(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])$/D',$v))
-   throw ValidationException::withMessages(['birth_date'=>'تاریخ تولد شمسی را مانند ۱۳۷۵/۵/۲۱ وارد کنید.']);
-  return $v;
- }
- private function normalizeName($name){
-  $s=strtr(trim((string)$name),['ي'=>'ی','ك'=>'ک','‌'=>' ','ـ'=>'']);
-  return preg_replace('/\s+/u',' ',$s);
- }
+class SpadIdentityController extends Controller
+{
+    // Only API.IR SmsOTP, Shahkar and PersonInfo can confer a verified identity.
+    // Legacy verifications remain on disk for audit but require re-verification.
+    private function ready(): void
+    {
+        abort_unless(Schema::hasTable('spad_user_verifications') &&
+            Schema::hasColumn('spad_user_verifications', 'verification_provider'), 503,
+            'نسخه جدید احراز هویت هنوز روی سرور نصب نشده است.');
+    }
 
- public function status(Request $r){return response()->json(['data'=>$this->exposed($this->owner($r))])->header('Cache-Control','private, no-store');}
- public function start(Request $r){
-  $uid=$this->owner($r);$data=$r->validate(['full_name'=>'required|string|min:5|max:180',
-   'national_code'=>'required|string|max:10','requested_level'=>'required|integer|between:1,3',
-   'consent'=>'required|accepted','birth_date'=>'nullable|string|max:20']);
-  if(app(ApiIrAccountServices::class)->enabled('person_info')&&!$r->filled('birth_date'))
-   throw ValidationException::withMessages(['birth_date'=>'تاریخ تولد برای استعلام مشخصات هویتی ضروری است.']);
-  $birth=$r->filled('birth_date')?$this->birthDate($data['birth_date']):null;
-  $national=$this->national($data['national_code']);
-  if(!$national)throw ValidationException::withMessages(['national_code'=>'کد ملی معتبر نیست.']);
-  $mobile=$this->mobile($r->user()->mobile);
-  $v=$this->row($uid);
-  abort_if($v&&in_array($v->status,['pending','approved'],true),422,'پرونده فعلی در انتظار بررسی یا تأییدشده است.');
-  $record=['full_name'=>$data['full_name'],'phone'=>$mobile,'national_code_encrypted'=>Crypt::encryptString($national),
-    'national_code_hash'=>hash_hmac('sha256',$national,config('app.key')),
-    'requested_level'=>$data['requested_level'],'phone_verified'=>false,'phone_verified_at'=>null,
-    'phone_code_hash'=>null,'phone_code_expires_at'=>null,'phone_attempts'=>0,'phone_sends'=>0,'phone_last_sent_at'=>null,
-    'shahkar_status'=>'not_checked','shahkar_checked_at'=>null,
-    'birth_date_encrypted'=>$birth?Crypt::encryptString($birth):null,
-    'person_info_status'=>'not_checked','person_info_checked_at'=>null,'status'=>'draft','review_note'=>null,'updated_at'=>now()];
-  if($v)DB::table('spad_user_verifications')->where('id',$v->id)->update($record);
-  else DB::table('spad_user_verifications')->insert(array_merge($record,['user_id'=>$uid,'created_at'=>now()]));
-  return $this->status($r);
- }
- public function sendPhone(Request $r){
-  $uid=$this->owner($r);$v=$this->row($uid);
-  abort_unless($v&&$v->status==='draft',422,'ابتدا اطلاعات هویتی را ثبت کنید.');
-  abort_if($v->phone_verified,422,'شماره تماس قبلاً تأیید شده است.');
-  $apiOtp=app(ApiIrAccountServices::class)->enabled('sms_otp');
-  $template=config('sms.kyc_template');
-  if(!$apiOtp)abort_unless($template&&ctype_digit((string)$template),503,'الگوی اختصاصی پیامک احراز هویت در سرور تنظیم نشده است.');
-  abort_if($v->phone_sends>=5,429,'سقف درخواست پیامک تکمیل شده است.');
-  if($v->phone_last_sent_at)abort_if(now()->diffInSeconds($v->phone_last_sent_at)<90,429,'برای ارسال مجدد کمی بعد تلاش کنید.');
-  $code=(string)random_int(100000,999999);$param=config('sms.kyc_parameter','code');
-  try{
-   if($apiOtp)app(ApiIrAccountServices::class)->sendOtp($v->phone,$code);
-   else{
-    $result=sms()->send('hi',function($sms)use($v,$template,$param,$code){
-     $sms->to([$v->phone]);$sms->template((int)$template,[$param=>$code]);
-    });
-    if($result===false)throw new \RuntimeException('ارسال پیامک ناموفق بود.');
-   }
-  }catch(\Throwable $e){abort(503,'ارسال پیامک تأیید ممکن نشد.');}
-  DB::table('spad_user_verifications')->where('id',$v->id)->update([
-   'phone_code_hash'=>Hash::make($code),'phone_code_expires_at'=>now()->addMinutes(10),
-   'phone_attempts'=>0,'phone_sends'=>DB::raw('phone_sends + 1'),'phone_last_sent_at'=>now(),'updated_at'=>now()]);
-  return response()->json(['message'=>'کد شش‌رقمی برای شماره حساب ارسال شد.']);
- }
- public function verifyPhone(Request $r){
-  $uid=$this->owner($r);$v=$this->row($uid);
-  $d=$r->validate(['code'=>'required|string|regex:/^\d{6}$/D']);
-  abort_unless($v&&$v->status==='draft'&&$v->phone_code_hash&&$v->phone_code_expires_at,422);
-  abort_if($v->phone_attempts>=5,429,'تعداد تلاش مجاز به پایان رسیده است.');
-  abort_if(now()->greaterThan($v->phone_code_expires_at),422,'کد منقضی شده است.');
-  if(!Hash::check($d['code'],$v->phone_code_hash)){
-   DB::table('spad_user_verifications')->where('id',$v->id)->increment('phone_attempts');
-   throw ValidationException::withMessages(['code'=>'کد پیامکی صحیح نیست.']);
-  }
-  DB::table('spad_user_verifications')->where('id',$v->id)->update([
-   'phone_verified'=>true,'phone_verified_at'=>now(),
-   'phone_code_hash'=>null,'phone_code_expires_at'=>null,'updated_at'=>now()]);
-  return $this->status($r);
- }
- public function shahkar(Request $r){
-  $uid=$this->owner($r);$v=$this->row($uid);
-  abort_unless($v&&$v->phone_verified&&$v->status==='draft',422,
-   'ابتدا شماره موبایل حساب را تأیید کنید.');
-  abort_if($v->shahkar_status==='matched',422,'تطبیق شاهکار قبلاً تأیید شده است.');
-  // Prevent repeated paid checks for the same account, including across sessions.
-  $rateKey='spad-shahkar:'.hash('sha256',(string)$uid);
-  abort_if(RateLimiter::tooManyAttempts($rateKey,4),429,
-   'سقف درخواست شاهکار تکمیل شده است. لطفاً بعداً اقدام کنید.');
-  if($v->shahkar_checked_at)abort_if(now()->diffInSeconds($v->shahkar_checked_at)<120,429,
-   'لطفاً برای استعلام مجدد کمی بعد تلاش کنید.');
+    private function userId(Request $request): int
+    {
+        $this->ready();
+        abort_unless($request->user(), 401);
+        return (int) $request->user()->id;
+    }
 
-  $apiIr=app(ApiIrAccountServices::class);
-  $useApiIr=$apiIr->enabled('shahkar');
-  $key=config('services.spad_shahkar.key');
-  abort_unless($useApiIr||$key,503,'هیچ ارائه‌دهنده شاهکار در سرور فعال نیست.');
-  RateLimiter::hit($rateKey,86400);
-  $national=Crypt::decryptString($v->national_code_encrypted);
-  try{
-   if($useApiIr){
-    // Strict boolean: a negative result is mismatch, never a successful verification.
-    $matched=$apiIr->shahkar($national,$v->phone);
-   }else{
-    // Preserve previously configured service until the admin enables api.ir.
-    $result=Http::timeout(12)->asForm()->post('https://nextpay.org/nx/inquiry/shahkar',[
-     'inquiry_api'=>$key,'national_id'=>$national,'mobile'=>$v->phone
-    ]);
-    if(!$result->successful())throw new \RuntimeException('ارائه‌دهنده پاسخ موفق نداد.');
-    $json=$result->json();
-    if(!is_array($json)||!isset($json['code'])||(int)$json['code']!==200||
-       !isset($json['data'])||!is_array($json['data'])||
-       !array_key_exists('match',$json['data'])||!is_bool($json['data']['match']))
-     throw new \RuntimeException('پاسخ شاهکار معتبر نیست.');
-    $matched=$json['data']['match'];
-   }
-  }catch(\Throwable $e){
-   // No credentials, phone numbers, or national ID in public errors/logs.
-   abort(503,'استعلام شاهکار انجام نشد. وضعیت دسترسی وب‌سرویس را بررسی کنید.');
-  }
-  DB::table('spad_user_verifications')->where('id',$v->id)->update([
-   'shahkar_status'=>$matched?'matched':'mismatch',
-   'shahkar_checked_at'=>now(),'updated_at'=>now()
-  ]);
-  return $this->status($r);
- }
- public function updateBirthDate(Request $r){
-  $uid=$this->owner($r);$v=$this->row($uid);
-  abort_unless($v&&$v->status==='draft',422,'تنها پرونده در حال تکمیل قابل ویرایش است.');
-  $d=$r->validate(['birth_date'=>'required|string|max:20','consent'=>'required|accepted']);
-  $birth=$this->birthDate($d['birth_date']);
-  DB::table('spad_user_verifications')->where('id',$v->id)->update([
-   'birth_date_encrypted'=>Crypt::encryptString($birth),
-   'person_info_status'=>'not_checked','person_info_checked_at'=>null,'updated_at'=>now()]);
-  return $this->status($r);
- }
- public function personInfo(Request $r){
-  $uid=$this->owner($r);$v=$this->row($uid);
-  abort_unless(app(ApiIrAccountServices::class)->enabled('person_info'),503,'استعلام ثبت‌احوال هنوز فعال نشده است.');
-  abort_unless($v&&$v->status==='draft'&&$v->phone_verified&&$v->shahkar_status==='matched',422,
-   'ابتدا موبایل و تطبیق شاهکار را تأیید کنید.');
-  abort_unless($v->birth_date_encrypted,422,'ابتدا تاریخ تولد را وارد کنید.');
-  abort_if($v->person_info_status==='matched',422,'مشخصات هویتی قبلاً بررسی شده‌اند.');
-  $rateKey='spad-person-info:'.hash('sha256',(string)$uid);
-  abort_if(RateLimiter::tooManyAttempts($rateKey,3),429,'سقف روزانه استعلام هویتی تکمیل شده است.');
-  RateLimiter::hit($rateKey,86400);
-  if($v->person_info_checked_at)abort_if(now()->diffInSeconds($v->person_info_checked_at)<180,429,'درخواست قبلی اخیراً ثبت شده است.');
-  $national=Crypt::decryptString($v->national_code_encrypted);
-  $birth=Crypt::decryptString($v->birth_date_encrypted);
-  try{$info=app(ApiIrAccountServices::class)->personInfo($national,$birth);}
-  catch(\Throwable $e){abort(503,'استعلام ثبت‌احوال انجام نشد؛ مجوز سرویس و اتصال را بررسی کنید.');}
-  $name=$this->normalizeName(($info['firstName']??'').' '.($info['lastName']??''));
-  $matched=$info['alive']===true
-   &&hash_equals($national,(string)$info['nationalCode'])
-   &&$this->normalizeName($v->full_name)===$name;
-  DB::table('spad_user_verifications')->where('id',$v->id)->update([
-   'person_info_status'=>$matched?'matched':'mismatch',
-   'person_info_checked_at'=>now(),'updated_at'=>now()]);
-  // Only status persists; never store or return raw identity provider response.
-  return $this->status($r);
- }
- public function upload(Request $r){
-  $uid=$this->owner($r);$v=$this->row($uid);
-  abort_unless($v&&$v->status==='draft',422,'مدارک تنها در مرحله پیش‌نویس قابل تغییر است.');
-  $d=$r->validate(['kind'=>'required|in:national_card,face_photo,supporting',
-   'document'=>'required|file|mimes:jpg,jpeg,png,webp,pdf|max:5120']);
-  $old=DB::table('spad_user_verification_documents')->where('verification_id',$v->id)->where('kind',$d['kind'])->first();
-  $file=$r->file('document');$path=$file->store('private/spad-kyc/'.$uid,'local');
-  abort_unless($path,503,'ذخیره امن سند ممکن نشد.');
-  $payload=['user_id'=>$uid,'verification_id'=>$v->id,'kind'=>$d['kind'],
-   'path'=>$path,'filename'=>mb_substr($file->getClientOriginalName(),0,190),
-   'mime'=>$file->getMimeType(),'bytes'=>$file->getSize(),'updated_at'=>now()];
-  try{
-   if($old)DB::table('spad_user_verification_documents')->where('id',$old->id)->update($payload);
-   else DB::table('spad_user_verification_documents')->insert(array_merge($payload,['created_at'=>now()]));
-  }catch(\Throwable $e){Storage::disk('local')->delete($path);throw $e;}
-  if($old)Storage::disk('local')->delete($old->path);
-  return $this->status($r);
- }
- public function submit(Request $r){
-  $uid=$this->owner($r);$v=$this->row($uid);
-  abort_unless($v&&$v->status==='draft',422,'پرونده برای ارسال آماده نیست.');
-  abort_unless($v->phone_verified&&$v->shahkar_status==='matched',422,'تأیید پیامکی و تطبیق مثبت شاهکار ضروری است.');
-  if(app(ApiIrAccountServices::class)->enabled('person_info'))
-   abort_unless($v->person_info_status==='matched',422,'استعلام مشخصات هویتی باید مثبت باشد.');
-  $docs=DB::table('spad_user_verification_documents')->where('verification_id',$v->id)->pluck('kind')->all();
-  abort_unless(in_array('national_card',$docs,true),422,'تصویر مدرک شناسایی الزامی است.');
-  if($v->requested_level>=2)abort_unless(in_array('face_photo',$docs,true),422,'برای سطح ۲ عکس تطبیقی ضروری است.');
-  if($v->requested_level>=3)abort_unless(in_array('supporting',$docs,true),422,'برای سطح ۳ مدرک تکمیلی لازم است.');
-  DB::table('spad_user_verifications')->where('id',$v->id)->update(['status'=>'pending','review_note'=>null,'updated_at'=>now()]);
-  return $this->status($r);
- }
- private function admin(){abort_unless(auth('admin')->check(),403);$this->ready();}
- public function adminList(){
-  $this->admin();
-  $rows=DB::table('spad_user_verifications as v')->leftJoin('users as u','u.id','=','v.user_id')
-    ->select('v.id','v.user_id','v.full_name','v.requested_level','v.level','v.status',
-      'v.phone_verified','v.shahkar_status','v.person_info_status','v.created_at','v.updated_at','u.mobile')
-    ->orderByRaw("CASE WHEN v.status='pending' THEN 0 ELSE 1 END")->orderByDesc('v.updated_at')->limit(200)->get();
-  return response()->json(['data'=>$rows]);
- }
- public function adminReview(Request $r,$id){
-  $this->admin();$d=$r->validate(['decision'=>'required|in:approve,reject',
-    'level'=>'required_if:decision,approve|nullable|integer|between:1,3',
-    'note'=>'required_if:decision,reject|nullable|string|max:1000']);
-  $v=DB::table('spad_user_verifications')->where('id',$id)->first();abort_unless($v&&$v->status==='pending',422);
-  if($d['decision']==='approve'){
-   abort_unless($v->phone_verified&&$v->shahkar_status==='matched',422,'استعلام شاهکار و شماره تماس تأیید نشده است.');
-   abort_if($d['level']>$v->requested_level,422,'سطح مصوب از سطح درخواست‌شده بیشتر است.');
-   if(app(ApiIrAccountServices::class)->enabled('person_info'))
-    abort_unless($v->person_info_status==='matched',422,'نتیجه ثبت‌احوال تأیید نشده است.');
-  }
-  DB::table('spad_user_verifications')->where('id',$id)->where('status','pending')->update([
-   'status'=>$d['decision']==='approve'?'approved':'rejected',
-   'level'=>$d['decision']==='approve'?$d['level']:0,'review_note'=>$d['note']??null,
-   'reviewed_by'=>auth('admin')->id(),'reviewed_at'=>now(),'updated_at'=>now()]);
-  return response()->json(['message'=>'بررسی احراز هویت ثبت شد.']);
- }
- public function adminDocument($id,$kind){
-  $this->admin();abort_unless(in_array($kind,['national_card','face_photo','supporting'],true),404);
-  $doc=DB::table('spad_user_verification_documents')->where('verification_id',$id)->where('kind',$kind)->first();
-  abort_unless($doc&&Storage::disk('local')->exists($doc->path),404);
-  return Storage::disk('local')->download($doc->path,$doc->filename,[
-   'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff']);
- }
+    private function record(int $uid)
+    {
+        return DB::table('spad_user_verifications')->where('user_id', $uid)->first();
+    }
+
+    private function digits(string $value): string
+    {
+        return strtr(trim($value), [
+            '۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9',
+            '٠'=>'0','١'=>'1','٢'=>'2','٣'=>'3','٤'=>'4','٥'=>'5','٦'=>'6','٧'=>'7','٨'=>'8','٩'=>'9',
+        ]);
+    }
+
+    private function national(string $raw): ?string
+    {
+        $v = $this->digits($raw);
+        if (!preg_match('/^[0-9]{10}$/D', $v) || preg_match('/^([0-9])\1{9}$/D', $v)) return null;
+        $sum = 0;
+        for ($i=0;$i<9;$i++) $sum += (int)$v[$i] * (10 - $i);
+        $rest = $sum % 11;
+        return (int)$v[9] === ($rest < 2 ? $rest : 11 - $rest) ? $v : null;
+    }
+
+    private function mobile(string $raw): string
+    {
+        $v = $this->digits($raw);
+        if (strpos($v, '+98') === 0) $v = '0'.substr($v, 3);
+        if (!preg_match('/^09[0-9]{9}$/D', $v))
+            throw ValidationException::withMessages(['mobile'=>'شماره همراه حساب معتبر نیست.']);
+        return $v;
+    }
+
+    private function birthDate(string $raw): string
+    {
+        $v = $this->digits($raw);
+        if (!preg_match('/^(13|14)[0-9]{2}\/(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])$/D', $v))
+            throw ValidationException::withMessages(['birth_date'=>'تاریخ تولد شمسی را مانند ۱۳۷۵/۰۵/۲۱ وارد کنید.']);
+        $parts = array_map('intval', explode('/', $v));
+        if (($parts[1] > 6 && $parts[2] > 30) || ($parts[1] === 12 && $parts[2] > 30))
+            throw ValidationException::withMessages(['birth_date'=>'روز تاریخ تولد معتبر نیست.']);
+        return sprintf('%04d/%d/%d', $parts[0], $parts[1], $parts[2]);
+    }
+
+    private function normalizeName(string $name): string
+    {
+        $value = strtr(trim($name), ['ي'=>'ی','ك'=>'ک','‌'=>' ','ـ'=>'']);
+        return preg_replace('/\s+/u', ' ', $value);
+    }
+
+    private function gateway(): ApiIrAccountServices
+    {
+        return app(ApiIrAccountServices::class);
+    }
+
+    private function availability(): array
+    {
+        $gateway = $this->gateway();
+        return [
+            'sms_otp'=>$gateway->enabled('sms_otp'),
+            'shahkar'=>$gateway->enabled('shahkar'),
+            'person_info'=>$gateway->enabled('person_info'),
+        ];
+    }
+
+    private function ensureAvailable(): void
+    {
+        $checks = $this->availability();
+        abort_unless(!in_array(false, $checks, true), 503,
+            'ابتدا مدیر اسپاد باید سه سرویس پیامک، شاهکار و مشخصات هویتی api.ir را فعال کند.');
+    }
+
+    private function effectiveStatus($record, string $mobile): string
+    {
+        if (!$record) return 'not_submitted';
+        if ($record->verification_provider !== 'api_ir' &&
+            $record->status === 'approved') return 'needs_reverification';
+        if ($record->status === 'approved' &&
+            $record->phone !== $mobile) return 'needs_reverification';
+        if ($record->status === 'pending') return 'needs_reverification';
+        return (string)$record->status;
+    }
+
+    private function publicStatus(int $uid, string $mobile): array
+    {
+        $v = $this->record($uid);
+        $status = $this->effectiveStatus($v, $mobile);
+        $ready = $this->availability();
+        $national = $v && $v->national_code_encrypted && $status !== 'not_submitted'
+            ? Crypt::decryptString($v->national_code_encrypted) : null;
+        return [
+            'status'=>$status,
+            'level'=>$status === 'approved' ? 1 : 0,
+            'requested_level'=>1,
+            'full_name'=>$v && $status !== 'not_submitted' ? $v->full_name : '',
+            'national_code_masked'=>$national ? substr($national, 0, 3).'****'.substr($national,-3) : null,
+            'phone_masked'=>substr($mobile,0,4).'***'.substr($mobile,-4),
+            'phone_verified'=>(bool)($v && $v->phone_verified && $v->phone === $mobile),
+            'shahkar_status'=>$v ? $v->shahkar_status : 'not_checked',
+            'person_info_status'=>$v ? $v->person_info_status : 'not_checked',
+            'birth_date_set'=>(bool)($v && $v->birth_date_encrypted),
+            'submitted_at'=>$v ? $v->updated_at : null,
+            'review_note'=>$v ? $v->review_note : null,
+            'person_info_required'=>true,
+            'provider_ready'=>$ready['shahkar'],
+            'sms_ready'=>$ready['sms_otp'],
+            'availability'=>$ready,
+            'api_ir_only'=>true,
+            'documents'=>[],
+        ];
+    }
+
+    public function status(Request $request)
+    {
+        $uid=$this->userId($request);
+        $mobile=$this->mobile((string)$request->user()->mobile);
+        return response()->json(['data'=>$this->publicStatus($uid,$mobile)])
+            ->header('Cache-Control','private, no-store');
+    }
+
+    public function start(Request $request)
+    {
+        $uid=$this->userId($request);
+        $this->ensureAvailable();
+        $data=$request->validate([
+            'full_name'=>'required|string|min:5|max:180',
+            'national_code'=>'required|string|max:12',
+            'birth_date'=>'required|string|max:20',
+            'consent'=>'required|accepted',
+        ]);
+        $name=$this->normalizeName($data['full_name']);
+        abort_unless(mb_strlen($name)>=5,422,'نام و نام خانوادگی را کامل وارد کنید.');
+        $national=$this->national($data['national_code']);
+        if (!$national) throw ValidationException::withMessages(['national_code'=>'کد ملی واردشده معتبر نیست.']);
+        $birth=$this->birthDate($data['birth_date']);
+        $mobile=$this->mobile((string)$request->user()->mobile);
+        $rateKey='spad-kyc-start:'.$uid;
+        abort_if(RateLimiter::tooManyAttempts($rateKey,6),429,'سقف اصلاح پرونده هویتی تکمیل شده است.');
+        $current=$this->record($uid);
+        $status=$this->effectiveStatus($current,$mobile);
+        abort_if($status==='approved',422,'احراز هویت شما قبلاً تکمیل شده است.');
+        RateLimiter::hit($rateKey,86400);
+        $fields=[
+            'full_name'=>$name,'phone'=>$mobile,
+            'national_code_encrypted'=>Crypt::encryptString($national),
+            'national_code_hash'=>hash_hmac('sha256',$national,config('app.key')),
+            'birth_date_encrypted'=>Crypt::encryptString($birth),
+            'requested_level'=>1,'level'=>0,
+            'phone_verified'=>false,'phone_verified_at'=>null,
+            'phone_code_hash'=>null,'phone_code_expires_at'=>null,
+            'phone_attempts'=>0,'phone_sends'=>0,'phone_last_sent_at'=>null,
+            'shahkar_status'=>'not_checked','shahkar_checked_at'=>null,
+            'person_info_status'=>'not_checked','person_info_checked_at'=>null,
+            'verification_provider'=>null,
+            'status'=>'draft','review_note'=>null,'reviewed_at'=>null,'reviewed_by'=>null,
+            'updated_at'=>now()
+        ];
+        DB::transaction(function()use($uid,$fields){
+            $v=DB::table('spad_user_verifications')->where('user_id',$uid)->lockForUpdate()->first();
+            if($v){
+                DB::table('spad_user_verifications')->where('id',$v->id)->update($fields);
+            }else{
+                DB::table('spad_user_verifications')->insert(array_merge($fields,[
+                    'user_id'=>$uid,'created_at'=>now()
+                ]));
+            }
+        });
+        return $this->status($request);
+    }
+
+    public function sendPhone(Request $request)
+    {
+        $uid=$this->userId($request);
+        $this->ensureAvailable();
+        $mobile=$this->mobile((string)$request->user()->mobile);
+        $ipKey='spad-kyc-sms-ip:'.hash('sha256',(string)$request->ip());
+        $userKey='spad-kyc-sms-user:'.$uid;
+        abort_if(RateLimiter::tooManyAttempts($ipKey,20) ||
+            RateLimiter::tooManyAttempts($userKey,6),429,'درخواست پیامک بیش از حد مجاز است.');
+        $code=(string)random_int(100000,999999);
+        $hash=Hash::make($code);
+        DB::transaction(function()use($uid,$mobile,$hash){
+            $v=DB::table('spad_user_verifications')->where('user_id',$uid)->lockForUpdate()->first();
+            abort_unless($v && $v->status==='draft' && $v->phone===$mobile,422,'ابتدا پرونده هویتی را تکمیل کنید.');
+            abort_if($v->phone_verified,422,'شماره همراه قبلاً تأیید شده است.');
+            abort_if((int)$v->phone_sends>=5,429,'سقف ارسال کد برای این پرونده تکمیل شده است.');
+            if($v->phone_last_sent_at)
+                abort_if(now()->diffInSeconds($v->phone_last_sent_at)<90,429,'برای ارسال مجدد، ۹۰ ثانیه فاصله لازم است.');
+            DB::table('spad_user_verifications')->where('id',$v->id)->update([
+                'phone_code_hash'=>$hash,
+                'phone_code_expires_at'=>now()->addMinutes(10),
+                'phone_attempts'=>0,
+                'phone_sends'=>DB::raw('phone_sends + 1'),
+                'phone_last_sent_at'=>now(),'updated_at'=>now()
+            ]);
+        });
+        RateLimiter::hit($userKey,86400);
+        RateLimiter::hit($ipKey,86400);
+        try{
+            $this->gateway()->sendOtp($mobile,$code);
+        }catch(\Throwable $e){
+            DB::table('spad_user_verifications')->where('user_id',$uid)
+                ->where('phone_code_hash',$hash)
+                ->update(['phone_code_hash'=>null,'phone_code_expires_at'=>null]);
+            abort(503,'ارسال پیامک api.ir انجام نشد؛ مجوز سرویس و اعتبار حساب را بررسی کنید.');
+        }
+        return response()->json(['message'=>'کد تأیید شش‌رقمی ارسال شد.'])
+            ->header('Cache-Control','no-store');
+    }
+
+    public function verifyPhone(Request $request)
+    {
+        $uid=$this->userId($request);
+        $data=$request->validate(['code'=>'required|string|regex:/^[0-9]{6}$/D']);
+        $v=$this->record($uid);
+        $mobile=$this->mobile((string)$request->user()->mobile);
+        abort_unless($v && $v->status==='draft' && $v->phone===$mobile &&
+            $v->phone_code_hash && $v->phone_code_expires_at,422,
+            'کد فعال برای این حساب وجود ندارد.');
+        abort_if((int)$v->phone_attempts>=5,429,'تعداد تلاش مجاز برای کد تکمیل شده است.');
+        abort_if(now()->greaterThan($v->phone_code_expires_at),422,'کد منقضی شده است.');
+        // Atomically claim an attempt before checking the hash.
+        DB::table('spad_user_verifications')->where('id',$v->id)
+            ->where('phone_code_hash',$v->phone_code_hash)
+            ->increment('phone_attempts');
+        if(!Hash::check($data['code'],$v->phone_code_hash))
+            throw ValidationException::withMessages(['code'=>'کد تأیید صحیح نیست.']);
+        $affected=DB::table('spad_user_verifications')->where('id',$v->id)
+            ->where('phone_code_hash',$v->phone_code_hash)
+            ->where('phone_verified',false)->update([
+                'phone_verified'=>true,'phone_verified_at'=>now(),
+                'phone_code_hash'=>null,'phone_code_expires_at'=>null,'updated_at'=>now()
+            ]);
+        abort_unless($affected===1,422,'کد قبلاً استفاده شده است.');
+        return $this->status($request);
+    }
+
+    public function shahkar(Request $request)
+    {
+        $uid=$this->userId($request);
+        $this->ensureAvailable();
+        $v=$this->record($uid);
+        $mobile=$this->mobile((string)$request->user()->mobile);
+        abort_unless($v && $v->status==='draft' && $v->phone===$mobile &&
+            $v->phone_verified,422,'ابتدا شماره همراه را با OTP تأیید کنید.');
+        abort_if($v->shahkar_status==='matched',422,'تطبیق شاهکار قبلاً انجام شده است.');
+        $key='spad-kyc-shahkar:'.$uid;
+        abort_if(RateLimiter::tooManyAttempts($key,4),429,'سقف روزانه استعلام شاهکار تکمیل شده است.');
+        if($v->shahkar_checked_at)
+            abort_if(now()->diffInSeconds($v->shahkar_checked_at)<120,429,'برای استعلام مجدد شاهکار کمی بعد اقدام کنید.');
+        // Reserve the billable check first to prevent concurrent duplicate calls.
+        $affected=DB::table('spad_user_verifications')->where('id',$v->id)
+            ->where('shahkar_status','!=','matched')
+            ->where(function($q){$q->whereNull('shahkar_checked_at')
+                ->orWhere('shahkar_checked_at','<=',now()->subSeconds(120));})
+            ->update(['shahkar_checked_at'=>now()]);
+        abort_unless($affected===1,429,'استعلام شاهکار دیگری در جریان است.');
+        RateLimiter::hit($key,86400);
+        $national=Crypt::decryptString($v->national_code_encrypted);
+        try{$matched=$this->gateway()->shahkar($national,$mobile);}
+        catch(\Throwable $e){abort(503,'شاهکار api.ir پاسخ معتبر نداد؛ نتیجه تأیید نشده است.');}
+        DB::table('spad_user_verifications')->where('id',$v->id)
+            ->where('status','draft')->where('phone',$mobile)
+            ->update(['shahkar_status'=>$matched?'matched':'mismatch','updated_at'=>now()]);
+        return $this->status($request);
+    }
+
+    public function personInfo(Request $request)
+    {
+        $uid=$this->userId($request);
+        $this->ensureAvailable();
+        $v=$this->record($uid);
+        $mobile=$this->mobile((string)$request->user()->mobile);
+        abort_unless($v && $v->status==='draft' && $v->phone===$mobile &&
+            $v->phone_verified && $v->shahkar_status==='matched',422,
+            'ابتدا تأیید موبایل و تطبیق شاهکار ضروری است.');
+        abort_unless($v->birth_date_encrypted,422,'تاریخ تولد شمسی ثبت نشده است.');
+        abort_if($v->person_info_status==='matched',422,'مشخصات ثبت‌احوالی قبلاً تأیید شده است.');
+        $key='spad-kyc-person:'.$uid;
+        abort_if(RateLimiter::tooManyAttempts($key,3),429,'سقف روزانه استعلام ثبت‌احوال تکمیل شده است.');
+        if($v->person_info_checked_at)
+            abort_if(now()->diffInSeconds($v->person_info_checked_at)<180,429,'برای استعلام مجدد ثبت‌احوال کمی بعد اقدام کنید.');
+        $affected=DB::table('spad_user_verifications')->where('id',$v->id)
+            ->where('person_info_status','!=','matched')
+            ->where(function($q){$q->whereNull('person_info_checked_at')
+                ->orWhere('person_info_checked_at','<=',now()->subSeconds(180));})
+            ->update(['person_info_checked_at'=>now()]);
+        abort_unless($affected===1,429,'استعلام مشخصات دیگری در جریان است.');
+        RateLimiter::hit($key,86400);
+        $national=Crypt::decryptString($v->national_code_encrypted);
+        $birth=Crypt::decryptString($v->birth_date_encrypted);
+        try{$data=$this->gateway()->personInfo($national,$birth);}
+        catch(\Throwable $e){abort(503,'استعلام ثبت‌احوال api.ir نتیجه معتبر نداد؛ اعتبار و مجوز سرویس را بررسی کنید.');}
+        $providerNational=(string)($data['nationalCode']??'');
+        $fullName=$this->normalizeName((string)($data['firstName']??'').' '.(string)($data['lastName']??''));
+        $matched=($data['alive']??null)===true &&
+            hash_equals($national,$providerNational) &&
+            $this->normalizeName($v->full_name)===$fullName;
+        $update=[
+            'person_info_status'=>$matched?'matched':'mismatch',
+            'updated_at'=>now()
+        ];
+        if($matched){
+            $update['status']='approved';
+            $update['level']=1;
+            $update['requested_level']=1;
+            $update['verification_provider']='api_ir';
+            $update['reviewed_at']=now();
+            $update['review_note']=null;
+        }
+        $changed=DB::table('spad_user_verifications')->where('id',$v->id)
+            ->where('status','draft')->where('phone_verified',true)
+            ->where('shahkar_status','matched')->where('phone',$mobile)
+            ->where('national_code_hash',hash_hmac('sha256',$national,config('app.key')))
+            ->update($update);
+        abort_unless($changed===1,409,'پرونده در حین استعلام تغییر کرده است؛ دوباره وضعیت را بررسی کنید.');
+        return $this->status($request);
+    }
+
+    // Existing clients can call the old paths; no manual KYC can grant approval.
+    public function updateBirthDate(Request $request)
+    {
+        $this->userId($request);
+        abort(410,'برای اصلاح مشخصات، از گزینه شروع دوباره احراز هویت استفاده کنید.');
+    }
+    public function upload(Request $request)
+    {
+        $this->userId($request);
+        abort(410,'بارگذاری دستی مدرک در احراز هویت جدید استفاده نمی‌شود.');
+    }
+    public function submit(Request $request)
+    {
+        $this->userId($request);
+        abort(410,'نتیجه احراز هویت پس از سه استعلام api.ir به‌صورت خودکار تعیین می‌شود.');
+    }
+
+    private function admin(): void
+    {
+        abort_unless(auth('admin')->check(),403);
+        $this->ready();
+    }
+
+    public function adminList()
+    {
+        $this->admin();
+        $rows=DB::table('spad_user_verifications as v')
+            ->leftJoin('users as u','u.id','=','v.user_id')
+            ->select('v.id','v.user_id','v.full_name','v.requested_level','v.level',
+                'v.status','v.verification_provider','v.phone_verified','v.shahkar_status',
+                'v.person_info_status','v.shahkar_checked_at','v.person_info_checked_at',
+                'v.reviewed_at','v.created_at','v.updated_at','u.mobile')
+            ->orderByDesc('v.updated_at')->limit(200)->get();
+        return response()->json(['data'=>$rows])
+            ->header('Cache-Control','private, no-store');
+    }
+
+    public function adminReview(Request $request,$id)
+    {
+        $this->admin();
+        $data=$request->validate([
+            'decision'=>'required|in:reject',
+            'note'=>'required|string|min:5|max:1000'
+        ]);
+        $v=DB::table('spad_user_verifications')->where('id',$id)->first();
+        abort_unless($v&&$v->status!=='rejected',422,'پرونده قابل رد نیست.');
+        DB::table('spad_user_verifications')->where('id',$v->id)->update([
+            'status'=>'rejected','level'=>0,'verification_provider'=>null,
+            'review_note'=>$data['note'],'reviewed_by'=>auth('admin')->id(),
+            'reviewed_at'=>now(),'updated_at'=>now()
+        ]);
+        return response()->json(['message'=>'پرونده رد شد. تأیید دستی در نسخه api.ir وجود ندارد.']);
+    }
+
+    public function adminDocument($id,$kind)
+    {
+        $this->admin();
+        abort(410,'احراز هویت جدید تنها از سرویس‌های api.ir استفاده می‌کند.');
+    }
 }
