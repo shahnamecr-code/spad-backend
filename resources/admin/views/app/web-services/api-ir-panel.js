@@ -50,7 +50,8 @@ export default function ApiIrPanel(){
   {note&&<p role="status" style={{padding:10,background:'#e8f2ff',borderRadius:9}}>{note}</p>}
   <div style={{background:'#fff',border:'1px solid #cfe0f3',padding:16,borderRadius:12,margin:'18px 0'}}>
    <strong style={{display:'block',marginBottom:10}}>ورود پیامکی و احراز هویت کاربران</strong>
-   <p style={{fontSize:12}}>در صورت غیرفعال بودن OTP api.ir، درگاه قبلی حفظ می‌شود. بررسی ثبت‌احوال پس از تأیید موبایل، شاهکار و رضایت کاربر انجام می‌شود.</p>
+   <p style={{fontSize:12}}>احراز هویت جدید کاملاً مبتنی بر api.ir است و بدون روشن‌بودن هر سه سرویس SmsOTP، Shahkar و PersonInfo اجرا نمی‌شود. پس از تطبیق مثبت، سطح پایه به‌طور خودکار تأیید می‌شود.</p>
+   <p style={{fontSize:12,color:state?.identity_ready?'#14815a':'#b76f20',fontWeight:600}}>وضعیت احراز هویت جدید: {state?.identity_ready?'هر سه سرویس در تنظیمات فعال هستند':'اتصال یک یا چند سرویس هنوز غیرفعال است'}</p>
    <label style={{display:'block',margin:'10px 0'}}><input type="checkbox" checked={smsOtp} onChange={e=>setSmsOtp(e.target.checked)}/> ورود و تأیید موبایل با SmsOTP</label>
    <label style={{display:'block',margin:'10px 0'}}><input type="checkbox" checked={personInfo} onChange={e=>setPersonInfo(e.target.checked)}/> مشخصات هویتی از PersonInfo</label>
    <label style={{display:'block',margin:'10px 0'}}><input type="checkbox" checked={shahkar} onChange={e=>setShahkar(e.target.checked)}/> احراز مالکیت شماره موبایل با شاهکار api.ir (Shahkar)</label>
@@ -63,7 +64,7 @@ export default function ApiIrPanel(){
     try{await axios.post(URL+'/account-features',{sms_otp:smsOtp,person_info:personInfo,shahkar,otp_template:otpTemplate});await refresh();setNote('تنظیمات OTP، شاهکار و مشخصات هویتی ذخیره شد.');}
     catch(e){setNote(e.response?.data?.message||'ذخیره موفق نبود.');}finally{setBusy(false);}
    }}>ذخیره تنظیمات ورود و احراز هویت</button>
-   <p style={{fontSize:12,marginTop:9}}>فعال‌سازی نهایی به کلید معتبر و مجوز سرویس شاهکار در api.ir نیاز دارد؛ هیچ استعلام هزینه‌دار آزمایشی ارسال نمی‌شود.</p>
+   <p style={{fontSize:12,marginTop:9}}>استعلام PersonInfo ممکن است به سطح دسترسی Trust در api.ir نیاز داشته باشد. فعال‌بودن سوئیچ‌ها به‌معنی موفقیت واقعی سرویس نیست؛ پاسخ واقعی تنها پس از درخواست مجاز کاربر مشخص می‌شود.</p>
   </div>
   <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(235px,1fr))',gap:12,marginTop:16}}>
    {(state?.services||[]).map(s=><article key={s.slug} style={{background:'white',border:'1px solid #dce8f8',borderRadius:12,padding:14}}>

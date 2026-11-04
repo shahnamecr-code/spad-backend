@@ -55,6 +55,10 @@ class ApiIrController extends Controller
             'has_key' => $row && !empty($row->secrets_encrypted),
             'configured' => $row && $row->mode === 'configured',
             'account_features' => app(\App\Services\ApiIrAccountServices::class)->settings(),
+            'identity_ready' => (function () {
+                $service=app(\App\Services\ApiIrAccountServices::class);
+                return $service->enabled('sms_otp') && $service->enabled('shahkar') && $service->enabled('person_info');
+            })(),
             'services' => $items,
             'notice' => 'بررسی اتصال بدون مصرف اعتبار است؛ موفقیت واقعی هر سرویس پس از ورود کلید و ارسال درخواست مجاز قابل بررسی است.'
         ]])->header('Cache-Control', 'private, no-store');
