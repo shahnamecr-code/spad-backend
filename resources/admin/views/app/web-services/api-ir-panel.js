@@ -22,7 +22,7 @@ const Toggle=({checked,onChange,disabled,label,description})=><label style={{dis
 export default function ApiIrPanel(){
  const [state,setState]=useState(null),[token,setToken]=useState(''),[enabled,setEnabled]=useState(false);
  const [smsOtp,setSmsOtp]=useState(false),[shahkarPro,setShahkarPro]=useState(false),[otpTemplate,setOtpTemplate]=useState(1);
- const [videoLive,setVideoLive]=useState(false),[specialServices,setSpecialServices]=useState([]);
+ const [videoLive,setVideoVerify]=useState(false),[specialServices,setSpecialServices]=useState([]);
  const [drafts,setDrafts]=useState({}),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState('identity'),[notice,setNotice]=useState(''),[isError,setIsError]=useState(false);
  const notify=(message,error=false)=>{setNotice(message);setIsError(error);};
@@ -134,7 +134,7 @@ export default function ApiIrPanel(){
    <div style={card}>
     <small style={{fontSize:10,color:palette.blue}}>SPAD IDENTITY · LEVEL 2</small>
     <h3 style={{fontSize:17,fontWeight:650,margin:'9px 0'}}>احراز ویدئویی بایومتریک با VideoLive</h3>
-    <p style={{fontSize:11,lineHeight:2.3,color:palette.muted}}>پس از احراز هویت پایه، کاربر با ویدئوی کوتاه، تاریخ تولد شمسی و سریال کارت ملی از طریق API.ir ارزیابی می‌شود. هر دو نتیجه تطبیق چهره و زنده‌سنجی باید مثبت باشند؛ اعتبار تأیید سطح دو ۱۸۰ روز است.</p>
+    <p style={{fontSize:11,lineHeight:2.3,color:palette.muted}}>پس از احراز هویت پایه، کاربر با ویدئوی کوتاه، تاریخ تولد شمسی و سریال کارت ملی از طریق API.ir ارزیابی می‌شود. هر دو نتیجه تطبیق چهره و زنده‌سنجی و تطبیق گفتار باید مثبت باشند؛ اعتبار تأیید سطح دو ۱۸۰ روز است.</p>
     <Toggle checked={videoLive} onChange={setVideoLive} disabled={busy||!state} label="فعال‌سازی اتصال VideoLive" description="ابتدا مجوز و اعتبار این سرویس را در API.ir تأیید کنید؛ روشن کردن تنظیمات جای تست واقعی را نمی‌گیرد."/>
     <div style={{padding:13,borderRadius:12,marginTop:14,background:'#f0f8fe',color:'#557d95',fontSize:11,lineHeight:2.1}}>ویدئو و سریال کارت ملی در دیتابیس اسپاد نگهداری نمی‌شوند. فقط وضعیت موفقیت و تاریخ انقضا در پرونده کاربر ثبت می‌شود.</div>
     <button type="button" disabled={busy||!state} onClick={saveBiometric} style={{...primary,marginTop:18}}>{busy?'در حال ذخیره...':'ذخیره سطح ویژه و فهرست خدمات'}</button>
@@ -187,6 +187,13 @@ export default function ApiIrPanel(){
       <Badge ok={service.enabled}>{service.enabled?'فعال':'غیرفعال'}</Badge>
      </div>
      <small style={{display:'block',direction:'ltr',textAlign:'right',fontSize:10,color:palette.muted,marginBottom:12}}>{service.operation}{service.restricted?' · Restricted':''}</small>
+     <div style={{margin:'0 0 14px',padding:12,borderRadius:10,background:'#eef7fd',border:'1px solid #d5e9f5'}}>
+      <strong style={{display:'block',fontSize:10,color:'#24658d',marginBottom:8}}>فیلدهای الزامی فرم کاربر (طبق API.ir)</strong>
+      <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+       {(service.customer_fields||[]).map(field=><span key={field.key} title={field.key} style={{fontSize:10,background:'#fff',border:'1px solid #d7e8f1',borderRadius:8,padding:'5px 8px',color:'#43738e'}}>{field.label}</span>)}
+      </div>
+      <small style={{display:'block',fontSize:9,color:'#7894a7',marginTop:8,direction:'ltr',textAlign:'right'}}>API keys: {(service.required_fields||[]).join(' · ')}</small>
+     </div>
      <div style={{background:'#f0f7fc',border:'1px solid #dfecf5',borderRadius:11,padding:'11px 12px',marginBottom:12}}>
       <strong style={{display:'block',color:palette.navy,fontSize:11,marginBottom:8,fontWeight:600}}>اطلاعات لازم از کاربر</strong>
       {(service.required_fields||[]).map(f=><div key={f.key} style={{display:'flex',justifyContent:'space-between',gap:9,fontSize:10,color:'#597e95',marginBottom:6}}>
