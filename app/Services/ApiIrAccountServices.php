@@ -54,8 +54,20 @@ class ApiIrAccountServices
                 throw new RuntimeException('ارائه‌دهنده پاسخ موفق نداد (HTTP '.$status.').', 502);
             }
             $json = $response->json();
-            if (!is_array($json) || ($json['success'] ?? false) !== true || !array_key_exists('data', $json))
-                throw new RuntimeException('api.ir پاسخ موفق و معتبر برنگرداند؛ مجوز عملیات و ساختار پاسخ را بررسی کنید.', 502);
+            if (!is_array($json))
+                throw new RuntimeException('ساختار پاسخ api.ir نامعتبر است.', 502);
+            if (($json['success'] ?? false) !== true) {
+                $providerCode = (int) ($json['code'] ?? 0);
+                if ($providerCode === 429)
+                    throw new RuntimeException('سقف درخواست‌های api.ir تکمیل شده است.', 429);
+                if ($providerCode === 401 || $providerCode === 403)
+                    throw new RuntimeException('مجوز یا کلید این سرویس معتبر نیست.', $providerCode);
+                if ($providerCode === 402)
+                    throw new RuntimeException('اعتبار حساب api.ir کافی نیست.', 402);
+                throw new RuntimeException('ارائه‌دهنده نتیجه موفق برنگرداند؛ مجوز و اعتبار را بررسی کنید.', 502);
+            }
+            if (!array_key_exists('data', $json))
+                throw new RuntimeException('داده پاسخ api.ir ناقص است.', 502);
             return $json['data'];
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             throw new RuntimeException('ارتباط با ارائه‌دهنده برقرار نشد.');
