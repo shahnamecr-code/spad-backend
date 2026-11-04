@@ -184,9 +184,11 @@ class SpadIdentityController extends Controller
             'status'=>'draft','review_note'=>null,'reviewed_at'=>null,'reviewed_by'=>null,
             'updated_at'=>now()
         ];
-        DB::transaction(function()use($uid,$fields){
+        DB::transaction(function()use($uid,$fields,$mobile){
             $v=DB::table('spad_user_verifications')->where('user_id',$uid)->lockForUpdate()->first();
             if($v){
+                abort_if($v->status==='approved' && $v->verification_provider==='api_ir' &&
+                    $v->phone===$mobile,422,'احراز هویت شما قبلاً تکمیل شده است.');
                 DB::table('spad_user_verifications')->where('id',$v->id)->update($fields);
             }else{
                 DB::table('spad_user_verifications')->insert(array_merge($fields,[
@@ -288,9 +290,12 @@ class SpadIdentityController extends Controller
         $national=Crypt::decryptString($v->national_code_encrypted);
         try{$matched=$this->gateway()->shahkar($national,$mobile);}
         catch(\Throwable $e){abort(503,'شاهکار api.ir پاسخ معتبر نداد؛ نتیجه تأیید نشده است.');}
-        DB::table('spad_user_verifications')->where('id',$v->id)
+        $updated=DB::table('spad_user_verifications')->where('id',$v->id)
             ->where('status','draft')->where('phone',$mobile)
+            ->where('phone_verified',true)
+            ->where('national_code_hash',hash_hmac('sha256',$national,config('app.key')))
             ->update(['shahkar_status'=>$matched?'matched':'mismatch','updated_at'=>now()]);
+        abort_unless($updated===1,409,'پرونده در حین استعلام تغییر کرده است؛ مجدداً وضعیت را بررسی کنید.');
         return $this->status($request);
     }
 
