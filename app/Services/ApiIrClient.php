@@ -63,50 +63,61 @@ class ApiIrClient
 
     public function authorize(string $slug, array $inputs, $user): void
     {
-        $service = self::catalog()[$slug] ?? null;
-        if (!$service || !$user) {
-            throw new RuntimeException('این خدمت در دسترس نیست.', 422);
+        $service=self::catalog()[$slug]??null;
+        if (!$service || !$user)
+            throw new RuntimeException('این خدمت در دسترس نیست.',422);
+        $inputs=ApiIrInquirySchema::normalize($slug,$inputs);
+        $field=$service['field'];
+        $value=(string)($inputs[$field]??'');
+        if ($field==='postalCode') {
+            if (!preg_match('/^[0-9]{10}$/D',$value))
+                throw new RuntimeException('کد پستی باید دقیقاً ۱۰ رقم باشد.',422);
+            return;
         }
-        $field = $service['field'];
-        $value = (string) ($inputs[$field] ?? '');
-        if ($field === 'postalCode' && !preg_match('/^[0-9]{10}$/D', $value)) {
-            throw new RuntimeException('کدپستی باید ده رقم باشد.', 422);
+        if ($field==='billID') {
+            if (!preg_match('/^[0-9]{6,24}$/D',$value))
+                throw new RuntimeException('شناسه قبض باید فقط شامل ۶ تا ۲۴ رقم باشد.',422);
+            return;
         }
-        if ($field === 'billID' && !preg_match('/^[0-9]{6,24}$/D', $value)) {
-            throw new RuntimeException('شناسه قبض معتبر وارد کنید.', 422);
-        }
-        if ($slug === 'property-apiir-cheque-info') {
-            abort_unless(preg_match('/^[0-9]{15,16}$/D', $value), 422,
-                'شناسه چک صیادی باید ۱۵ یا ۱۶ رقم باشد.');
-            abort_unless(($inputs['consent'] ?? '') === 'بله، مجوز بررسی چک را دارم', 422,
-                'تأیید داشتن مجوز بررسی این چک ضروری است.');
+        if ($field==='chequeID') {
+            if (!preg_match('/^[0-9]{15,16}$/D',$value))
+                throw new RuntimeException('شناسه چک صیادی باید ۱۵ یا ۱۶ رقم باشد.',422);
+            if (($inputs['consent']??'')!=='بله، مجوز بررسی چک را دارم')
+                throw new RuntimeException('تأیید داشتن مجوز بررسی این چک الزامی است.',422);
             $this->assertVerifiedAccount($user);
             return;
         }
-        if ($field !== 'nationalCode') return;
-        if (!preg_match('/^[0-9]{10}$/D', $value) || ($inputs['consent'] ?? '') !== 'بله، اطلاعات خودم است') {
-            throw new RuntimeException('کد ملی معتبر و رضایت صریح صاحب اطلاعات الزامی است.', 422);
+        if ($field!=='nationalCode')
+            throw new RuntimeException('تعریف این سرویس API.ir معتبر نیست.',503);
+        if (array_key_exists('isCompany',$service)) {
+            // Corporate identity requires authenticated signatory rights, which
+            // SPAD does not yet verify. Never query arbitrary legal entities.
+            $party=(string)($inputs['isCompany']??'');
+            if ($party==='شخص حقوقی')
+                throw new RuntimeException('استعلام شخص حقوقی نیازمند تأیید اختیار نمایندگی سازمان است؛ فعلاً از حساب حقیقی اقدام کنید.',403);
+            if ($party!=='شخص حقیقی')
+                throw new RuntimeException('نوع متقاضی را انتخاب کنید.',422);
         }
+        if (!preg_match('/^[0-9]{10}$/D',$value) ||
+            ($inputs['consent']??'')!=='بله، اطلاعات خودم است')
+            throw new RuntimeException('کد ملی ۱۰ رقمی و رضایت صریح صاحب اطلاعات الزامی است.',422);
         if (!empty($service['hasIban']) &&
-            !preg_match('/^IR[0-9]{24}$/D', strtoupper((string)($inputs['iban']??''))))
-            throw new RuntimeException('شماره شبا باید با IR شروع شود و ۲۴ رقم داشته باشد.', 422);
+            !preg_match('/^IR[0-9]{24}$/D',(string)($inputs['iban']??'')))
+            throw new RuntimeException('شماره شبا باید IR و دقیقاً ۲۴ رقم داشته باشد.',422);
         if (!empty($service['birthDate']) &&
-            !preg_match('/^(13|14)[0-9]{2}\\/(0?[1-9]|1[0-2])\\/(0?[1-9]|[12][0-9]|3[01])$/D',
+            !preg_match('/^(13|14)[0-9]{2}\/(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])$/D',
                 (string)($inputs['birthDate']??'')))
-            throw new RuntimeException('تاریخ تولد شمسی باید مانند ۱۳۷۵/۱/۲ باشد.', 422);
-        if (!Schema::hasTable('spad_user_verifications')) {
-            throw new RuntimeException('سامانه احراز هویت در دسترس نیست.', 503);
-        }
-        $verification = DB::table('spad_user_verifications')
-            ->where('user_id', $user->id)->first();
-        if (!$verification || $verification->status !== 'approved' || (int) $verification->level < 1 ||
-            !$verification->phone_verified || $verification->shahkar_status !== 'matched' ||
-            $verification->verification_provider !== 'api_ir_shahkarpro' ||
-            $verification->phone !== (string)$user->mobile ||
-            !$verification->national_code_hash ||
-            !hash_equals((string) $verification->national_code_hash, hash_hmac('sha256', $value, config('app.key')))) {
-            throw new RuntimeException('استعلام اطلاعات بانکی فقط برای صاحب حساب با احراز هویت تأییدشده اسپاد مجاز است.', 403);
-        }
+            throw new RuntimeException('تاریخ تولد شمسی را مانند 1370/1/1 وارد کنید.',422);
+        if (!Schema::hasTable('spad_user_verifications'))
+            throw new RuntimeException('سامانه احراز هویت در دسترس نیست.',503);
+        $v=DB::table('spad_user_verifications')->where('user_id',$user->id)->first();
+        if (!$v || $v->status!=='approved' || (int)$v->level<1 ||
+            !$v->phone_verified || $v->shahkar_status!=='matched' ||
+            $v->verification_provider!=='api_ir_shahkarpro' ||
+            $v->phone!==(string)$user->mobile || !$v->national_code_hash ||
+            !hash_equals((string)$v->national_code_hash,
+                hash_hmac('sha256',$value,config('app.key'))))
+            throw new RuntimeException('استعلام هویتی و بانکی فقط برای کد ملی تأییدشده صاحب همین حساب مجاز است.',403);
     }
 
     private function assertVerifiedAccount($user): void
@@ -136,7 +147,10 @@ class ApiIrClient
         }
         $meta = self::catalog()[$slug];
         $payload=[$meta['field'] => (string)$inputs[$meta['field']]];
-        if (array_key_exists('isCompany',$meta)) $payload['isCompany']=false;
+        if (array_key_exists('isCompany',$meta)) {
+            // Only verified natural persons can use this public flow.
+            $payload['isCompany']=false;
+        }
         if (!empty($meta['hasIban'])) $payload['iban']=strtoupper((string)$inputs['iban']);
         if (!empty($meta['birthDate'])) $payload['birthDate']=(string)$inputs['birthDate'];
         // One billable call only: no fallback endpoint, redirect, retry or logging payloads.
@@ -158,7 +172,7 @@ class ApiIrClient
             // Never log or surface raw response: banking responses contain PII.
             $providerCode = filter_var($json['code'] ?? null, FILTER_VALIDATE_INT);
             if ($providerCode === 401 || $providerCode === 403)
-                throw new RuntimeException('مجوز سرویس UnpaidChequePro یا کلید API.ir تأیید نشده است.', 403);
+                throw new RuntimeException('مجوز سرویس '.$meta['operation'].' یا کلید API.ir تأیید نشده است.', 403);
             if ($providerCode === 402)
                 throw new RuntimeException('اعتبار حساب API.ir کافی نیست.', 402);
             if ($providerCode === 429)
