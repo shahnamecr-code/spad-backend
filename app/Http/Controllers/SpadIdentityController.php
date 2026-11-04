@@ -87,6 +87,7 @@ class SpadIdentityController extends Controller
         $gateway = $this->gateway();
         return [
             'sms_otp'=>$gateway->enabled('sms_otp'),
+            // Deprecated key retained for older clients; no Shahkar request is made.
             'shahkar'=>$gateway->enabled('person_info'),
             'person_info'=>$gateway->enabled('person_info'),
         ];
@@ -131,7 +132,7 @@ class SpadIdentityController extends Controller
             'submitted_at'=>$v ? $v->updated_at : null,
             'review_note'=>$v ? $v->review_note : null,
             'person_info_required'=>true,
-            'provider_ready'=>$ready['shahkar'],
+            'provider_ready'=>$ready['person_info'],
             'sms_ready'=>$ready['sms_otp'],
             'availability'=>$ready,
             'api_ir_only'=>true,
@@ -266,8 +267,8 @@ class SpadIdentityController extends Controller
         return $this->status($request);
     }
 
-    // Legacy Shahkar endpoint remains an alias so existing clients keep working.
-    // Identity approval is based on one verified PersonInfo result, never Shahkar.
+    // Legacy /shahkar URL remains an alias for older frontend bundles; its only
+    // provider operation is PersonInfo. No Shahkar match is fabricated in storage.
     public function shahkar(Request $request)
     {
         return $this->personInfo($request);
@@ -310,7 +311,6 @@ class SpadIdentityController extends Controller
             $this->normalizeName($v->full_name)===$fullName;
         $update=[
             'person_info_status'=>$matched?'matched':'mismatch',
-            'shahkar_status'=>$matched?'matched':'not_checked',
             'updated_at'=>now()
         ];
         if($matched){
