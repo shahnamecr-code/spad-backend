@@ -26,6 +26,7 @@ class ApiIrAccountServices
             'sms_otp' => ($public['sms_otp_enabled'] ?? '0') === '1',
             'person_info' => ($public['person_info_enabled'] ?? '0') === '1',
             'shahkar_pro' => ($public['shahkar_pro_enabled'] ?? '0') === '1',
+            'video_live' => ($public['video_live_enabled'] ?? '0') === '1',
             'shahkar' => ($public['shahkar_apiir_enabled'] ?? '0') === '1',
             'otp_template' => (int) ($public['otp_template'] ?? '1'),
         ];
@@ -35,7 +36,7 @@ class ApiIrAccountServices
         $settings = $this->settings();
         return (bool) ($settings['master_enabled'] && $settings['has_key'] && ($settings[$feature] ?? false));
     }
-    private function call(string $operation, array $payload)
+    private function call(string $operation, array $payload, int $timeout = 30)
     {
         $row = $this->connection();
         if (!$row || !$row->enabled || $row->mode !== 'configured' || !$row->secrets_encrypted)
@@ -44,7 +45,7 @@ class ApiIrAccountServices
         catch (\Throwable $e) { throw new RuntimeException('کلید api.ir قابل خواندن نیست.'); }
         if (!is_string($token) || trim($token) === '') throw new RuntimeException('کلید api.ir تنظیم نشده است.');
         try {
-            $response = Http::timeout(30)->withToken($token)->acceptJson()->post(self::BASE . $operation, $payload);
+            $response = Http::timeout($timeout)->withToken($token)->acceptJson()->post(self::BASE . $operation, $payload);
             if (!$response->successful()) {
                 $status = $response->status();
                 if ($status === 429) throw new RuntimeException('سقف درخواست سرویس api.ir تکمیل شده است (HTTP 429). لطفاً پس از پایان محدودیت دوباره تلاش کنید.', 429);
@@ -123,6 +124,42 @@ class ApiIrAccountServices
         if (!is_bool($result))
             throw new RuntimeException('پاسخ سرویس شاهکار پرو معتبر نیست.', 502);
         return $result;
+    }
+
+    /**
+     * VideoLive includes face matching AND liveness; no local or provider
+     * fallback. The caller must independently confirm a current ShahkarPro KYC.
+     * Video contents are never logged or retained in SPAD tables.
+     */
+    public function videoLive(string $national, string $birthDate,
+        string $serial, string $videoBase64): bool
+    {
+        if (!$this->enabled('video_live'))
+            throw new RuntimeException('سرویس VideoLive در تنظیمات API.ir فعال نیست.', 503);
+        if (!preg_match('/^[0-9]{10}$/D',$national) ||
+            !preg_match('/^(13|14)[0-9]{2}\/(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])$/D',$birthDate) ||
+            !preg_match('/^[A-Za-z0-9]{6,20}$/D',$serial) ||
+            strlen($videoBase64)>6991000 ||
+            !base64_decode($videoBase64,true))
+            throw new RuntimeException('اطلاعات یا حجم ویدئوی احراز هویت معتبر نیست.', 422);
+        $data=$this->call('VideoLive',[
+            'nationalCode'=>$national,
+            'birthDate'=>$birthDate,
+            'serialNumber'=>$serial,
+            'videoBase64'=>$videoBase64,
+            'matchingThreshold'=>90,
+            'livenessThreshold'=>80,
+        ],90);
+        if (!is_array($data) ||
+            !is_bool($data['isMatch']??null) ||
+            !is_bool($data['isLiveness']??null) ||
+            !is_numeric($data['matchingScore']??null) ||
+            !is_numeric($data['livenessScore']??null))
+            throw new RuntimeException('پاسخ بایومتریک API.ir معتبر نیست.',502);
+        return $data['isMatch']===true &&
+            $data['isLiveness']===true &&
+            (float)$data['matchingScore']>=90 &&
+            (float)$data['livenessScore']>=80;
     }
 
     public function personInfo(string $national, string $birthDate): array
