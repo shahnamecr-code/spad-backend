@@ -57,7 +57,7 @@ class ApiIrController extends Controller
             'account_features' => app(\App\Services\ApiIrAccountServices::class)->settings(),
             'identity_ready' => (function () {
                 $service=app(\App\Services\ApiIrAccountServices::class);
-                return $service->enabled('sms_otp') && $service->enabled('shahkar') && $service->enabled('person_info');
+                return $service->enabled('sms_otp') && $service->enabled('person_info');
             })(),
             'services' => $items,
             'notice' => 'بررسی اتصال بدون مصرف اعتبار است؛ موفقیت واقعی هر سرویس پس از ورود کلید و ارسال درخواست مجاز قابل بررسی است.'
