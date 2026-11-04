@@ -102,7 +102,12 @@ class ApiIrClient
                 $meta['field'] => (string) $inputs[$meta['field']],
             ]);
         if (!$response->successful()) {
-            throw new RuntimeException('ارائه‌دهنده استعلام پاسخ معتبر نداد (HTTP ' . $response->status() . ').');
+            $status = $response->status();
+            if ($status === 429) throw new RuntimeException('سقف درخواست سرویس api.ir تکمیل شده است (HTTP 429). بدون ارسال درخواست تکراری، بعداً تلاش کنید.', 429);
+            if ($status === 401 || $status === 403) throw new RuntimeException('مجوز یا کلید این استعلام در api.ir معتبر نیست (HTTP '.$status.').', $status);
+            if ($status === 402) throw new RuntimeException('اعتبار حساب api.ir برای این استعلام کافی نیست (HTTP 402).', 402);
+            if ($status >= 500) throw new RuntimeException('اختلال موقت سرویس api.ir (HTTP '.$status.').', 503);
+            throw new RuntimeException('ارائه‌دهنده استعلام پاسخ معتبر نداد (HTTP '.$status.').', 502);
         }
         $json = $response->json();
         if (!is_array($json) || ($json['success'] ?? false) !== true || !array_key_exists('data', $json)) {
