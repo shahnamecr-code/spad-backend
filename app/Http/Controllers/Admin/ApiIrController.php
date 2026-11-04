@@ -44,6 +44,12 @@ class ApiIrController extends Controller
             $items[] = [
                 'slug' => $slug, 'title' => $info['title'],
                 'operation' => $info['operation'],
+                'required_fields'=>array_keys(array_fill_keys(
+                    \App\Services\ApiIrInquirySchema::providerKeys()[$slug]??[],true)),
+                'customer_fields'=>array_map(function($field){
+                    return ['key'=>$field['key'],'label'=>$field['label'],
+                        'required'=>(bool)$field['required']];
+                },\App\Services\ApiIrInquirySchema::for($slug)),
                 'restricted' => !empty($info['restricted']),
                 'price' => $service ? (int) $service->price : 0,
                 'enabled' => $service ? (bool) $service->enabled : false,
@@ -92,7 +98,7 @@ class ApiIrController extends Controller
                  'enabled'=>$feature->enabled('sms_otp'),'status'=>'configuration_only'],
                 ['code'=>'shahkar_pro','name'=>'تطبیق مالکیت سیم‌کارت و کد ملی','operation'=>'ShahkarPro',
                  'enabled'=>$feature->enabled('shahkar_pro'),'status'=>'configuration_only'],
-                ['code'=>'video_live','name'=>'بایومتریک و زنده‌سنجی سطح دو','operation'=>'VideoLive',
+                ['code'=>'video_live','name'=>'بایومتریک چهره، زنده‌سنجی و تطبیق گفتار سطح دو','operation'=>'VideoVerify',
                  'enabled'=>$feature->enabled('video_live'),'status'=>'configuration_only'],
             ],
             'identity_note'=>'احراز هویت پایه پس از تأیید OTP و تطبیق شاهکار پرو انجام می‌شود؛ نام و تاریخ تولد در این سرویس تأیید نمی‌شوند.',
