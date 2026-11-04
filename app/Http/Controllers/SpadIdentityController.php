@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use App\Services\ApiIrAccountServices;
+use Illuminate\Support\Facades\RateLimiter;
 
 class SpadIdentityController extends Controller {
  private function ready(){abort_unless(Schema::hasTable('spad_user_verifications')&&Schema::hasTable('spad_user_verification_documents'),503,'سامانه احراز هویت هنوز نصب نشده است.');}
@@ -161,6 +162,9 @@ class SpadIdentityController extends Controller {
    'ابتدا موبایل و تطبیق شاهکار را تأیید کنید.');
   abort_unless($v->birth_date_encrypted,422,'ابتدا تاریخ تولد را وارد کنید.');
   abort_if($v->person_info_status==='matched',422,'مشخصات هویتی قبلاً بررسی شده‌اند.');
+  $rateKey='spad-person-info:'.hash('sha256',(string)$uid);
+  abort_if(RateLimiter::tooManyAttempts($rateKey,3),429,'سقف روزانه استعلام هویتی تکمیل شده است.');
+  RateLimiter::hit($rateKey,86400);
   if($v->person_info_checked_at)abort_if(now()->diffInSeconds($v->person_info_checked_at)<180,429,'درخواست قبلی اخیراً ثبت شده است.');
   $national=Crypt::decryptString($v->national_code_encrypted);
   $birth=Crypt::decryptString($v->birth_date_encrypted);
