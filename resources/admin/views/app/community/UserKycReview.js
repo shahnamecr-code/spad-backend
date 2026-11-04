@@ -48,12 +48,14 @@ export default function UserKycReview() {
   pending:rows.filter(v=>v.status==="draft"||v.status==="pending").length,
   legacy:rows.filter(v=>v.status==="approved"&&v.verification_provider!=="api_ir_shahkarpro").length,
   rejected:rows.filter(v=>v.status==="rejected").length,
+  biometric:rows.filter(v=>v.biometric_status==="matched"&&v.biometric_expires_at&&new Date(v.biometric_expires_at).getTime()>Date.now()).length,
  }), [rows]);
  const visible = useMemo(() => rows.filter(v => {
   if (filter==="verified" && !(v.status==="approved"&&v.verification_provider==="api_ir_shahkarpro")) return false;
   if (filter==="pending" && !(v.status==="draft"||v.status==="pending")) return false;
   if (filter==="legacy" && !(v.status==="approved"&&v.verification_provider!=="api_ir_shahkarpro")) return false;
   if (filter==="rejected" && v.status!=="rejected") return false;
+  if (filter==="biometric" && !(v.biometric_status==="matched"&&v.biometric_expires_at&&new Date(v.biometric_expires_at).getTime()>Date.now()))return false;
   const q = query.trim();
   return !q || String(v.full_name||"").includes(q) || String(v.user_id||"").includes(q) ||
     String(v.mobile||"").includes(q);
@@ -87,6 +89,7 @@ export default function UserKycReview() {
      ["verified","تأیید خودکار API.ir"],
      ["pending","در حال تکمیل"],
      ["legacy","پرونده‌های قدیمی"],
+     ["biometric","سطح ویژه بایومتریک"],
      ["rejected","ردشده"],
     ].map(([key,title])=><div key={key} style={{...base,padding:16}}>
      <strong style={{display:"block",fontSize:23,fontWeight:650,color:"#125985"}}>{fa(counts[key])}</strong>
@@ -96,7 +99,7 @@ export default function UserKycReview() {
 
    <section style={{...base,padding:17,marginBottom:16,display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap",alignItems:"center"}}>
     <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-     {[["all","همه"],["verified","تأییدشده"],["pending","در جریان"],["legacy","قدیمی"],["rejected","ردشده"]].map(([id,title])=>
+     {[["all","همه"],["verified","تأییدشده"],["pending","در جریان"],["legacy","قدیمی"],["biometric","سطح ۲ ویدئویی"],["rejected","ردشده"]].map(([id,title])=>
       <button type="button" key={id} style={chip(filter===id)} onClick={()=>setFilter(id)}>{title}</button>
      )}
     </div>
@@ -118,6 +121,7 @@ export default function UserKycReview() {
        <div style={{display:"flex",justifyContent:"space-between",gap:8}}><span>تأیید شماره همراه</span><strong style={{color:v.phone_verified?"#178a62":"#9e7b44"}}>{v.phone_verified?"تأییدشده":"در انتظار"}</strong></div>
        <div style={{display:"flex",justifyContent:"space-between",gap:8}}><span>استعلام ShahkarPro</span><strong style={{color:v.shahkar_status==="matched"?"#168965":"#987a43"}}>{v.shahkar_status==="matched"?"تطبیق مثبت":v.shahkar_status==="mismatch"?"عدم تطبیق":"انجام نشده"}</strong></div>
        <div style={{display:"flex",justifyContent:"space-between",gap:8}}><span>تأیید خودکار سطح ۱</span><strong style={{color}}>{approved?"ثبت‌شده":"ثبت نشده"}</strong></div>
+       <div style={{display:"flex",justifyContent:"space-between",gap:8}}><span>سطح ۲ · VideoLive</span><strong style={{color:v.biometric_status==="matched"?"#11845b":"#987a43"}}>{v.biometric_status==="matched"&&v.biometric_expires_at&&new Date(v.biometric_expires_at).getTime()>Date.now()?"معتبر تا "+fmtDate(v.biometric_expires_at):v.biometric_status==="mismatch"?"عدم تطبیق":"تکمیل نشده"}</strong></div>
        <div style={{color:"#7896a9",fontSize:10,marginTop:7}}>آخرین تطبیق شاهکار پرو: {fmtDate(v.shahkar_checked_at)}</div>
       </div>
       {v.status!=="rejected"&&<div>
