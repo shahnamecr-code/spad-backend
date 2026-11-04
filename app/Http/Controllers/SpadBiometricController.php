@@ -6,6 +6,7 @@ use App\Services\SpadBiometricAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
@@ -25,6 +26,8 @@ class SpadBiometricController extends Controller
         $this->setup();
         abort_unless($request->user(),401);
         $result=$access->status($request->user());
+        $challenge=Cache::get('spad-video-verify-challenge:'.(int)$request->user()->id);
+        $result['speech_text']=is_array($challenge)?($challenge['text']??null):null;
         $uid=(int)$request->user()->id;
         $key='spad-video-live:'.$uid;
         $result['attempts_remaining']=max(0,3-RateLimiter::attempts($key));
@@ -35,6 +38,45 @@ class SpadBiometricController extends Controller
         if ($result['attempts_remaining']===0)
             $result['retry_after']=max($result['retry_after'],RateLimiter::availableIn($key));
         return response()->json(['data'=>$result])
+            ->header('Cache-Control','private, no-store');
+    }
+
+    /**
+     * Explicit action only: obtaining a speech challenge may consume API.ir
+     * credit. Reuse a challenge while valid instead of paying twice.
+     */
+    public function challenge(Request $request, SpadBiometricAccess $access,
+        ApiIrAccountServices $gateway)
+    {
+        $this->setup();
+        $user=$request->user();
+        abort_unless($user,401);
+        $state=$access->status($user);
+        abort_unless($state['base_verified'],403,
+            'ابتدا احراز هویت پایه را تکمیل کنید.');
+        abort_unless($state['biometric_enabled'],503,
+            'سرویس احراز ویدئویی در API.ir فعال نیست.');
+        abort_if($state['biometric_verified'],422,'احراز ویدئویی معتبر قبلاً انجام شده است.');
+        $uid=(int)$user->id;
+        $key='spad-video-verify-challenge:'.$uid;
+        $existing=Cache::get($key);
+        if (is_array($existing) && !empty($existing['text'])) {
+            return response()->json(['data'=>['speech_text'=>$existing['text']]])
+                ->header('Cache-Control','private, no-store');
+        }
+        $limit='spad-video-verify-challenge-attempts:'.$uid;
+        abort_if(RateLimiter::tooManyAttempts($limit,3),429,
+            'سقف روزانه دریافت متن گفتار تکمیل شده است.');
+        RateLimiter::hit($limit,86400);
+        try {
+            $text=$gateway->videoVerifySpeechText();
+        } catch (\Throwable $e) {
+            if ((int)$e->getCode()===429)
+                abort(429,'محدودیت درخواست API.ir فعال است؛ متن گفتار دریافت نشد.');
+            abort(503,'دریافت متن گفتار از API.ir به نتیجه معتبر نرسید.');
+        }
+        Cache::put($key,['text'=>$text],now()->addMinutes(10));
+        return response()->json(['data'=>['speech_text'=>$text]])
             ->header('Cache-Control','private, no-store');
     }
 
@@ -51,8 +93,13 @@ class SpadBiometricController extends Controller
             'video'=>['required','file','max:5120','mimetypes:video/webm,video/mp4,video/quicktime'],
             'consent'=>['required','accepted'],
         ]);
-        abort_unless($access->enabled(),503,'سرویس VideoLive در API.ir فعال نیست.');
+        abort_unless($access->enabled(),503,'سرویس VideoVerify در API.ir فعال نیست.');
         $uid=(int)$user->id;
+        $challengeKey='spad-video-verify-challenge:'.$uid;
+        $challenge=Cache::get($challengeKey);
+        abort_unless(is_array($challenge) && !empty($challenge['text']),422,
+            'ابتدا متن تصادفی گفتار را دریافت کنید و در ویدئو با صدای واضح بخوانید.');
+        $speechText=(string)$challenge['text'];
         $key='spad-video-live:'.$uid;
         abort_if(RateLimiter::tooManyAttempts($key,3),429,
             'سقف روزانه سه بار برای احراز ویدئویی تکمیل شده است.');
@@ -86,12 +133,15 @@ class SpadBiometricController extends Controller
             }else{
                 DB::table('spad_biometric_verifications')->insert([
                     'user_id'=>$uid,'base_national_hash'=>$hash,'phone_hash'=>$phoneHash,
-                    'provider'=>'api_ir_videolive','status'=>'processing',
+                    'provider'=>'api_ir_videoverify','status'=>'processing',
                     'checked_at'=>now(),'created_at'=>now(),'updated_at'=>now(),
                 ]);
             }
         });
         RateLimiter::hit($key,86400);
+        // Consume before provider call; retrying a failed/uncertain paid
+        // verification requires a fresh explicit challenge.
+        Cache::forget($challengeKey);
         // Read into memory only for this single authorized provider request.
         // The uploaded PHP temp file is never persisted by SPAD.
         $video=file_get_contents($file->getRealPath());
@@ -100,8 +150,8 @@ class SpadBiometricController extends Controller
         $base64=base64_encode($video);
         unset($video);
         try{
-            $matched=$gateway->videoLive($national,(string)$data['birth_date'],
-                (string)$data['serial_number'],$base64);
+            $matched=$gateway->videoVerify($national,(string)$data['birth_date'],
+                (string)$data['serial_number'],$base64,$speechText);
         }catch(\Throwable $e){
             unset($base64);
             DB::table('spad_biometric_verifications')->where('user_id',$uid)
@@ -110,7 +160,7 @@ class SpadBiometricController extends Controller
                     'status'=>'error','updated_at'=>now()]);
             if ((int)$e->getCode()===429)
                 abort(429,'محدودیت سرویس بایومتریک API.ir فعال است؛ استعلام را تکرار نکنید.');
-            abort(503,'پاسخ قابل‌تأییدی از VideoLive دریافت نشد؛ مجوز و اعتبار سرویس بررسی شود.');
+            abort(503,'پاسخ قابل‌تأییدی از VideoVerify دریافت نشد؛ اعتبار سرویس و متن گفتار بررسی شود.');
         }
         unset($base64);
         // If the account KYC was reset while the paid API call was running,
