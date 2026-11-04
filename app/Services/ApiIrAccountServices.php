@@ -127,39 +127,63 @@ class ApiIrAccountServices
     }
 
     /**
-     * VideoLive includes face matching AND liveness; no local or provider
-     * fallback. The caller must independently confirm a current ShahkarPro KYC.
-     * Video contents are never logged or retained in SPAD tables.
+     * Official API.ir SDK: VideoVerifySpeechText returns the phrase to read.
+     * The phrase is not user-submitted; server binds it to the authenticated
+     * user's short-lived challenge before one billable VideoVerify call.
      */
-    public function videoLive(string $national, string $birthDate,
-        string $serial, string $videoBase64): bool
+    public function videoVerifySpeechText(): string
     {
         if (!$this->enabled('video_live'))
-            throw new RuntimeException('سرویس VideoLive در تنظیمات API.ir فعال نیست.', 503);
+            throw new RuntimeException('سرویس VideoVerify در تنظیمات API.ir فعال نیست.',503);
+        $result=$this->call('VideoVerifySpeechText',[],30);
+        if (!is_string($result) || trim($result)==='' || mb_strlen($result)>300)
+            throw new RuntimeException('متن گفتار احراز ویدئویی از API.ir معتبر نیست.',502);
+        return trim($result);
+    }
+
+    /**
+     * Official video biometric verification includes face match, liveness,
+     * spoken phrase match and the aggregate isPassed result.
+     * Base64 video and card serial must never be persisted or logged.
+     */
+    public function videoVerify(string $national,string $birthDate,
+        string $serial,string $videoBase64,string $speechText): bool
+    {
+        if (!$this->enabled('video_live'))
+            throw new RuntimeException('سرویس VideoVerify در تنظیمات API.ir فعال نیست.',503);
         if (!preg_match('/^[0-9]{10}$/D',$national) ||
             !preg_match('/^(13|14)[0-9]{2}\/(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])$/D',$birthDate) ||
             !preg_match('/^[A-Za-z0-9]{6,20}$/D',$serial) ||
-            strlen($videoBase64)>6991000 ||
-            !base64_decode($videoBase64,true))
-            throw new RuntimeException('اطلاعات یا حجم ویدئوی احراز هویت معتبر نیست.', 422);
-        $data=$this->call('VideoLive',[
+            !is_string($speechText) || trim($speechText)==='' || mb_strlen($speechText)>300 ||
+            strlen($videoBase64)>6991000 || base64_decode($videoBase64,true)===false)
+            throw new RuntimeException('اطلاعات احراز هویت ویدئویی یا حجم ویدئو معتبر نیست.',422);
+        $matching=90;$liveness=80;$speech=50;
+        // Never use VideoLive: the documented provider operation is VideoVerify.
+        $data=$this->call('VideoVerify',[
             'nationalCode'=>$national,
             'birthDate'=>$birthDate,
             'serialNumber'=>$serial,
             'videoBase64'=>$videoBase64,
-            'matchingThreshold'=>90,
-            'livenessThreshold'=>80,
-        ],90);
+            'speechText'=>$speechText,
+            'matchingThreshold'=>$matching,
+            'livenessThreshold'=>$liveness,
+            'speechThreshold'=>$speech,
+        ],120);
         if (!is_array($data) ||
             !is_bool($data['isMatch']??null) ||
             !is_bool($data['isLiveness']??null) ||
+            !is_bool($data['isSpeechMatched']??null) ||
+            !is_bool($data['isPassed']??null) ||
             !is_numeric($data['matchingScore']??null) ||
-            !is_numeric($data['livenessScore']??null))
-            throw new RuntimeException('پاسخ بایومتریک API.ir معتبر نیست.',502);
-        return $data['isMatch']===true &&
-            $data['isLiveness']===true &&
-            (float)$data['matchingScore']>=90 &&
-            (float)$data['livenessScore']>=80;
+            !is_numeric($data['livenessScore']??null) ||
+            !is_numeric($data['speechScore']??null))
+            throw new RuntimeException('پاسخ بایومتریک VideoVerify ساختار معتبر ندارد.',502);
+        return $data['isPassed']===true &&
+            $data['isMatch']===true && $data['isLiveness']===true &&
+            $data['isSpeechMatched']===true &&
+            (float)$data['matchingScore'] >= $matching &&
+            (float)$data['livenessScore'] >= $liveness &&
+            (float)$data['speechScore'] >= $speech;
     }
 
     public function personInfo(string $national, string $birthDate): array
