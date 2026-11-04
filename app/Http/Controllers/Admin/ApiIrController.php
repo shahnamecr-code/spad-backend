@@ -48,6 +48,11 @@ class ApiIrController extends Controller
                 'price' => $service ? (int) $service->price : 0,
                 'enabled' => $service ? (bool) $service->enabled : false,
                 'installed' => (bool) $service,
+                'required_fields' => array_map(function($f) {
+                    return ['key'=>$f['key'],'label'=>$f['label'],
+                        'required'=>!empty($f['required']),'type'=>$f['type']];
+                }, \App\Services\ApiIrInquirySchema::for($slug)),
+                'provider_json_keys' => \App\Services\ApiIrInquirySchema::providerKeys()[$slug]??[],
             ];
         }
         $identityStats = [
