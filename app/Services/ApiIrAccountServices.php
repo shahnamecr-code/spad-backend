@@ -25,6 +25,7 @@ class ApiIrAccountServices
             'master_enabled' => (bool) ($row && $row->enabled && $row->mode === 'configured'),
             'sms_otp' => ($public['sms_otp_enabled'] ?? '0') === '1',
             'person_info' => ($public['person_info_enabled'] ?? '0') === '1',
+            'shahkar_pro' => ($public['shahkar_pro_enabled'] ?? '0') === '1',
             'shahkar' => ($public['shahkar_apiir_enabled'] ?? '0') === '1',
             'otp_template' => (int) ($public['otp_template'] ?? '1'),
         ];
@@ -87,6 +88,29 @@ class ApiIrAccountServices
         ]);
         if (!is_bool($data)) throw new RuntimeException('پاسخ شاهکار ساختار معتبر ندارد.');
         return $data;
+    }
+
+    /**
+     * Official API.ir ShahkarPro: checks whether the registered SIM holder
+     * matches the national code. This does NOT verify name or birth date.
+     * A missing/invalid response is never considered a positive match.
+     */
+    public function shahkarPro(string $national, string $mobile): bool
+    {
+        if (!$this->enabled('shahkar_pro'))
+            throw new RuntimeException('سرویس شاهکار پرو API.ir فعال نیست.');
+        if (!preg_match('/^[0-9]{10}$/D', $national) ||
+            !preg_match('/^09[0-9]{9}$/D', $mobile))
+            throw new RuntimeException('کد ملی یا شماره همراه معتبر نیست.');
+
+        $result = $this->call('ShahkarPro', [
+            'nationalCode' => $national,
+            'mobile' => $mobile,
+            'isCompany' => false,
+        ]);
+        if (!is_bool($result))
+            throw new RuntimeException('پاسخ سرویس شاهکار پرو معتبر نیست.', 502);
+        return $result;
     }
 
     public function personInfo(string $national, string $birthDate): array
