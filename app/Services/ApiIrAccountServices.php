@@ -44,10 +44,17 @@ class ApiIrAccountServices
         if (!is_string($token) || trim($token) === '') throw new RuntimeException('کلید api.ir تنظیم نشده است.');
         try {
             $response = Http::timeout(30)->withToken($token)->acceptJson()->post(self::BASE . $operation, $payload);
-            if (!$response->successful()) throw new RuntimeException('ارائه‌دهنده پاسخ موفق نداد.');
+            if (!$response->successful()) {
+                $status = $response->status();
+                if ($status === 429) throw new RuntimeException('سقف درخواست سرویس api.ir تکمیل شده است (HTTP 429). لطفاً پس از پایان محدودیت دوباره تلاش کنید.', 429);
+                if ($status === 401 || $status === 403) throw new RuntimeException('کلید یا مجوز این سرویس در api.ir معتبر نیست (HTTP '.$status.').', $status);
+                if ($status === 402) throw new RuntimeException('اعتبار حساب api.ir برای این سرویس کافی نیست (HTTP 402).', 402);
+                if ($status >= 500) throw new RuntimeException('سرویس api.ir موقتاً در دسترس نیست (HTTP '.$status.').', 503);
+                throw new RuntimeException('ارائه‌دهنده پاسخ موفق نداد (HTTP '.$status.').', 502);
+            }
             $json = $response->json();
             if (!is_array($json) || ($json['success'] ?? false) !== true || !array_key_exists('data', $json))
-                throw new RuntimeException('نتیجه معتبر از api.ir دریافت نشد.');
+                throw new RuntimeException('api.ir پاسخ موفق و معتبر برنگرداند؛ مجوز عملیات و ساختار پاسخ را بررسی کنید.', 502);
             return $json['data'];
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
             throw new RuntimeException('ارتباط با ارائه‌دهنده برقرار نشد.');
