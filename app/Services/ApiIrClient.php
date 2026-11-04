@@ -153,6 +153,14 @@ class ApiIrClient
         }
         if (!empty($meta['hasIban'])) $payload['iban']=strtoupper((string)$inputs['iban']);
         if (!empty($meta['birthDate'])) $payload['birthDate']=(string)$inputs['birthDate'];
+        // Compare with the official SDK contract before spending credits.
+        // Only fixed, allowlisted fields can be sent to the provider.
+        $expected=ApiIrInquirySchema::providerKeys()[$slug]??[];
+        $actual=array_keys($payload);
+        sort($expected);
+        sort($actual);
+        if (!$expected || $expected!==$actual)
+            throw new RuntimeException('ورودی‌های این استعلام با قرارداد رسمی API.ir تطابق ندارند.',422);
         // One billable call only: no fallback endpoint, redirect, retry or logging payloads.
         $response = Http::timeout(30)->withToken($token)->acceptJson()
             ->post(self::ENDPOINT . $meta['operation'], $payload);
