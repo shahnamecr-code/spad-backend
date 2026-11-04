@@ -55,6 +55,9 @@ class InquiryExecutor
     {
         $request->loadMissing('service');
         $service = $request->service;
+        if ($service && ApiIrClient::supports((string) $service->slug)) {
+            return $this->executeApiIr($request);
+        }
         $config = $service->secureApiConfig();
 
         $url = trim((string) Arr::get($config, 'url', ''));
@@ -132,6 +135,38 @@ class InquiryExecutor
             $this->log($request, 'api_failed', mb_substr($e->getMessage(), 0, 500));
             return $request->fresh();
         }
+    }
+
+    private function executeApiIr(InquiryRequest $request)
+    {
+        // Atomic claim: webhook retries and repeated browser clicks cannot bill api.ir twice.
+        $claimed = InquiryRequest::query()->whereKey($request->id)
+            ->where('payment_status', 'paid')
+            ->whereIn('status', ['pending_payment', 'failed'])
+            ->update(['status' => 'processing', 'failure_message' => null]);
+        if (!$claimed) return $request->fresh();
+
+        $this->log($request, 'api_started', 'استعلام api.ir در حال اجرا است.');
+        try {
+            $client = app(ApiIrClient::class);
+            $client->assertReady();
+            $inputs = (array) $request->input_data;
+            $user = $request->user;
+            $data = $client->execute($request->service->slug, $inputs, $user);
+            $request->update([
+                'status' => 'completed', 'result_data' => $data,
+                'result_text' => 'نتیجه استعلام آنلاین دریافت شد.',
+                'failure_message' => null, 'completed_at' => now(),
+            ]);
+            $this->log($request, 'api_completed', 'استعلام api.ir تکمیل شد.');
+        } catch (\Throwable $e) {
+            $request->update([
+                'status' => 'failed',
+                'failure_message' => 'انجام استعلام ممکن نشد؛ لطفاً با پشتیبانی اسپاد تماس بگیرید.',
+            ]);
+            $this->log($request, 'api_failed', 'اجرای استعلام api.ir ناموفق بود (بدون ثبت اطلاعات محرمانه).');
+        }
+        return $request->fresh();
     }
 
     protected function normalizeExpectedValue($value)

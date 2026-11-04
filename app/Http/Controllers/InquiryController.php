@@ -260,6 +260,18 @@ class InquiryController extends Controller
         }
         $validatedInputs = $inputValidator->validated();
 
+        // Validate provider readiness, ownership and explicit financial consent
+        // BEFORE any wallet debit, free submission or gateway invoice is created.
+        if (\App\Services\ApiIrClient::supports((string) $service->slug)) {
+            try {
+                $client = app(\App\Services\ApiIrClient::class);
+                $client->assertReady();
+                $client->authorize($service->slug, $validatedInputs, $user);
+            } catch (\RuntimeException $e) {
+                return response()->json(['status' => false, 'message' => $e->getMessage()], 422);
+            }
+        }
+
         $paymentMethod = $service->price > 0 ? $request->input('payment_method') : 'free';
         if ($service->price > 0) {
             validator($request->all(), [

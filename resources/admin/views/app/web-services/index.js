@@ -26,6 +26,8 @@ const Detail=({item,environment})=>{
  const labels={sms_login:'الگوی پیامک ورود',sms_kyc:'الگوی احراز هویت',sms_handover:'الگوی تأیید تحویل',shahkar:'کلید شاهکار'};
  return ids.length?<div className="spad-v8-env-row">{ids.map(id=><span key={id} className={environment[id]?'is-ready':'is-missing'}><i className={environment[id]?'simple-icon-check':'simple-icon-clock'}/> {labels[id]}: {environment[id]?'ثبت‌شده روی سرور':'فاقد تنظیمات'}</span>)}</div>:null;
 };
+import ApiIrPanel from './api-ir-panel';
+
 export default function WebServices(){
  const user=useSelector(s=>s.authUser.currentUser);
  const isSuper=Boolean(user&&Array.isArray(user.roles)&&user.roles.includes('Super Admin'));
@@ -91,7 +93,8 @@ export default function WebServices(){
    <article><span>دارای پیکربندی مدیریتی</span><strong>{count(configured)}</strong><small>به معنی تأیید اتصال زنده نیست</small></article>
    <article><span>در انتظار راه‌اندازی</span><strong>{count(catalogCount)}</strong><small>بدون اطلاعات محرمانه ذخیره‌شده</small></article>
   </div>
-  <div className="spad-v8-service-info"><i className="simple-icon-info"/><p>بررسی تنظیمات، فقط کامل‌بودن فیلدها را کنترل می‌کند؛ تست واقعی API، تغییر منبع داده یا ارسال پیامک، تنها پس از اتصال آداپتر بررسی‌شده انجام می‌شود. کلیدهای موجود در تنظیمات سرور بدون تغییر باقی می‌مانند.</p></div>
+  <ApiIrPanel />
+   <div className="spad-v8-service-info"><i className="simple-icon-info"/><p>بررسی تنظیمات، فقط کامل‌بودن فیلدها را کنترل می‌کند؛ تست واقعی API، تغییر منبع داده یا ارسال پیامک، تنها پس از اتصال آداپتر بررسی‌شده انجام می‌شود. کلیدهای موجود در تنظیمات سرور بدون تغییر باقی می‌مانند.</p></div>
   {failure&&<div className="spad-v8-alert" role="alert">{failure}</div>}
   {notice&&<div className="spad-v8-notice" role="status">{notice}</div>}
   <div className="spad-v8-toolbar">

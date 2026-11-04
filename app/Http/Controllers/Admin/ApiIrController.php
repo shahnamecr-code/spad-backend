@@ -1,0 +1,111 @@
+<?php
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\InquiryService;
+use App\Services\ApiIrClient;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+
+class ApiIrController extends Controller
+{
+    private function guard(Request $request): void
+    {
+        abort_unless($request->user() && $request->user()->roles()->where('name', 'Super Admin')->exists(), 403);
+        abort_unless(Schema::hasTable('spad_web_service_connections') &&
+            Schema::hasTable('spad_web_service_audit') && Schema::hasTable('inquiry_services'), 503,
+            'جداول مرکز api.ir هنوز نصب نشده‌اند.');
+    }
+
+    private function row()
+    {
+        return DB::table('spad_web_service_connections')->where('code', 'api-ir')->first();
+    }
+
+    private function audit(Request $request, $id, $action, $note): void
+    {
+        DB::table('spad_web_service_audit')->insert([
+            'connection_id' => $id, 'admin_id' => $request->user()->id,
+            'action' => $action, 'note' => $note, 'created_at' => now(), 'updated_at' => now()
+        ]);
+    }
+
+    public function index(Request $request)
+    {
+        $this->guard($request);
+        $row = $this->row();
+        $catalog = ApiIrClient::catalog();
+        $services = InquiryService::whereIn('slug', array_keys($catalog))->get()->keyBy('slug');
+        $items = [];
+        foreach ($catalog as $slug => $info) {
+            $service = $services->get($slug);
+            $items[] = [
+                'slug' => $slug, 'title' => $info['title'],
+                'operation' => $info['operation'],
+                'restricted' => !empty($info['restricted']),
+                'price' => $service ? (int) $service->price : 0,
+                'enabled' => $service ? (bool) $service->enabled : false,
+                'installed' => (bool) $service,
+            ];
+        }
+        return response()->json(['data' => [
+            'enabled' => $row ? (bool) $row->enabled : false,
+            'has_key' => $row && !empty($row->secrets_encrypted),
+            'configured' => $row && $row->mode === 'configured',
+            'services' => $items,
+            'notice' => 'بررسی اتصال بدون مصرف اعتبار است؛ موفقیت واقعی هر سرویس پس از ورود کلید و ارسال درخواست مجاز قابل بررسی است.'
+        ]])->header('Cache-Control', 'private, no-store');
+    }
+
+    public function save(Request $request)
+    {
+        $this->guard($request);
+        $data = $request->validate(['token' => 'nullable|string|min:12|max:5000', 'enabled' => 'required|boolean']);
+        $row = $this->row();
+        $hasKey = !empty($data['token']) || ($row && !empty($row->secrets_encrypted));
+        abort_if($data['enabled'] && !$hasKey, 422, 'ابتدا کلید API را وارد کنید.');
+        $fields = [
+            'title' => 'اتصال یکپارچه API.IR', 'category' => 'inquiries',
+            'provider' => 'api.ir', 'endpoint' => 'https://s.api.ir',
+            'description' => 'هفت استعلام رسمی در اسپاد با یک کلید محرمانه',
+            'enabled' => (bool) $data['enabled'],
+            'mode' => $hasKey ? 'configured' : 'planned',
+            'health_status' => 'not_tested',
+            'last_note' => 'کلید فقط در سرور نگهداری می‌شود؛ تست واقعی هنوز انجام نشده است.',
+            'updated_by' => $request->user()->id, 'updated_at' => now()
+        ];
+        if (!empty($data['token'])) $fields['secrets_encrypted'] = Crypt::encryptString(trim($data['token']));
+        if ($row) {
+            DB::table('spad_web_service_connections')->where('id', $row->id)->update($fields);
+            $id = $row->id;
+        } else {
+            $fields['code'] = 'api-ir';
+            $fields['created_at'] = now();
+            $id = DB::table('spad_web_service_connections')->insertGetId($fields);
+        }
+        $this->audit($request, $id, 'apiir_configured', !empty($data['token']) ? 'کلید رمزنگاری و تنظیم شد.' : 'وضعیت اتصال تغییر یافت.');
+        return $this->index($request);
+    }
+
+    public function service(Request $request, string $slug)
+    {
+        $this->guard($request);
+        abort_unless(ApiIrClient::supports($slug), 404);
+        $data = $request->validate([
+            'enabled' => 'required|boolean', 'price' => 'required|integer|min:0|max:999999999'
+        ]);
+        $row = $this->row();
+        $model = InquiryService::where('slug', $slug)->firstOrFail();
+        if ($data['enabled']) {
+            abort_unless($row && $row->enabled && $row->mode === 'configured' && $row->secrets_encrypted,
+                422, 'ابتدا اتصال و کلید api.ir را فعال کنید.');
+            abort_unless((int) $data['price'] > 0, 422,
+                'برای جلوگیری از مصرف اعتبار رایگان، تعرفه فروش این استعلام را مشخص کنید.');
+        }
+        $model->update(['price' => (int) $data['price'], 'enabled' => (bool) $data['enabled']]);
+        $this->audit($request, $row ? $row->id : 0, 'apiir_service_updated', $slug . ' ' . ($data['enabled'] ? 'enabled' : 'disabled'));
+        return $this->index($request);
+    }
+}
