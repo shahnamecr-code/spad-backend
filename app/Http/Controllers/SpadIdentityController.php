@@ -324,7 +324,18 @@ class SpadIdentityController extends Controller
         $national=Crypt::decryptString($v->national_code_encrypted);
         $birth=Crypt::decryptString($v->birth_date_encrypted);
         try{$data=$this->gateway()->personInfo($national,$birth);}
-        catch(\Throwable $e){abort(503,'استعلام ثبت‌احوال api.ir نتیجه معتبر نداد؛ اعتبار و مجوز سرویس را بررسی کنید.');}
+        catch(\Throwable $e){
+            // Preserve provider throttling instead of hiding it as a generic 503.
+            // Do not automatically refund a reserved/billable attempt: an ambiguous
+            // upstream failure may have processed the request.
+            if ((int) $e->getCode() === 429) {
+                return response()->json([
+                    'message'=>'سرویس ثبت‌احوال api.ir فعلاً درخواست جدید نمی‌پذیرد. لطفاً بعداً دوباره تلاش کنید.',
+                    'error'=>'provider_rate_limited',
+                ], 429)->header('Retry-After','180')->header('Cache-Control','no-store');
+            }
+            abort(503,'استعلام ثبت‌احوال api.ir نتیجه معتبر نداد؛ اعتبار و مجوز سرویس را بررسی کنید.');
+        }
         $providerNational=(string)($data['nationalCode']??'');
         $fullName=$this->normalizeName((string)($data['firstName']??'').' '.(string)($data['lastName']??''));
         $matched=($data['alive']??null)===true &&
