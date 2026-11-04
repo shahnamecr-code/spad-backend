@@ -12,7 +12,8 @@ use Illuminate\Validation\ValidationException;
 
 class SpadIdentityController extends Controller
 {
-    // Only API.IR SmsOTP, Shahkar and PersonInfo can confer a verified identity.
+    // KYC V3: SmsOTP verifies control of the account phone; PersonInfo verifies civil identity.
+    // Never claim this is a Shahkar SIM ownership-to-national-code match.
     // Legacy verifications remain on disk for audit but require re-verification.
     private function ready(): void
     {
@@ -111,6 +112,42 @@ class SpadIdentityController extends Controller
         return (string)$record->status;
     }
 
+    private function remainingCooldown($value, int $seconds): int
+    {
+        if (!$value) return 0;
+        try {
+            $elapsed = now()->diffInSeconds(\Illuminate\Support\Carbon::parse($value));
+            return max(0, $seconds - (int) $elapsed);
+        } catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    // Public-safe usage metadata: never return the national code or upstream response.
+    private function usage(int $uid, $record): array
+    {
+        $smsAttempts = RateLimiter::attempts('spad-kyc-sms-user:'.$uid);
+        $personAttempts = RateLimiter::attempts('spad-kyc-person:'.$uid);
+        $smsDaily = max(0, 6 - $smsAttempts);
+        $smsDraft = max(0, 5 - (int) ($record->phone_sends ?? 0));
+        $personDaily = max(0, 3 - $personAttempts);
+        return [
+            'sms_remaining'=>min($smsDaily, $smsDraft),
+            'person_remaining'=>$personDaily,
+            'sms_retry_after'=>max(
+                $this->remainingCooldown($record->phone_last_sent_at ?? null, 90),
+                $smsDaily === 0 ? RateLimiter::availableIn('spad-kyc-sms-user:'.$uid) : 0
+            ),
+            'person_retry_after'=>max(
+                $this->remainingCooldown($record->person_info_checked_at ?? null, 180),
+                $personDaily === 0 ? RateLimiter::availableIn('spad-kyc-person:'.$uid) : 0
+            ),
+            'otp_attempts_remaining'=>max(0, 5 - (int) ($record->phone_attempts ?? 0)),
+            'otp_expires_at'=>$record && $record->phone_code_hash && $record->phone_code_expires_at
+                ? (string) $record->phone_code_expires_at : null,
+        ];
+    }
+
     private function publicStatus(int $uid, string $mobile): array
     {
         $v = $this->record($uid);
@@ -137,6 +174,12 @@ class SpadIdentityController extends Controller
             'availability'=>$ready,
             'api_ir_only'=>true,
             'documents'=>[],
+            'flow_version'=>3,
+            'identity_method'=>'sms_otp_person_info',
+            'current_step'=>$status === 'approved' ? 'complete'
+                : ($status !== 'draft' ? 'details'
+                : (!($v && $v->phone_verified) ? 'sms_otp' : 'person_info')),
+            'usage'=>$this->usage($uid, $v),
         ];
     }
 
@@ -217,7 +260,7 @@ class SpadIdentityController extends Controller
             abort_if($v->phone_verified,422,'شماره همراه قبلاً تأیید شده است.');
             abort_if((int)$v->phone_sends>=5,429,'سقف ارسال کد برای این پرونده تکمیل شده است.');
             if($v->phone_last_sent_at)
-                abort_if(now()->diffInSeconds($v->phone_last_sent_at)<90,429,'برای ارسال مجدد، ۹۰ ثانیه فاصله لازم است.');
+                abort_if($this->remainingCooldown($v->phone_last_sent_at,90)>0,429,'برای ارسال مجدد، ۹۰ ثانیه فاصله لازم است.');
             DB::table('spad_user_verifications')->where('id',$v->id)->update([
                 'phone_code_hash'=>$hash,
                 'phone_code_expires_at'=>now()->addMinutes(10),
@@ -252,9 +295,11 @@ class SpadIdentityController extends Controller
         abort_if((int)$v->phone_attempts>=5,429,'تعداد تلاش مجاز برای کد تکمیل شده است.');
         abort_if(now()->greaterThan($v->phone_code_expires_at),422,'کد منقضی شده است.');
         // Atomically claim an attempt before checking the hash.
-        DB::table('spad_user_verifications')->where('id',$v->id)
+        $reserved=DB::table('spad_user_verifications')->where('id',$v->id)
             ->where('phone_code_hash',$v->phone_code_hash)
+            ->where('phone_attempts','<',5)
             ->increment('phone_attempts');
+        abort_unless($reserved===1,429,'تعداد تلاش مجاز برای کد تکمیل شده است.');
         if(!Hash::check($data['code'],$v->phone_code_hash))
             throw ValidationException::withMessages(['code'=>'کد تأیید صحیح نیست.']);
         $affected=DB::table('spad_user_verifications')->where('id',$v->id)
@@ -287,7 +332,7 @@ class SpadIdentityController extends Controller
         $key='spad-kyc-person:'.$uid;
         abort_if(RateLimiter::tooManyAttempts($key,3),429,'سقف روزانه استعلام ثبت‌احوال تکمیل شده است.');
         if($v->person_info_checked_at)
-            abort_if(now()->diffInSeconds($v->person_info_checked_at)<180,429,'برای استعلام مجدد ثبت‌احوال کمی بعد اقدام کنید.');
+            abort_if($this->remainingCooldown($v->person_info_checked_at,180)>0,429,'برای استعلام مجدد ثبت‌احوال کمی بعد اقدام کنید.');
         $affected=DB::table('spad_user_verifications')->where('id',$v->id)
             ->where('person_info_status','!=','matched')
             ->where(function($q){$q->whereNull('person_info_checked_at')
@@ -300,8 +345,10 @@ class SpadIdentityController extends Controller
         try{$data=$this->gateway()->personInfo($national,$birth);}
         catch(\Throwable $e){
             if ((int)$e->getCode()===429)
-                return response()->json(['message'=>'سرویس ثبت‌احوال api.ir فعلاً درخواست جدید نمی‌پذیرد. لطفاً بعداً تلاش کنید.','error'=>'provider_rate_limited'],429)
-                    ->header('Cache-Control','no-store');
+                return response()->json([
+                    'message'=>'سرویس ثبت‌احوال API.ir در حال حاضر درخواست جدید نمی‌پذیرد. بعداً دوباره اقدام کنید.',
+                    'error'=>'provider_rate_limited', 'retry_after'=>180,
+                ],429)->header('Retry-After','180')->header('Cache-Control','private, no-store');
             abort(503,'استعلام مشخصات هویتی api.ir نتیجه معتبر نداد؛ مجوز و اعتبار سرویس را بررسی کنید.');
         }
         $providerNational=(string)($data['nationalCode']??'');
