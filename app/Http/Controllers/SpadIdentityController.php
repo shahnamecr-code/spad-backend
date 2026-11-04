@@ -87,7 +87,7 @@ class SpadIdentityController extends Controller
         $gateway = $this->gateway();
         return [
             'sms_otp'=>$gateway->enabled('sms_otp'),
-            'shahkar'=>$gateway->enabled('shahkar'),
+            'shahkar'=>$gateway->enabled('person_info'),
             'person_info'=>$gateway->enabled('person_info'),
         ];
     }
@@ -96,7 +96,7 @@ class SpadIdentityController extends Controller
     {
         $checks = $this->availability();
         abort_unless(!in_array(false, $checks, true), 503,
-            'ابتدا مدیر اسپاد باید سه سرویس پیامک، شاهکار و مشخصات هویتی api.ir را فعال کند.');
+            'ابتدا مدیر اسپاد باید سرویس‌های پیامک و مشخصات هویتی api.ir را فعال کند.');
     }
 
     private function effectiveStatus($record, string $mobile): string
@@ -266,37 +266,11 @@ class SpadIdentityController extends Controller
         return $this->status($request);
     }
 
+    // Legacy Shahkar endpoint remains an alias so existing clients keep working.
+    // Identity approval is based on one verified PersonInfo result, never Shahkar.
     public function shahkar(Request $request)
     {
-        $uid=$this->userId($request);
-        $this->ensureAvailable();
-        $v=$this->record($uid);
-        $mobile=$this->mobile((string)$request->user()->mobile);
-        abort_unless($v && $v->status==='draft' && $v->phone===$mobile &&
-            $v->phone_verified,422,'ابتدا شماره همراه را با OTP تأیید کنید.');
-        abort_if($v->shahkar_status==='matched',422,'تطبیق شاهکار قبلاً انجام شده است.');
-        $key='spad-kyc-shahkar:'.$uid;
-        abort_if(RateLimiter::tooManyAttempts($key,4),429,'سقف روزانه استعلام شاهکار تکمیل شده است.');
-        if($v->shahkar_checked_at)
-            abort_if(now()->diffInSeconds($v->shahkar_checked_at)<120,429,'برای استعلام مجدد شاهکار کمی بعد اقدام کنید.');
-        // Reserve the billable check first to prevent concurrent duplicate calls.
-        $affected=DB::table('spad_user_verifications')->where('id',$v->id)
-            ->where('shahkar_status','!=','matched')
-            ->where(function($q){$q->whereNull('shahkar_checked_at')
-                ->orWhere('shahkar_checked_at','<=',now()->subSeconds(120));})
-            ->update(['shahkar_checked_at'=>now()]);
-        abort_unless($affected===1,429,'استعلام شاهکار دیگری در جریان است.');
-        RateLimiter::hit($key,86400);
-        $national=Crypt::decryptString($v->national_code_encrypted);
-        try{$matched=$this->gateway()->shahkar($national,$mobile);}
-        catch(\Throwable $e){abort(503,'شاهکار api.ir پاسخ معتبر نداد؛ نتیجه تأیید نشده است.');}
-        $updated=DB::table('spad_user_verifications')->where('id',$v->id)
-            ->where('status','draft')->where('phone',$mobile)
-            ->where('phone_verified',true)
-            ->where('national_code_hash',hash_hmac('sha256',$national,config('app.key')))
-            ->update(['shahkar_status'=>$matched?'matched':'mismatch','updated_at'=>now()]);
-        abort_unless($updated===1,409,'پرونده در حین استعلام تغییر کرده است؛ مجدداً وضعیت را بررسی کنید.');
-        return $this->status($request);
+        return $this->personInfo($request);
     }
 
     public function personInfo(Request $request)
@@ -306,8 +280,7 @@ class SpadIdentityController extends Controller
         $v=$this->record($uid);
         $mobile=$this->mobile((string)$request->user()->mobile);
         abort_unless($v && $v->status==='draft' && $v->phone===$mobile &&
-            $v->phone_verified && $v->shahkar_status==='matched',422,
-            'ابتدا تأیید موبایل و تطبیق شاهکار ضروری است.');
+            $v->phone_verified,422,'ابتدا شماره همراه را با OTP تأیید کنید.');
         abort_unless($v->birth_date_encrypted,422,'تاریخ تولد شمسی ثبت نشده است.');
         abort_if($v->person_info_status==='matched',422,'مشخصات ثبت‌احوالی قبلاً تأیید شده است.');
         $key='spad-kyc-person:'.$uid;
@@ -325,16 +298,10 @@ class SpadIdentityController extends Controller
         $birth=Crypt::decryptString($v->birth_date_encrypted);
         try{$data=$this->gateway()->personInfo($national,$birth);}
         catch(\Throwable $e){
-            // Preserve provider throttling instead of hiding it as a generic 503.
-            // Do not automatically refund a reserved/billable attempt: an ambiguous
-            // upstream failure may have processed the request.
-            if ((int) $e->getCode() === 429) {
-                return response()->json([
-                    'message'=>'سرویس ثبت‌احوال api.ir فعلاً درخواست جدید نمی‌پذیرد. لطفاً بعداً دوباره تلاش کنید.',
-                    'error'=>'provider_rate_limited',
-                ], 429)->header('Retry-After','180')->header('Cache-Control','no-store');
-            }
-            abort(503,'استعلام ثبت‌احوال api.ir نتیجه معتبر نداد؛ اعتبار و مجوز سرویس را بررسی کنید.');
+            if ((int)$e->getCode()===429)
+                return response()->json(['message'=>'سرویس ثبت‌احوال api.ir فعلاً درخواست جدید نمی‌پذیرد. لطفاً بعداً تلاش کنید.','error'=>'provider_rate_limited'],429)
+                    ->header('Cache-Control','no-store');
+            abort(503,'استعلام مشخصات هویتی api.ir نتیجه معتبر نداد؛ مجوز و اعتبار سرویس را بررسی کنید.');
         }
         $providerNational=(string)($data['nationalCode']??'');
         $fullName=$this->normalizeName((string)($data['firstName']??'').' '.(string)($data['lastName']??''));
@@ -343,6 +310,7 @@ class SpadIdentityController extends Controller
             $this->normalizeName($v->full_name)===$fullName;
         $update=[
             'person_info_status'=>$matched?'matched':'mismatch',
+            'shahkar_status'=>$matched?'matched':'not_checked',
             'updated_at'=>now()
         ];
         if($matched){
@@ -355,7 +323,7 @@ class SpadIdentityController extends Controller
         }
         $changed=DB::table('spad_user_verifications')->where('id',$v->id)
             ->where('status','draft')->where('phone_verified',true)
-            ->where('shahkar_status','matched')->where('phone',$mobile)
+            ->where('phone',$mobile)
             ->where('national_code_hash',hash_hmac('sha256',$national,config('app.key')))
             ->update($update);
         abort_unless($changed===1,409,'پرونده در حین استعلام تغییر کرده است؛ دوباره وضعیت را بررسی کنید.');
@@ -376,7 +344,7 @@ class SpadIdentityController extends Controller
     public function submit(Request $request)
     {
         $this->userId($request);
-        abort(410,'نتیجه احراز هویت پس از سه استعلام api.ir به‌صورت خودکار تعیین می‌شود.');
+        abort(410,'نتیجه احراز هویت پس از تأیید پیامک و استعلام مشخصات هویتی api.ir به‌صورت خودکار تعیین می‌شود.');
     }
 
     private function admin(): void
