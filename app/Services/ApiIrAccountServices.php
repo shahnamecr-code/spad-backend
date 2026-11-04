@@ -25,6 +25,7 @@ class ApiIrAccountServices
             'master_enabled' => (bool) ($row && $row->enabled && $row->mode === 'configured'),
             'sms_otp' => ($public['sms_otp_enabled'] ?? '0') === '1',
             'person_info' => ($public['person_info_enabled'] ?? '0') === '1',
+            'shahkar' => ($public['shahkar_apiir_enabled'] ?? '0') === '1',
             'otp_template' => (int) ($public['otp_template'] ?? '1'),
         ];
     }
@@ -62,6 +63,25 @@ class ApiIrAccountServices
         if ($this->call('SmsOTP', ['code'=>$code, 'mobile'=>$mobile, 'template'=>$template]) !== true)
             throw new RuntimeException('ارسال پیامک تأیید نشد.');
     }
+    /**
+     * National code and mobile belong to the authenticated user's KYC draft.
+     * Official Shahkar data is a boolean, not an object with a match property.
+     * Reject all malformed responses rather than treating them as success.
+     */
+    public function shahkar(string $national, string $mobile): bool
+    {
+        if (!$this->enabled('shahkar')) throw new RuntimeException('سرویس شاهکار api.ir فعال نیست.');
+        if (!preg_match('/^[0-9]{10}$/D', $national) ||
+            !preg_match('/^09[0-9]{9}$/D', $mobile)) {
+            throw new RuntimeException('کد ملی یا شماره موبایل نامعتبر است.');
+        }
+        $data = $this->call('Shahkar', [
+            'nationalCode' => $national, 'mobile' => $mobile, 'isCompany' => false,
+        ]);
+        if (!is_bool($data)) throw new RuntimeException('پاسخ شاهکار ساختار معتبر ندارد.');
+        return $data;
+    }
+
     public function personInfo(string $national, string $birthDate): array
     {
         if (!$this->enabled('person_info')) throw new RuntimeException('استعلام هویتی فعال نیست.');

@@ -36,7 +36,7 @@ class SpadIdentityController extends Controller {
   if(!$v)return ['status'=>'not_submitted','level'=>0,'requested_level'=>1,'phone_verified'=>false,
    'shahkar_status'=>'not_checked','person_info_status'=>'not_checked','person_info_required'=>$required,
    'birth_date_set'=>false,'documents'=>[],'full_name'=>'','national_code_masked'=>null,'review_note'=>null,
-   'provider_ready'=>(bool)config('services.spad_shahkar.key'),'sms_ready'=>$smsReady];
+   'provider_ready'=>$gateway->enabled('shahkar')||(bool)config('services.spad_shahkar.key'),'sms_ready'=>$smsReady];
   $docs=DB::table('spad_user_verification_documents')->where('verification_id',$v->id)->get(['id','kind','filename','created_at']);
   $national=$v->national_code_encrypted?Crypt::decryptString($v->national_code_encrypted):'';
   return ['status'=>$v->status,'level'=>(int)$v->level,'requested_level'=>(int)$v->requested_level,
@@ -46,7 +46,7 @@ class SpadIdentityController extends Controller {
    'person_info_status'=>$v->person_info_status??'not_checked','person_info_required'=>$required,
    'birth_date_set'=>!empty($v->birth_date_encrypted),'review_note'=>$v->review_note,
    'submitted_at'=>$v->updated_at,'documents'=>$docs,
-   'provider_ready'=>(bool)config('services.spad_shahkar.key'),'sms_ready'=>$smsReady];
+   'provider_ready'=>$gateway->enabled('shahkar')||(bool)config('services.spad_shahkar.key'),'sms_ready'=>$smsReady];
  }
  private function birthDate($date){
   $v=strtr(trim((string)$date),['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
@@ -124,25 +124,47 @@ class SpadIdentityController extends Controller {
  }
  public function shahkar(Request $r){
   $uid=$this->owner($r);$v=$this->row($uid);
-  abort_unless($v&&$v->phone_verified&&$v->status==='draft',422,'ابتدا شماره موبایل حساب را تأیید کنید.');
+  abort_unless($v&&$v->phone_verified&&$v->status==='draft',422,
+   'ابتدا شماره موبایل حساب را تأیید کنید.');
+  abort_if($v->shahkar_status==='matched',422,'تطبیق شاهکار قبلاً تأیید شده است.');
+  // Prevent repeated paid checks for the same account, including across sessions.
+  $rateKey='spad-shahkar:'.hash('sha256',(string)$uid);
+  abort_if(RateLimiter::tooManyAttempts($rateKey,4),429,
+   'سقف درخواست شاهکار تکمیل شده است. لطفاً بعداً اقدام کنید.');
+  if($v->shahkar_checked_at)abort_if(now()->diffInSeconds($v->shahkar_checked_at)<120,429,
+   'لطفاً برای استعلام مجدد کمی بعد تلاش کنید.');
+
+  $apiIr=app(ApiIrAccountServices::class);
+  $useApiIr=$apiIr->enabled('shahkar');
   $key=config('services.spad_shahkar.key');
-  abort_unless($key,503,'کلید معتبر وب‌سرویس شاهکار هنوز در سرور تنظیم نشده است.');
-  if($v->shahkar_checked_at)abort_if(now()->diffInSeconds($v->shahkar_checked_at)<120,429,'لطفاً برای استعلام مجدد کمی بعد تلاش کنید.');
+  abort_unless($useApiIr||$key,503,'هیچ ارائه‌دهنده شاهکار در سرور فعال نیست.');
+  RateLimiter::hit($rateKey,86400);
   $national=Crypt::decryptString($v->national_code_encrypted);
   try{
-   $result=Http::timeout(12)->asForm()->post('https://nextpay.org/nx/inquiry/shahkar',[
-    'inquiry_api'=>$key,'national_id'=>$national,'mobile'=>$v->phone
-   ]);
-   abort_unless($result->successful(),503,'سرویس شاهکار پاسخ معتبر نداد.');
-   $json=$result->json();
-   // Strict success semantics: unknown responses must not grant KYC.
-   $matched=isset($json['code'])&&(int)$json['code']===200&&
-     isset($json['data']['match'])&&$json['data']['match']===true;
-   $negative=isset($json['code'])&&(int)$json['code']===200&&isset($json['data']['match'])&&$json['data']['match']===false;
-   abort_unless($matched||$negative,503,'پاسخ شاهکار قابل تفسیر نیست؛ استعلام به‌صورت تأییدشده ثبت نشد.');
-  }catch(\Illuminate\Http\Client\ConnectionException $e){abort(503,'ارتباط با شاهکار برقرار نشد.');}
+   if($useApiIr){
+    // Strict boolean: a negative result is mismatch, never a successful verification.
+    $matched=$apiIr->shahkar($national,$v->phone);
+   }else{
+    // Preserve previously configured service until the admin enables api.ir.
+    $result=Http::timeout(12)->asForm()->post('https://nextpay.org/nx/inquiry/shahkar',[
+     'inquiry_api'=>$key,'national_id'=>$national,'mobile'=>$v->phone
+    ]);
+    if(!$result->successful())throw new \RuntimeException('ارائه‌دهنده پاسخ موفق نداد.');
+    $json=$result->json();
+    if(!is_array($json)||!isset($json['code'])||(int)$json['code']!==200||
+       !isset($json['data'])||!is_array($json['data'])||
+       !array_key_exists('match',$json['data'])||!is_bool($json['data']['match']))
+     throw new \RuntimeException('پاسخ شاهکار معتبر نیست.');
+    $matched=$json['data']['match'];
+   }
+  }catch(\Throwable $e){
+   // No credentials, phone numbers, or national ID in public errors/logs.
+   abort(503,'استعلام شاهکار انجام نشد. وضعیت دسترسی وب‌سرویس را بررسی کنید.');
+  }
   DB::table('spad_user_verifications')->where('id',$v->id)->update([
-   'shahkar_status'=>$matched?'matched':'mismatch','shahkar_checked_at'=>now(),'updated_at'=>now()]);
+   'shahkar_status'=>$matched?'matched':'mismatch',
+   'shahkar_checked_at'=>now(),'updated_at'=>now()
+  ]);
   return $this->status($r);
  }
  public function updateBirthDate(Request $r){
