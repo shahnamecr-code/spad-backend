@@ -2,6 +2,7 @@ import os
 os.environ["DATABASE_URL"] = "sqlite:///./market-ci.db"
 os.environ["INGEST_API_KEY"] = "ci-test-ingest-secret-32-characters"
 os.environ["ALLOWED_SOURCES"] = "spad_authorized"
+os.environ["MIN_SAMPLES"] = "3"
 
 from fastapi.testclient import TestClient
 from app.main import app
