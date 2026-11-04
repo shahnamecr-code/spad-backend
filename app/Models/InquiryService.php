@@ -49,7 +49,10 @@ class InquiryService extends Model
      */
     public function normalizedFormSchema()
     {
-        $schema = is_array($this->form_schema) ? array_values($this->form_schema) : [];
+        // API.ir is a fixed, billable integration; administrator-edited or stale
+        // database form_schema must never omit a required provider parameter.
+        $canonical = \App\Services\ApiIrInquirySchema::for((string)$this->slug);
+        $schema = $canonical ?: (is_array($this->form_schema) ? array_values($this->form_schema) : []);
         $allowedTypes = ['text', 'number', 'email', 'mobile', 'national_code', 'date', 'textarea', 'select'];
         $used = [];
         $normalized = [];
@@ -102,7 +105,7 @@ class InquiryService extends Model
      */
     public function normalizeSubmittedInputs(array $inputs)
     {
-        $result = $inputs;
+        $result = \App\Services\ApiIrInquirySchema::normalize((string)$this->slug,$inputs);
         foreach ($this->normalizedFormSchema() as $field) {
             $key = $field['key'];
             $legacyKey = (string) ($field['_legacy_key'] ?? '');
