@@ -22,6 +22,7 @@ const Toggle=({checked,onChange,disabled,label,description})=><label style={{dis
 export default function ApiIrPanel(){
  const [state,setState]=useState(null),[token,setToken]=useState(''),[enabled,setEnabled]=useState(false);
  const [smsOtp,setSmsOtp]=useState(false),[shahkarPro,setShahkarPro]=useState(false),[otpTemplate,setOtpTemplate]=useState(1);
+ const [videoLive,setVideoLive]=useState(false),[specialServices,setSpecialServices]=useState([]);
  const [drafts,setDrafts]=useState({}),[busy,setBusy]=useState(false),[loading,setLoading]=useState(true);
  const [tab,setTab]=useState('identity'),[notice,setNotice]=useState(''),[isError,setIsError]=useState(false);
  const notify=(message,error=false)=>{setNotice(message);setIsError(error);};
@@ -32,6 +33,8 @@ export default function ApiIrPanel(){
    setDrafts(Object.fromEntries((d.services||[]).map(s=>[s.slug,String(s.price||0)])));
    setSmsOtp(Boolean(d.account_features?.sms_otp));
    setShahkarPro(Boolean(d.account_features?.shahkar_pro));
+   setVideoLive(Boolean(d.account_features?.video_live));
+   setSpecialServices(Array.isArray(d.biometric_policy?.special_services)?d.biometric_policy.special_services:[]);
    setOtpTemplate(Number(d.account_features?.otp_template??1));
    return d;
   }catch(e){notify(e.response?.data?.message||'خطا در دریافت وضعیت سرویس‌های API.ir.',true);throw e;}
@@ -53,6 +56,12 @@ export default function ApiIrPanel(){
  const saveFeatures=()=>run(()=>axios.post(URL+'/account-features',{
   sms_otp:smsOtp,shahkar_pro:shahkarPro,otp_template:otpTemplate,
  }),'تنظیمات موتور جدید شاهکار پرو ذخیره شد.');
+ const saveBiometric=()=>run(()=>axios.post(URL+'/biometric-policy',{
+  video_live:videoLive,special_services:specialServices,
+ }), 'تنظیمات سطح ویژه و VideoLive ذخیره شد.');
+ const toggleSpecial=code=>setSpecialServices(previous=>
+  previous.includes(code)?previous.filter(item=>item!==code):[...previous,code]
+ );
  const changeService=(service,next)=>run(async()=>{
   const price=Number(drafts[service.slug]||0);
   if(!Number.isSafeInteger(price)||price<0)throw Error('تعرفه باید عدد صحیح معتبر باشد.');
@@ -84,10 +93,11 @@ export default function ApiIrPanel(){
    <Stat value={stats.approved} label="تأییدشده با API.ir"/>
    <Stat value={stats.draft} label="در حال احراز هویت"/>
    <Stat value={stats.legacy} label="تأییدهای قدیمی"/>
+   <Stat value={state?.biometric_verified_count} label="احراز ویدئویی معتبر"/>
   </div>
 
   <nav aria-label="بخش مدیریت وب‌سرویس" style={{display:'flex',gap:8,flexWrap:'wrap',padding:5,borderRadius:13,background:'#e9f3f9',marginBottom:17}}>
-   {[['identity','احراز هویت کاربران'],['connection','اتصال و کلید امن'],['inquiries','مدیریت استعلام‌های ملکی']].map(([id,label])=><button key={id} type="button" onClick={()=>setTab(id)}
+   {[['identity','احراز هویت پایه'],['biometric','سطح ویژه بایومتریک'],['connection','اتصال و کلید امن'],['inquiries','مدیریت استعلام‌های ملکی']].map(([id,label])=><button key={id} type="button" onClick={()=>setTab(id)}
     style={{border:'none',padding:'11px 17px',borderRadius:10,background:tab===id?'white':'transparent',color:tab===id?'#086f9f':'#6c8da4',fontWeight:tab===id?600:400,boxShadow:tab===id?'0 4px 12px #123f5c0d':'none',cursor:'pointer',fontSize:12}}>{label}</button>)}
   </nav>
   {notice&&<div role={isError?'alert':'status'} style={{borderRadius:11,padding:14,background:isError?'#fff1ed':'#eaf9f0',color:isError?'#a44d42':'#176e50',marginBottom:17,fontSize:12}}>{notice}</div>}
@@ -115,7 +125,36 @@ export default function ApiIrPanel(){
      </select>
     </label>
     <button type="button" disabled={busy||!state} style={primary} onClick={saveFeatures}>{busy?'در حال ذخیره...':'ذخیره تنظیمات احراز هویت'}</button>
-    <p style={{fontSize:10,lineHeight:2.2,color:palette.muted,marginTop:17}}>ShahkarPro فقط تطبیق کد ملی و شماره همراه را برمی‌گرداند؛ نام، تاریخ تولد و اطلاعات ثبت‌احوال را تأیید نمی‌کند. محدودیت روزانه و جلوگیری از درخواست تکراری در بک‌اند فعال است.</p>
+    <p style={{fontSize:10,lineHeight:2.2,color:palette.muted,marginTop:17}}>سطح یک با SmsOTP و ShahkarPro برای خدمات عادی است؛ سطح دو با VideoLive برای خدمات ویژه‌ای است که از تب مستقل مدیریت می‌کنید.</p>
+   </div>
+  </div>}
+
+
+  {tab==='biometric'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:17,alignItems:'start'}}>
+   <div style={card}>
+    <small style={{fontSize:10,color:palette.blue}}>SPAD IDENTITY · LEVEL 2</small>
+    <h3 style={{fontSize:17,fontWeight:650,margin:'9px 0'}}>احراز ویدئویی بایومتریک با VideoLive</h3>
+    <p style={{fontSize:11,lineHeight:2.3,color:palette.muted}}>پس از احراز هویت پایه، کاربر با ویدئوی کوتاه، تاریخ تولد شمسی و سریال کارت ملی از طریق API.ir ارزیابی می‌شود. هر دو نتیجه تطبیق چهره و زنده‌سنجی باید مثبت باشند؛ اعتبار تأیید سطح دو ۱۸۰ روز است.</p>
+    <Toggle checked={videoLive} onChange={setVideoLive} disabled={busy||!state} label="فعال‌سازی اتصال VideoLive" description="ابتدا مجوز و اعتبار این سرویس را در API.ir تأیید کنید؛ روشن کردن تنظیمات جای تست واقعی را نمی‌گیرد."/>
+    <div style={{padding:13,borderRadius:12,marginTop:14,background:'#f0f8fe',color:'#557d95',fontSize:11,lineHeight:2.1}}>ویدئو و سریال کارت ملی در دیتابیس اسپاد نگهداری نمی‌شوند. فقط وضعیت موفقیت و تاریخ انقضا در پرونده کاربر ثبت می‌شود.</div>
+    <button type="button" disabled={busy||!state} onClick={saveBiometric} style={{...primary,marginTop:18}}>{busy?'در حال ذخیره...':'ذخیره سطح ویژه و فهرست خدمات'}</button>
+   </div>
+   <div style={card}>
+    <small style={{fontSize:10,color:palette.blue}}>DYNAMIC ACCESS POLICY</small>
+    <h3 style={{fontSize:17,fontWeight:650,margin:'9px 0'}}>خدمات نیازمند احراز ویدئویی</h3>
+    <p style={{fontSize:11,color:palette.muted,lineHeight:2.2}}>خدمات زیر از روی بخش‌های دارای کنترل واقعی سرور ساخته می‌شوند؛ هر استعلام جدید نیز پس از نصب به‌صورت خودکار به فهرست انتخاب اضافه می‌شود.</p>
+    <div style={{display:'grid',gap:8,maxHeight:425,overflowY:'auto',padding:'4px 0'}}>
+     {(state?.biometric_policy?.available_services||[]).map(item=>
+      <label key={item.code} style={{display:'flex',alignItems:'center',gap:10,border:'1px solid #e1edf5',borderRadius:11,padding:'12px 14px',background:specialServices.includes(item.code)?'#eff8ff':'#fff',cursor:'pointer'}}>
+       <input type="checkbox" checked={specialServices.includes(item.code)} disabled={busy} onChange={()=>toggleSpecial(item.code)} style={{width:18,height:18,accentColor:palette.blue}}/>
+       <span style={{flex:1,fontSize:12,color:palette.navy}}>{item.title}</span><small style={{fontSize:10,color:palette.muted}}>{item.group}</small>
+      </label>)}
+    </div>
+    <div style={{display:'flex',justifyContent:'space-between',gap:8,alignItems:'center',marginTop:15,fontSize:11,color:palette.muted}}>
+     <span>خدمت ویژه انتخاب‌شده: {format(specialServices.length)}</span>
+     <button type="button" disabled={busy} onClick={saveBiometric} style={primary}>ذخیره سیاست دسترسی</button>
+    </div>
+    <p style={{fontSize:10,lineHeight:2,color:palette.amber,marginTop:12}}>به‌صورت پیش‌فرض مزایده ملکی و قرعه‌کشی ملک نیازمند سطح ویژه هستند. تغییر تنظیمات پیش از پرداخت و ثبت پیشنهاد اعمال می‌شود.</p>
    </div>
   </div>}
 
