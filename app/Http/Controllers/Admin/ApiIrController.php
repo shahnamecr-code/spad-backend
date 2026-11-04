@@ -58,25 +58,25 @@ class ApiIrController extends Controller
             $query = DB::table('spad_user_verifications');
             $identityStats['total'] = (clone $query)->count();
             $identityStats['approved'] = (clone $query)->where('status','approved')
-                ->where('verification_provider','api_ir')->count();
+                ->where('verification_provider','api_ir_shahkarpro')->count();
             $identityStats['draft'] = (clone $query)->where('status','draft')->count();
             $identityStats['rejected'] = (clone $query)->where('status','rejected')->count();
             $identityStats['legacy'] = (clone $query)->where('status','approved')
                 ->where(function ($q) {
-                    $q->whereNull('verification_provider')->orWhere('verification_provider','!=','api_ir');
+                    $q->whereNull('verification_provider')->orWhere('verification_provider','!=','api_ir_shahkarpro');
                 })->count();
         }
         $feature = app(\App\Services\ApiIrAccountServices::class);
         return response()->json(['data' => [
-            'identity_version'=>3,
+            'identity_version'=>4,
             'identity_stats'=>$identityStats,
             'identity_checks'=>[
                 ['code'=>'sms_otp','name'=>'تأیید پیامکی','operation'=>'SmsOTP',
                  'enabled'=>$feature->enabled('sms_otp'),'status'=>'configuration_only'],
-                ['code'=>'person_info','name'=>'استعلام مشخصات هویتی','operation'=>'PersonInfo',
-                 'enabled'=>$feature->enabled('person_info'),'status'=>'configuration_only'],
+                ['code'=>'shahkar_pro','name'=>'تطبیق مالکیت سیم‌کارت و کد ملی','operation'=>'ShahkarPro',
+                 'enabled'=>$feature->enabled('shahkar_pro'),'status'=>'configuration_only'],
             ],
-            'identity_note'=>'تأیید مالکیت سیم‌کارت به کد ملی انجام نمی‌شود؛ نتیجه سرویس‌ها بدون ارسال درخواست هزینه‌دار آزمایش نشده است.',
+            'identity_note'=>'احراز هویت پایه پس از تأیید OTP و تطبیق شاهکار پرو انجام می‌شود؛ نام و تاریخ تولد در این سرویس تأیید نمی‌شوند.',
             'last_config_change'=>$row ? $row->updated_at : null,
             'enabled' => $row ? (bool) $row->enabled : false,
             'has_key' => $row && !empty($row->secrets_encrypted),
@@ -84,7 +84,7 @@ class ApiIrController extends Controller
             'account_features' => app(\App\Services\ApiIrAccountServices::class)->settings(),
             'identity_ready' => (function () {
                 $service=app(\App\Services\ApiIrAccountServices::class);
-                return $service->enabled('sms_otp') && $service->enabled('person_info');
+                return $service->enabled('sms_otp') && $service->enabled('shahkar_pro');
             })(),
             'services' => $items,
             'notice' => 'بررسی اتصال بدون مصرف اعتبار است؛ موفقیت واقعی هر سرویس پس از ورود کلید و ارسال درخواست مجاز قابل بررسی است.'
@@ -124,24 +124,24 @@ class ApiIrController extends Controller
     public function saveAccountFeatures(Request $request)
     {
         $this->guard($request);
-        $data=$request->validate(['sms_otp'=>'required|boolean','person_info'=>'required|boolean',
+        $data=$request->validate(['sms_otp'=>'required|boolean','shahkar_pro'=>'required|boolean',
             'otp_template'=>'required|integer|between:0,4']);
         $row=$this->row();
         abort_unless($row,422,'ابتدا اتصال api.ir را ثبت کنید.');
-        if($data['sms_otp']||$data['person_info'])
+        if($data['sms_otp']||$data['shahkar_pro'])
             abort_unless($row->enabled&&$row->mode==='configured'&&$row->secrets_encrypted,
                 422,'ابتدا کلید و اتصال اصلی api.ir را فعال کنید.');
         $public=json_decode((string)$row->config_public,true);
         if(!is_array($public))$public=[];
         $public['sms_otp_enabled']=$data['sms_otp']?'1':'0';
-        $public['person_info_enabled']=$data['person_info']?'1':'0';
-        // Shahkar is intentionally not part of KYC V3. Leave its old records intact.
+        $public['shahkar_pro_enabled']=$data['shahkar_pro']?'1':'0';
+        // Retired KYC methods stay available for audit only, never as fallback.
         $public['shahkar_apiir_enabled']='0';
         $public['otp_template']=(string)$data['otp_template'];
         DB::table('spad_web_service_connections')->where('id',$row->id)->update([
             'config_public'=>json_encode($public,JSON_UNESCAPED_UNICODE),
             'updated_by'=>$request->user()->id,'updated_at'=>now()]);
-        $this->audit($request,$row->id,'apiir_account_features','تنظیمات ورود و احراز هویت تغییر یافت.');
+        $this->audit($request,$row->id,'apiir_account_features','تنظیمات احراز هویت نسخه شاهکار پرو ذخیره شد.');
         return $this->index($request);
     }
     public function service(Request $request, string $slug)
