@@ -376,6 +376,7 @@ class SpadCommunityController extends Controller
  }
  public function proposeAuction(Request $r)
  {
+  app(\App\Services\SpadBiometricAccess::class)->assertFor($r->user(),'property-auctions');
   $s=$this->active('auctions');$uid=$this->uid($r);
   $d=$r->validate(['title'=>'required|string|min:8|max:220','city'=>'required|string|max:110',
    'district'=>'nullable|string|max:180','description'=>'required|string|min:30|max:7000',
@@ -388,6 +389,7 @@ class SpadCommunityController extends Controller
  }
  public function bid(Request $r,$id)
  {
+  app(\App\Services\SpadBiometricAccess::class)->assertFor($r->user(),'property-auctions');
   $this->active('auctions');$uid=$this->uid($r);
   $d=$r->validate(['amount_toman'=>'required|integer|min:1|max:999999999999999']);
   $result=DB::transaction(function()use($id,$uid,$d){
