@@ -96,44 +96,17 @@ class PartnerAuthController extends Controller
             ]);
         }
 
-        $mobile = fix_mobile($data['mobile']);
-        $token = createToken(6);
-        $loginRequest = LoginRequest::updateOrCreate(
-            ['mobile' => $mobile],
-            ['token' => $token]
-        );
-
-        if (!$loginRequest) {
-            return response()->json([
-                'status' => false,
-                'message' => 'مشکلی در برقراری ارتباط پیش آمده است. کمی بعد دوباره امتحان کنید.',
-            ]);
-        }
-
-        $executed = RateLimiter::attempt(
-            'send-partner-message:' . $user->id,
-            3,
-            function () use ($mobile, $token) {
-                sms()->send('hi', function ($sms) use ($mobile, $token) {
-                    $sms->to([$mobile]);
-                    $sms->template(config('sms.login_template'), [
-                        'code' => $token,
-                    ]);
+        $mobile=fix_mobile($data['mobile']);
+        try {
+            app(\App\Services\SpadLoginOtp::class)->send($mobile,$request,function($code)use($mobile){
+                return sms()->send('hi',function($sms)use($mobile,$code){
+                    $sms->to([$mobile]);$sms->template(config('sms.login_template'),['code'=>$code]);
                 });
-            }
-        );
-
-        if (!$executed) {
-            return response()->json([
-                'status' => false,
-                'message' => 'تعداد درخواست کد ورود بیش از حد مجاز است.',
-            ]);
+            });
+        }catch(\RuntimeException $e){
+            return response()->json(['status'=>false,'message'=>$e->getMessage()],429);
         }
-
-        return response()->json([
-            'status' => true,
-            'message' => 'کد ورود پنل همکاری برای شما ارسال شد.',
-        ]);
+        return response()->json(['status'=>true,'message'=>'کد ورود پنل همکاری ارسال شد.']);
     }
 
     public function login(Request $request)
@@ -154,31 +127,9 @@ class PartnerAuthController extends Controller
             ]);
         }
 
-        $loginRequest = LoginRequest::query()
-            ->where('token', $data['code'])
-            ->where('mobile', $mobile)
-            ->first();
-
-        if (!$loginRequest) {
-            return response()->json([
-                'status' => false,
-                'message' => 'کد وارد شده معتبر نیست.',
-            ]);
-        }
-
-        if ($loginRequest->updated_at->addSeconds(120)->isPast()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'کد وارد شده منقضی شده است.',
-            ]);
-        }
-
-        if (is_null($user->phone_verified_at)) {
-            $user->update(['phone_verified_at' => now()]);
-        }
-
-        $loginRequest->delete();
-
+        if(!app(\App\Services\SpadLoginOtp::class)->consume($mobile,(string)$data['code'],$request))
+            return response()->json(['status'=>false,'message'=>'کد ورود نامعتبر یا منقضی است.'],422);
+        if(is_null($user->phone_verified_at))$user->update(['phone_verified_at'=>now()]);
         return $this->success($user->fresh(), $panelType);
     }
 

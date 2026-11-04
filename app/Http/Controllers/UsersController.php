@@ -100,72 +100,22 @@ class UsersController extends Controller
      */
     public function sendLoginCode(Request $request)
     {
-        $data = $this->validate($request, [
-            'mobile' => ['required'],
-        ]);
-
-        $data['mobile'] = fix_mobile($data['mobile']);
-        $user = User::firstWhere('mobile', $data['mobile']);
-        if (!$user) {
-            return response()->json([
-                'status' => false,
-                'message' => 'قبلا ثبت نام نکرده اید'
-            ]);
+        $data=$request->validate(['mobile'=>'required|string|max:20']);
+        $mobile=fix_mobile($data['mobile']);
+        if(!preg_match('/^09[0-9]{9}$/D',$mobile))
+            return response()->json(['status'=>false,'message'=>'شماره همراه نامعتبر است.'],422);
+        if(!User::where('mobile',$mobile)->exists())
+            return response()->json(['status'=>false,'message'=>'برای ورود ابتدا ثبت‌نام کنید.'],422);
+        try {
+            app(\App\Services\SpadLoginOtp::class)->send($mobile,$request,function($code)use($mobile){
+                return sms()->send('hi',function($sms)use($mobile,$code){
+                    $sms->to([$mobile]);$sms->template(config('sms.login_template'),['code'=>$code]);
+                });
+            });
+        }catch(\RuntimeException $e){
+            return response()->json(['status'=>false,'message'=>$e->getMessage()],429);
         }
-        $user_request = LoginRequest::firstWhere('mobile', $data['mobile']);
-/*        if ($user_request && $user_request->updated_at->addSeconds(120)->isFuture()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'لطفا تا رسیدن کد شکیبا باشید...',
-                'waiting'=>true,
-                'remaining'=>$user_request->updated_at->addSeconds(120)->diffInSeconds((new Carbon()))
-            ]);
-        }*/
-
-        $token = createToken(6);
-        $login_request = LoginRequest::updateOrCreate(
-            ['mobile' => $data['mobile']],
-            ['token' => $token],
-        );
-
-        if ($login_request) {
-//            $msg = "کد تأیید شما:\n";
-//            $msg .= "code: $token\n";
-//            $msg .= "این کد مختص شماست. لطفاً برای دیگران نفرستید.";
-//            sms()->send($msg, function ($sms) use ($data, $token) {
-//                $sms->to(array($data['mobile']));
-//            });
-
-            $executed=RateLimiter::attempt(
-                'send-message:'.$user->id,
-                $perDay = 3,
-                function()use($data,$token) {
-                    sms()->send('hi', function ($sms) use($data,$token){
-                        $sms->to(array($data['mobile']));
-                        $sms->template(config('sms.login_template'),array(
-                            "code" => $token,
-                        ));
-                    });
-                }
-            );
-
-            if (!$executed){
-                return response()->json([
-                    'status' => false,
-                    'message' => 'ورود بیش از حد مجاز'
-                ]);
-            }else{
-                return response()->json([
-                    'status' => true,
-                    'message' => 'جهت ورود کد ارسال شده را وارد نمایید'
-                ]);
-            }
-        }
-
-        return response()->json([
-            'status' => false,
-            'message' => 'مشکلی در برقراری ارتباط پیش آمده است کمی بعد دوباره امتحان کنید'
-        ]);
+        return response()->json(['status'=>true,'message'=>'کد ورود ارسال شد.']);
     }
 
     /**
@@ -214,29 +164,10 @@ class UsersController extends Controller
                 'message' => 'برای ورود به سایت ابتدا باید ثبت نام کنید'
             ]);
         }
-        $login_request = LoginRequest::where('token', $data['code'])->firstWhere('mobile', $data['mobile']);
-        if (!$login_request) {
-            return response()->json([
-                'status' => false,
-                'message' => 'کد وارد شده معتبر نمی باشد'
-            ]);
-        }
-
-        if ($login_request->updated_at->addSeconds(120)->isPast()) {
-            return response()->json([
-                'status' => false,
-                'message' => 'کد وارد شده منقضی شده است'
-            ]);
-        }
-
-//            $user->tokens()->where('name', 'token')->delete();
-        if (is_null($user->phone_verified_at)){
-            $user->update([
-                'phone_verified_at'=>now()
-            ]);
-        }
-        $token = $user->createToken('token')->plainTextToken;
-        $login_request->delete();
+        if(!app(\App\Services\SpadLoginOtp::class)->consume($data['mobile'],(string)$data['code'],$request))
+            return response()->json(['status'=>false,'message'=>'کد ورود نامعتبر یا منقضی است.'],422);
+        if(is_null($user->phone_verified_at))$user->update(['phone_verified_at'=>now()]);
+        $token=$user->createToken('token')->plainTextToken;
         return response()->json([
             'status' => true,
             'message' => 'ورود با موفقیت انجام شد',
