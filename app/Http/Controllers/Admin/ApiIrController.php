@@ -54,6 +54,7 @@ class ApiIrController extends Controller
             'enabled' => $row ? (bool) $row->enabled : false,
             'has_key' => $row && !empty($row->secrets_encrypted),
             'configured' => $row && $row->mode === 'configured',
+            'account_features' => app(\App\Services\ApiIrAccountServices::class)->settings(),
             'services' => $items,
             'notice' => 'بررسی اتصال بدون مصرف اعتبار است؛ موفقیت واقعی هر سرویس پس از ورود کلید و ارسال درخواست مجاز قابل بررسی است.'
         ]])->header('Cache-Control', 'private, no-store');
@@ -89,6 +90,27 @@ class ApiIrController extends Controller
         return $this->index($request);
     }
 
+    public function saveAccountFeatures(Request $request)
+    {
+        $this->guard($request);
+        $data=$request->validate(['sms_otp'=>'required|boolean','person_info'=>'required|boolean',
+            'otp_template'=>'required|integer|between:0,4']);
+        $row=$this->row();
+        abort_unless($row,422,'ابتدا اتصال api.ir را ثبت کنید.');
+        if($data['sms_otp']||$data['person_info'])
+            abort_unless($row->enabled&&$row->mode==='configured'&&$row->secrets_encrypted,
+                422,'ابتدا کلید و اتصال اصلی api.ir را فعال کنید.');
+        $public=json_decode((string)$row->config_public,true);
+        if(!is_array($public))$public=[];
+        $public['sms_otp_enabled']=$data['sms_otp']?'1':'0';
+        $public['person_info_enabled']=$data['person_info']?'1':'0';
+        $public['otp_template']=(string)$data['otp_template'];
+        DB::table('spad_web_service_connections')->where('id',$row->id)->update([
+            'config_public'=>json_encode($public,JSON_UNESCAPED_UNICODE),
+            'updated_by'=>$request->user()->id,'updated_at'=>now()]);
+        $this->audit($request,$row->id,'apiir_account_features','تنظیمات ورود و احراز هویت تغییر یافت.');
+        return $this->index($request);
+    }
     public function service(Request $request, string $slug)
     {
         $this->guard($request);

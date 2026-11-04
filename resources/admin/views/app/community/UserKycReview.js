@@ -32,7 +32,7 @@ export default function UserKycReview(){
   {list.map(v=><div key={v.id} style={{border:"1px solid #d9e9f3",borderRadius:14,padding:15,background:"#fff"}}>
    <div style={{display:"flex",justifyContent:"space-between",gap:9}}><strong style={{fontSize:13,color:"#195c86"}}>{v.full_name}</strong><Badge color={v.status==="approved"?"success":v.status==="pending"?"warning":"secondary"}>{v.status==="pending"?"در انتظار بررسی":v.status==="approved"?"تأیید شده":v.status}</Badge></div>
    <p style={{fontSize:11,color:"#7592a6",margin:"10px 0"}}>کاربر #{v.user_id} · {v.mobile||"—"} · سطح درخواستی {v.requested_level}</p>
-   <p style={{fontSize:11,color:"#3a7297"}}>موبایل: {v.phone_verified?"تأییدشده":"تأییدنشده"} · شاهکار: {v.shahkar_status==="matched"?"تطبیق مثبت":v.shahkar_status}</p>
+   <p style={{fontSize:11,color:"#3a7297"}}>موبایل: {v.phone_verified?"تأییدشده":"تأییدنشده"} · شاهکار: {v.shahkar_status==="matched"?"تطبیق مثبت":v.shahkar_status} · ثبت‌احوال: {v.person_info_status==="matched"?"تأییدشده":v.person_info_status==="mismatch"?"مغایرت":"بررسی‌نشده"}</p>
    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
     <Button size="sm" color="primary" outline onClick={()=>file(v,"national_card")}>کارت ملی</Button>
     {v.requested_level>=2&&<Button size="sm" color="primary" outline onClick={()=>file(v,"face_photo")}>تصویر تطبیقی</Button>}
