@@ -119,7 +119,7 @@ export default function ApiIrPanel(){
    </div>
   </div>}
 
-  {tab==='connection'&&<div style={{display:'grid',gridTemplateColumns:'minmax(0,1.5fr) minmax(230px,1fr)',gap:16,alignItems:'start'}}>
+  {tab==='connection'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(265px,1fr))',gap:16,alignItems:'start'}}>
    <form style={card} onSubmit={saveMaster}>
     <small style={{color:palette.blue,fontSize:10}}>SECURE CONNECTION</small><h3 style={{fontSize:16,fontWeight:630,margin:'7px 0 12px'}}>اتصال یکپارچه و کلید محرمانه</h3>
     <label style={{display:'block',color:palette.muted,fontSize:11}}>کلید API.ir (Bearer Token)
