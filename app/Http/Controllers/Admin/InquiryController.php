@@ -301,6 +301,13 @@ class InquiryController extends Controller
         if ($inquiry->payment_status !== 'paid') {
             return response()->json(['status' => false, 'message' => 'پرداخت درخواست تکمیل نشده است.'], 422);
         }
+        if (\App\Services\ApiIrClient::supports((string)$inquiry->service->slug)) {
+            // A failed paid call may have been processed upstream before
+            // returning an error or timing out. Never trigger a second
+            // billable API.ir call from a generic admin retry action.
+            return response()->json(['status'=>false,
+                'message'=>'استعلام‌های API.ir به علت احتمال ثبت هزینه نزد ارائه‌دهنده قابل ارسال مجدد خودکار نیستند. ابتدا گزارش فراخوانی و پرداخت قبلی را بررسی و درباره بازگشت وجه تصمیم‌گیری کنید.'], 422);
+        }
         $result = $this->executor->executeApi($inquiry);
         return response()->json(['status' => $result->status === 'completed', 'message' => $result->status === 'completed' ? 'استعلام مجدد با موفقیت انجام شد.' : ($result->failure_message ?: 'استعلام ناموفق بود.')]);
     }
