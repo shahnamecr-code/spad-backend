@@ -1,0 +1,88 @@
+name: spad-market-intelligence
+x-market-env: &market-env
+  DATABASE_URL: postgresql+psycopg://market:${POSTGRES_PASSWORD}@db:5432/market
+  INGEST_API_KEY: ${INGEST_API_KEY}
+  ALLOWED_SOURCES: ${ALLOWED_SOURCES:-spad_authorized}
+  MIN_SAMPLES: ${MIN_SAMPLES:-10}
+  DATA_MAX_AGE_DAYS: ${DATA_MAX_AGE_DAYS:-14}
+  ANALYSIS_INTERVAL_SECONDS: ${ANALYSIS_INTERVAL_SECONDS:-300}
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: market
+      POSTGRES_USER: market
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes: [market_db:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market -d market"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks: [internal]
+  api:
+    build: .
+    environment: *market-env
+    ports: ["127.0.0.1:8732:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+    networks: [internal]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+  worker:
+    build: .
+    command: ["python","-m","app.worker"]
+    environment: *market-env
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+    networks: [internal]
+    read_only: true
+    security_opt: [no-new-privileges:true]
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=30d"]
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus_data:/prometheus
+    ports: ["127.0.0.1:9098:9090"]
+    restart: unless-stopped
+    networks: [internal]
+  alertmanager:
+    image: prom/alertmanager:v0.28.0
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes: ["./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro"]
+    restart: unless-stopped
+    networks: [internal]
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    command: ["--path.procfs=/host/proc", "--path.sysfs=/host/sys", "--path.rootfs=/host", "--collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run)($|/)"]
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+    restart: unless-stopped
+    networks: [internal]
+  grafana:
+    image: grafana/grafana:11.4.0
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana-datasources.yml:/etc/grafana/provisioning/datasources/market.yml:ro
+    ports: ["127.0.0.1:3003:3000"]
+    depends_on: [prometheus]
+    restart: unless-stopped
+    networks: [internal]
+networks:
+  internal:
+    driver: bridge
+volumes:
+  market_db:
+  prometheus_data:
+  grafana_data:
