@@ -111,6 +111,19 @@ class InquiryController extends Controller
                 ], 422);
             }
             $validated[$service->id] = $validator->validated();
+            // This bundle charges the whole wallet atomically. Validate API.ir
+            // credentials, identity ownership and exact required fields for
+            // EVERY service BEFORE any debit or external billable request.
+            if (\App\Services\ApiIrClient::supports((string)$service->slug)) {
+                try {
+                    $client=app(\App\Services\ApiIrClient::class);
+                    $client->assertReady();
+                    $client->authorize((string)$service->slug,$validated[$service->id],$user);
+                } catch (\RuntimeException $e) {
+                    return response()->json(['status'=>false,
+                        'message'=>'اطلاعات استعلام «'.$service->title.'» قبل از پرداخت نیازمند اصلاح است: '.$e->getMessage()],422);
+                }
+            }
         }
         $total = (int) $services->sum('price');
         try {
