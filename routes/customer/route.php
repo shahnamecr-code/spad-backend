@@ -101,3 +101,5 @@ require_once __DIR__ . '/mortgage.php';
 require_once __DIR__ . '/community.php';
 
 require_once __DIR__ . '/identity.php';
+
+require_once __DIR__ . '/property-valuation.php';
