@@ -195,7 +195,7 @@ class PropertyValuationController extends Controller
                 'computed_at' => $prices['computed_at'],
                 'window_days' => $prices['window_days'],
                 'source' => 'نمودا',
-                'source_url' => 'https://nemuda.com/',
+                'source_url' => $market->urlForPlace($placeId),
                 'caution' => 'برآورد از میانه قیمت‌های پیشنهادی بازار و متراژ اعلام‌شده است؛ قیمت معامله یا کارشناسی قطعی ملک نیست.',
             ]]);
         } catch (\Throwable $e) {
