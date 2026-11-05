@@ -68,7 +68,7 @@ const popularCategories = [
 ];
 const normalizeCategoryLabel = value =>
   String(value || "").replace(/ي/g, "ی").replace(/ك/g, "ک")
-    .replace(/[\\u200c\\u200d\\s_-]+/g, "").toLowerCase().trim();
+    .replace(/[\u200c\u200d\s_-]+/g, "").toLowerCase().trim();
 
 const resolveCategoryBranch = (roots, item) => {
   const aliases = item.aliases.map(normalizeCategoryLabel);
