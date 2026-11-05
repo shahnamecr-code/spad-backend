@@ -45,6 +45,13 @@ Route::middleware('auth:sanctum')->group(function (){
     Route::delete('empty_favorites',[\App\Http\Controllers\UsersController::class,'emptyAdvertisementsFavorite']);
     Route::delete('delete_ad_from_favorites/{advertisement}',[\App\Http\Controllers\UsersController::class,'deleteAdvertisementFromFavorite']);
     Route::post('/change-profile',[\App\Http\Controllers\UsersController::class,'changeProfile']);
+    // Changing a login mobile requires OTP on BOTH the current and the new number.
+    Route::prefix('account/mobile')->middleware('throttle:30,1')->group(function () {
+        Route::post('start',[\App\Http\Controllers\AccountMobileController::class,'start']);
+        Route::post('verify-current',[\App\Http\Controllers\AccountMobileController::class,'verifyCurrent']);
+        Route::post('send-new',[\App\Http\Controllers\AccountMobileController::class,'sendNew']);
+        Route::post('confirm',[\App\Http\Controllers\AccountMobileController::class,'confirm']);
+    });
     Route::get('/logout',[\App\Http\Controllers\UsersController::class,'logout']);
 
     Route::post('/users-expert-request',[\App\Http\Controllers\UsersController::class,'users_expert_request']);
