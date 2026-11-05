@@ -53,6 +53,43 @@ const validationMessage = (errors) => {
   return String(errors);
 };
 
+// The same quick categories used on /search, resolved against live category IDs.
+// Never select an invented/invalid category or bypass its dedicated registration form.
+const popularCategories = [
+  { key: "apartment", label: "آپارتمان", aliases: ["آپارتمان", "apartment"] },
+  { key: "villa-house", label: "خانه ویلایی", aliases: ["خانه(حیاط)", "خانه ویلایی", "ویلا"] },
+  { key: "garden-villa", label: "باغ ویلا", aliases: ["باغ ویلا", "باغ‌ویلا", "garden-villa"] },
+  { key: "land", label: "زمین", aliases: ["زمین", "فروش زمین", "land"] },
+  { key: "commercial", label: "تجاری", aliases: ["تجاری", "فروش تجاری", "commercial"] },
+  { key: "construction-partnership", label: "مشارکت در ساخت", aliases: ["مشارکت در ساخت", "مشارکت", "construction-partnership"] },
+  { key: "rental", label: "رهن و اجاره", aliases: ["رهن و اجاره", "رهن‌واجاره", "اجاره مسکونی", "اجاره", "rent"] },
+  { key: "pre-sale", label: "پیش فروش", aliases: ["پیش فروش", "پیش‌فروش"] },
+  { key: "daily-rent", label: "اجاره روزانه", aliases: ["اجاره روزانه", "daily-rent"] },
+];
+const normalizeCategoryLabel = value =>
+  String(value || "").replace(/ي/g, "ی").replace(/ك/g, "ک")
+    .replace(/[\\u200c\\u200d\\s_-]+/g, "").toLowerCase().trim();
+
+const resolveCategoryBranch = (roots, item) => {
+  const aliases = item.aliases.map(normalizeCategoryLabel);
+  const matches = [];
+  const walk = (nodes, parents = []) => {
+    (nodes || []).forEach(node => {
+      const branch = [...parents, node];
+      const slug = normalizeCategoryLabel(node.slug);
+      const name = normalizeCategoryLabel(node.name);
+      const index = aliases.findIndex(alias => slug === alias || name === alias);
+      if (index >= 0) matches.push({ branch, index });
+      if (node.customer_children && node.customer_children.length && branch.length < 6) {
+        walk(node.customer_children, branch);
+      }
+    });
+  };
+  walk(roots);
+  matches.sort((a,b) => a.index - b.index || b.branch.length - a.branch.length);
+  return matches.length ? matches[0].branch : null;
+};
+
 const AdvertisementRegister = ({ match }) => {
   const [normalBox, setNormalBox] = useState([]);
   const [sideBox, setSideBox] = useState([]);
@@ -154,6 +191,21 @@ const AdvertisementRegister = ({ match }) => {
   if (loading) return <div className="loading" />;
 
   const currentCategories = path.length ? path[path.length - 1] : [];
+  const categoryRoots = path.length ? path[0] : [];
+  const chooseQuickCategory = (item) => {
+    const branch = resolveCategoryBranch(categoryRoots, item);
+    if (!branch) {
+      NotificationManager.warning("این دسته هنوز در تنظیمات دسته‌بندی آگهی تعریف نشده است.", "دسته‌بندی ناموجود");
+      return;
+    }
+    const node = branch[branch.length - 1];
+    if (!node.customer_children || !node.customer_children.length) {
+      setSelectedCategory(node);
+      return;
+    }
+    setParents(branch);
+    setPath([categoryRoots, ...branch.map(category => category.customer_children || [])]);
+  };
 
   return (
     <Suspense fallback={<div className="loading" />}>
@@ -191,6 +243,38 @@ const AdvertisementRegister = ({ match }) => {
               <div className="spad-ad-category-hero__icon">
                 <i className="iconsminds-folder-add--" />
               </div>
+            </div>
+
+            <div className="spad-ad-quick-categories">
+              <div className="spad-ad-quick-categories__head">
+                <strong>انتخاب سریع نوع ملک</strong>
+                <span>مشابه فیلتر خرید ملک · انتخاب دسته‌بندی واقعی</span>
+              </div>
+              <div className="spad-ad-quick-categories__grid" role="group" aria-label="دسته‌بندی‌های پرکاربرد ثبت آگهی">
+                {popularCategories.map(item => {
+                  const branch = resolveCategoryBranch(categoryRoots, item);
+                  const enabled = Boolean(branch);
+                  const selected = branch && (
+                    selectedCategory && selectedCategory.id === branch[branch.length - 1].id ||
+                    parents.some(parent => parent.id === branch[branch.length - 1].id)
+                  );
+                  return (
+                    <button key={item.key} type="button"
+                      className={`spad-ad-quick-category${selected ? " is-active" : ""}`}
+                      disabled={!enabled}
+                      title={enabled ? `انتخاب ${item.label}` : `${item.label} هنوز در تنظیمات دسته‌بندی تعریف نشده است`}
+                      aria-pressed={Boolean(selected)}
+                      onClick={() => chooseQuickCategory(item)}>
+                      <span aria-hidden="true" className="spad-ad-quick-category__dot" />
+                      {item.label}
+                      {selected ? <i className="simple-icon-check" aria-hidden="true" /> : null}
+                    </button>
+                  );
+                })}
+              </div>
+              <small className="spad-ad-quick-categories__help">
+                دسته‌های فعال مستقیماً فرم اختصاصی خود را باز می‌کنند؛ سایر دسته‌ها باید ابتدا در مدیریت دسته‌بندی‌ها تعریف شوند.
+              </small>
             </div>
 
             <Card className="spad-ad-category-card">

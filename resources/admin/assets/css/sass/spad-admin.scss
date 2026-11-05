@@ -1085,3 +1085,48 @@ a:hover { color: #065f9f; }
 }
 .spad-ad-document-panel .spad-ad-finance-title { margin-bottom: 14px; }
 .spad-ad-document-panel select.form-control { min-height: 46px; }
+
+
+/* SPAD property publisher — live linked quick taxonomy, shared visual language
+   with the public purchase filters. The original category tree stays available. */
+.spad-ad-admin-page .spad-ad-quick-categories {
+  margin: 0 0 17px;
+  padding: 19px;
+  border: 1px solid #d7e9f5;
+  border-radius: 18px;
+  background: linear-gradient(155deg,#fff,#f5fbff);
+  box-shadow: 0 8px 23px rgba(12,76,132,.06);
+  direction: rtl;
+}
+.spad-ad-quick-categories__head {
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+  gap: 5px 18px; margin-bottom: 14px;
+}
+.spad-ad-quick-categories__head strong { color:#194665; font-size:14px; font-weight:700; }
+.spad-ad-quick-categories__head span { color:#8ba0b1; font-size:10px; }
+.spad-ad-quick-categories__grid {
+  display:flex; align-items:center; flex-wrap:wrap; gap:9px;
+}
+.spad-ad-quick-category {
+  min-height:41px; display:inline-flex; align-items:center; justify-content:center;
+  gap:9px; padding:8px 14px; border-radius:11px;
+  border:1px solid #d4e7f5; background:#fff; color:#3a6886;
+  text-align:center; font:500 11px/1.8 IRANSans,Tahoma,sans-serif;
+  transition:border-color .17s,background .17s,transform .17s;
+  cursor:pointer;
+}
+.spad-ad-quick-category:hover:not(:disabled) {
+  transform:translateY(-1px); background:#eef8ff; border-color:#7bc0e8; color:#0878bd;
+}
+.spad-ad-quick-category.is-active { border-color:#0a83ca; background:#e6f5ff; color:#076caa; }
+.spad-ad-quick-category:disabled { cursor:not-allowed; opacity:.46; }
+.spad-ad-quick-category__dot { flex:0 0 6px; width:6px; height:6px; border-radius:50%; background:#a9d7f5; }
+.spad-ad-quick-category.is-active .spad-ad-quick-category__dot { background:#12bcaa; }
+.spad-ad-quick-categories__help { display:block; color:#849dac; font-size:10px; line-height:1.9; margin-top:11px; }
+@media(max-width:767px) {
+  .spad-ad-admin-page .spad-ad-quick-categories { padding:13px; border-radius:15px; }
+  .spad-ad-quick-categories__grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .spad-ad-quick-category { width:100%; min-width:0; min-height:43px; padding:8px 5px; font-size:10px; }
+}
+@media(max-width:360px) { .spad-ad-quick-category { font-size:9px; } }
+@media(prefers-reduced-motion:reduce) { .spad-ad-quick-category { transition:none!important; } }
