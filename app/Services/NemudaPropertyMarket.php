@@ -14,6 +14,7 @@ class NemudaPropertyMarket
 {
     private const BASE = 'https://api.nemuda.com/api/market/real-estate/';
     private const TTL = 21600;
+    private $placeIndexCache = null;
 
     private function fetch(string $path, array $filters = []): array
     {
@@ -58,6 +59,7 @@ class NemudaPropertyMarket
 
     public function index(): array
     {
+        if (is_array($this->placeIndexCache)) return $this->placeIndexCache;
         $response = $this->fetch('place-index');
         $data = $this->unwrap($response);
         $sources = [];
@@ -70,18 +72,20 @@ class NemudaPropertyMarket
             foreach ($source as $value) {
                 if (!is_array($value)) continue;
                 $id = $value['id'] ?? $value['placeId'] ?? null;
-                $name = trim((string) ($value['name'] ?? $value['title'] ?? ''));
+                $name = trim((string) ($value['nameFa'] ?? $value['name'] ?? $value['title'] ?? ''));
                 if (!is_numeric($id) || (int) $id <= 0 || !$name) continue;
                 $rows[] = [
                     'id' => (int) $id,
                     'name' => $name,
-                    'type' => (string) ($value['type'] ?? $value['kind'] ?? $value['level'] ?? ''),
+                    'type' => (string) ($value['placeKind'] ?? $value['type'] ?? $value['kind'] ?? $value['level'] ?? ''),
                     'parent_id' => isset($value['parentId']) ? (int) $value['parentId'] :
                         (isset($value['parent_id']) ? (int) $value['parent_id'] : null),
-                    'path' => (string) ($value['path'] ?? $value['fullName'] ?? $value['full_name'] ?? $value['breadcrumb'] ?? $value['url'] ?? ''),
+                    'path' => (string) ($value['parentNameFa'] ?? $value['path'] ?? $value['fullName'] ?? $value['full_name'] ?? $value['breadcrumb'] ?? $value['url'] ?? ''),
+                    'slug' => (string) ($value['slug'] ?? ''),
                 ];
             }
         }
+        $this->placeIndexCache = $rows;
         return $rows;
     }
 
@@ -177,7 +181,7 @@ class NemudaPropertyMarket
         foreach ($rows as $row) {
             if (!is_array($row)) continue;
             $id = $row['id'] ?? $row['placeId'] ?? null;
-            $name = trim((string) ($row['name'] ?? $row['title'] ?? ''));
+            $name = trim((string) ($row['nameFa'] ?? $row['name'] ?? $row['title'] ?? ''));
             if (!is_numeric($id) || (int) $id < 1 || !$name) continue;
             $detail = $this->priceDetails($row);
             $out[] = [
@@ -188,15 +192,38 @@ class NemudaPropertyMarket
                 'coverage' => $detail['coverage'] ?? 'unknown',
                 'computed_at' => $detail['computed_at'] ?? $this->date($response),
                 'slug' => (string) ($row['slug'] ?? ''),
+                'source_url' => $this->urlForPlace((int) $id),
             ];
         }
         return $out;
+    }
+
+    /** Canonical attribution for CC BY 4.0: link to that exact Nemuda place. */
+    public function urlForPlace(int $placeId): string
+    {
+        $byId = [];
+        foreach ($this->index() as $row) $byId[$row['id']] = $row;
+        $segments = [];
+        $seen = [];
+        $current = $placeId;
+        for ($depth = 0; $depth < 6; $depth++) {
+            if (!isset($byId[$current]) || isset($seen[$current])) break;
+            $seen[$current] = true;
+            $row = $byId[$current];
+            $slug = trim((string) ($row['slug'] ?? ''));
+            if ($slug === '' || !preg_match('/^[a-z0-9-]+$/i', $slug)) break;
+            array_unshift($segments, strtolower($slug));
+            if (!$row['parent_id']) break;
+            $current = (int) $row['parent_id'];
+        }
+        return $segments ? 'https://nemuda.com/' . implode('/', $segments) : 'https://nemuda.com/';
     }
 
     public function normalize(string $text): string
     {
         $text = strtr($text, ['ي' => 'ی', 'ك' => 'ک', 'ۀ' => 'ه', 'ة' => 'ه', '‌' => ' ', 'أ' => 'ا', 'إ' => 'ا']);
         $text = preg_replace('/[\x{064B}-\x{065F}\x{06D6}-\x{06ED}]/u', '', $text);
-        return trim(preg_replace('/\s+/u', ' ', $text));
+        $text = trim(preg_replace('/\s+/u', ' ', $text));
+        return preg_replace('/^(استان|شهر)\s+/u', '', $text);
     }
 }
