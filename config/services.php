@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'spad_renovation_ai' => [
+        'enabled' => env('SPAD_RENOVATION_AI_ENABLED', false),
+        'key' => env('SPAD_RENOVATION_AI_API_KEY', ''),
+    ],
     'spad_shahkar' => [
         'key' => env('SPAD_SHAHKAR_NEXT_PAY_KEY'),
     ],

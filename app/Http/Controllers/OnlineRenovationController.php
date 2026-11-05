@@ -48,7 +48,10 @@ class OnlineRenovationController extends Controller {
   $this->ready();
   abort_unless(Schema::hasTable('spad_renovation_assets'),503,'کاتالوگ بازسازی در حال آماده‌سازی است.');
   return response()->json(['data'=>DB::table('spad_renovation_assets')
-    ->where('enabled',true)->orderBy('sort_order')->orderBy('id')->get(),
+    ->where('enabled',true)->orderBy('sort_order')->orderBy('id')->get()->map(function($a){
+       $a->reference_image_url=$a->reference_path ? url('/api/online-renovation/asset-photo/'.$a->id) : null;
+       unset($a->reference_path);return $a;
+     }),
    'note'=>'تصاویر صرفاً نمونه الهام طراحی هستند، نه کالا یا رندر واقع‌گرایانه از ملک شما. قیمت خالی به‌معنی رایگان نیست.']);
  }
  public function rates(){
@@ -264,7 +267,10 @@ class OnlineRenovationController extends Controller {
   $this->ready();$this->admin();
   abort_unless(Schema::hasTable('spad_renovation_assets'),503);
   return response()->json(['data'=>DB::table('spad_renovation_assets')
-    ->orderBy('category')->orderBy('sort_order')->get()]);
+    ->orderBy('category')->orderBy('sort_order')->get()->map(function($a){
+       $a->reference_image_url=$a->reference_path ? url('/api/online-renovation/asset-photo/'.$a->id) : null;
+       unset($a->reference_path);return $a;
+     })]);
  }
  private function assetFields(Request $r){
   $d=$r->validate([
@@ -276,6 +282,7 @@ class OnlineRenovationController extends Controller {
    'image_url'=>'nullable|url|max:500',
    'photo_source_url'=>'nullable|url|max:500',
    'photo_credit'=>'nullable|string|max:140',
+    'material_spec'=>'nullable|string|max:1000',
    'unit_price_toman'=>'nullable|integer|min:0|max:2000000000',
    'enabled'=>'required|boolean',
    'sort_order'=>'required|integer|min:0|max:99999'
