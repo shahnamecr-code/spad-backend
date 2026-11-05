@@ -58,9 +58,9 @@ const validationMessage = (errors) => {
 const popularCategories = [
   { key: "apartment", label: "آپارتمان", aliases: ["آپارتمان", "apartment"] },
   { key: "villa-house", label: "خانه ویلایی", aliases: ["خانه(حیاط)", "خانه ویلایی", "ویلا"] },
-  { key: "garden-villa", label: "باغ ویلا", aliases: ["باغ ویلا", "باغ‌ویلا", "garden-villa"] },
-  { key: "land", label: "زمین", aliases: ["زمین", "فروش زمین", "land"] },
-  { key: "commercial", label: "تجاری", aliases: ["تجاری", "فروش تجاری", "commercial"] },
+  { key: "garden-villa", label: "باغ ویلا", aliases: ["فروش ویلا و باغ", "باغ ویلا", "باغ‌ویلا", "garden-villa"] },
+  { key: "land", label: "زمین", aliases: ["فروش زمین و کلنگی", "فروش زمین", "زمین", "land"] },
+  { key: "commercial", label: "تجاری", aliases: ["فروش تجاری/خدماتی/اداری", "فروش تجاری", "تجاری", "commercial"] },
   { key: "construction-partnership", label: "مشارکت در ساخت", aliases: ["مشارکت در ساخت", "مشارکت", "construction-partnership"] },
   { key: "rental", label: "رهن و اجاره", aliases: ["رهن و اجاره", "رهن‌واجاره", "اجاره مسکونی", "اجاره", "rent"] },
   { key: "pre-sale", label: "پیش فروش", aliases: ["پیش فروش", "پیش‌فروش"] },
