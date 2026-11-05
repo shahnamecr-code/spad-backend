@@ -12,7 +12,7 @@ export default function RenovationAdmin(){
  const [view,setView]=useState("projects"),[items,setItems]=useState([]),[rates,setRates]=useState([]),[assets,setAssets]=useState([]);
  const [assetCategory,setAssetCategory]=useState("all");
  const [newAsset,setNewAsset]=useState({title:"",category:"cabinet",category_title:"کابینت",room_scope:"kitchen",
-  color_hex:"#e8eff5",image_url:"",photo_source_url:"",photo_credit:"",unit_price_toman:"",enabled:true,sort_order:100});
+  color_hex:"#e8eff5",image_url:"",photo_source_url:"",photo_credit:"",material_spec:"",unit_price_toman:"",enabled:true,sort_order:100});
  const [selected,setSelected]=useState(null),[detail,setDetail]=useState(null);
  const [edit,setEdit]=useState({admin_quote_toman:"",admin_days:"",admin_note:"",status:"completed"});
  const [loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[query,setQuery]=useState("");
@@ -60,7 +60,7 @@ export default function RenovationAdmin(){
  const assetPayload=x=>({
    title:x.title,category:x.category,category_title:x.category_title,room_scope:x.room_scope,
    color_hex:x.color_hex||"#edf5fb",image_url:x.image_url||null,photo_source_url:x.photo_source_url||null,
-   photo_credit:x.photo_credit||null,
+   photo_credit:x.photo_credit||null,material_spec:x.material_spec||null,
    unit_price_toman:x.unit_price_toman===""||x.unit_price_toman===null?null:Number(x.unit_price_toman),
    enabled:!!x.enabled,sort_order:Number(x.sort_order||0)
  });
@@ -69,8 +69,21 @@ export default function RenovationAdmin(){
   }catch(e){NotificationManager.error(e?.response?.data?.message||"ذخیره نمونه ناموفق بود.");}finally{setBusy(false);}};
  const createAsset=async()=>{setBusy(true);try{
    await axios.post(base+"/assets",assetPayload(newAsset));NotificationManager.success("نمونه جدید ثبت شد.");await load();
-   setNewAsset(x=>({...x,title:"",image_url:"",photo_source_url:"",photo_credit:"",unit_price_toman:""}));
+   setNewAsset(x=>({...x,title:"",image_url:"",photo_source_url:"",photo_credit:"",material_spec:"",unit_price_toman:""}));
   }catch(e){NotificationManager.error(e?.response?.data?.message||"ثبت نمونه ناموفق بود.");}finally{setBusy(false);}};
+ const uploadReference=async(assetId,file)=>{
+  if(!file)return;
+  if(!/^image\/(jpeg|png|webp)$/.test(file.type)||file.size>5*1024*1024){
+   NotificationManager.error("فرمت تصویر باید JPG، PNG یا WebP و حجم حداکثر ۵ مگابایت باشد.");return;
+  }
+  setBusy(true);
+  try{
+   const form=new FormData();form.append("image",file);
+   await axios.post(base+"/assets/"+assetId+"/reference",form,{headers:{"Content-Type":"multipart/form-data"}});
+   NotificationManager.success("عکس مرجع اختصاصی این مدل ذخیره شد.");await load();
+  }catch(e){NotificationManager.error(e?.response?.data?.message||"بارگذاری تصویر مرجع ناموفق بود.");}
+  finally{setBusy(false);}
+ };
  const disableAsset=async asset=>{
   if(!window.confirm("این نمونه غیرفعال شود؟ تاریخچه کاربران حذف نمی‌شود."))return;
   setBusy(true);try{await axios.delete(base+"/assets/"+asset.id);await load();}
@@ -112,11 +125,19 @@ export default function RenovationAdmin(){
    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:12}}>
     {assets.filter(x=>assetCategory==="all"||x.category===assetCategory).map(asset=>
      <article key={asset.id} style={{padding:12,border:"1px solid #d7e7f5",borderRadius:15,background:"#f9fcff"}}>
-      {asset.image_url?<img src={asset.image_url} alt={asset.title} loading="lazy" style={{width:"100%",height:132,objectFit:"cover",borderRadius:10,marginBottom:9}}/>:
+      {(asset.reference_image_url||asset.image_url)?<img src={asset.reference_image_url||asset.image_url} alt={asset.title} loading="lazy" style={{width:"100%",height:132,objectFit:"cover",borderRadius:10,marginBottom:9}}/>:
        <div style={{height:55,background:asset.color_hex,borderRadius:10,marginBottom:8}}/>}
       <Label style={{fontSize:11}}>عنوان نمونه</Label><Input style={formStyle} value={asset.title} onChange={e=>assetInput(asset.id,"title",e.target.value)}/>
+      <Label style={{fontSize:11,marginTop:7}}>مشخصات دقیق طراحی برای هوش مصنوعی</Label>
+      <Input type="textarea" style={{...formStyle,minHeight:70}} maxLength={1000} value={asset.material_spec||""}
+       placeholder="جنس، نوع درب، طرح دستگیره، رنگ، رگه‌ها، سطح مات یا براق، اتصالات و جزئیات ساخت"
+       onChange={e=>assetInput(asset.id,"material_spec",e.target.value)}/>
       <Label style={{fontSize:11,marginTop:7}}>رنگ نمایشی</Label><Input type="color" style={{width:"100%",height:35}} value={asset.color_hex} onChange={e=>assetInput(asset.id,"color_hex",e.target.value)}/>
       <Label style={{fontSize:11,marginTop:7}}>نشانی تصویر نمونه (HTTPS)</Label><Input style={formStyle} value={asset.image_url||""} onChange={e=>assetInput(asset.id,"image_url",e.target.value)}/>
+      <Label style={{fontSize:11,marginTop:7}}>بارگذاری عکس مرجع محصول با مجوز استفاده</Label>
+      <Input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy}
+       onChange={e=>{const file=e.target.files?.[0];if(file)uploadReference(asset.id,file);}}/>
+      <small style={{display:"block",fontSize:10,color:"#7190a4",marginTop:5}}>تصویر اختصاصی مرجع در دیتابیس ثبت می‌شود و هنگام رندر AI به مدل ارسال خواهد شد. حقوق انتشار تصویر را رعایت کنید.</small>
       <Label style={{fontSize:11,marginTop:7}}>لینک منبع و صاحب عکس</Label>
       <Input style={formStyle} value={asset.photo_source_url||""} onChange={e=>assetInput(asset.id,"photo_source_url",e.target.value)}/>
       <Input style={{...formStyle,marginTop:5}} value={asset.photo_credit||""} onChange={e=>assetInput(asset.id,"photo_credit",e.target.value)} placeholder="نام عکاس یا منبع"/>
@@ -139,6 +160,8 @@ export default function RenovationAdmin(){
       setNewAsset(v=>({...v,category:match[0],category_title:match[1],room_scope:match[2]}));
      }}>{assetCategories.map(x=><option key={x[0]} value={x[0]}>{x[1]}</option>)}</Input></Col>
      <Col md="4"><Label>عنوان نمونه</Label><Input value={newAsset.title} onChange={e=>setNewAsset(v=>({...v,title:e.target.value}))}/></Col>
+     <Col md="12"><Label>مشخصات محصول و جزئیات طرح برای هوش مصنوعی</Label>
+      <Input type="textarea" value={newAsset.material_spec} maxLength={1000} onChange={e=>setNewAsset(v=>({...v,material_spec:e.target.value}))} placeholder="جنس بدنه، سبک، نوع دستگیره، نوع سطح، رنگ و سایر جزئیات واقعی"/></Col>
      <Col md="4"><Label>رنگ پیش‌نمایش</Label><Input type="color" value={newAsset.color_hex} onChange={e=>setNewAsset(v=>({...v,color_hex:e.target.value}))}/></Col>
      <Col md="6"><Label>لینک تصویر</Label><Input value={newAsset.image_url} onChange={e=>setNewAsset(v=>({...v,image_url:e.target.value}))} placeholder="https://images.unsplash.com/..."/></Col>
      <Col md="6"><Label>لینک منبع تصویر</Label><Input value={newAsset.photo_source_url} onChange={e=>setNewAsset(v=>({...v,photo_source_url:e.target.value}))}/></Col>
