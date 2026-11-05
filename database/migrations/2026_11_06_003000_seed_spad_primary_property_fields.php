@@ -56,14 +56,14 @@ class SeedSpadPrimaryPropertyFields extends Migration
             // Title aliases must match the existing physical type; never
             // silently repurpose a property that means something else.
             $definitions = [
-                ['slug' => 'number_of_sleeps', 'aliases' => ['number_of_sleeps', 'bedrooms', 'bedroom_count'], 'titles' => ['تعداد خواب', 'تعداد اتاق خواب'], 'title' => 'تعداد خواب', 'type' => 'integer', 'allowed' => ['integer'], 'range' => false],
+                ['slug' => 'number_of_sleeps', 'aliases' => ['number_of_sleeps', 'bedrooms', 'bedroom_count'], 'titles' => ['تعداد خواب', 'تعداد اتاق خواب'], 'title' => 'تعداد خواب', 'type' => 'integer', 'allowed' => ['integer', 'select'], 'range' => false],
                 ['slug' => 'spad_primary_area', 'aliases' => ['area', 'meterage', 'metrage', 'area_m2', 'spad_primary_area'], 'titles' => ['متراژ', 'زیربنا', 'مساحت بنا'], 'title' => 'متراژ', 'type' => 'integer', 'allowed' => ['integer'], 'range' => true],
-                ['slug' => 'spad_primary_build_year', 'aliases' => ['year_built', 'build_year', 'construction_year', 'year_of_construction', 'spad_primary_build_year'], 'titles' => ['سال ساخت', 'سال بنا'], 'title' => 'سال ساخت', 'type' => 'integer', 'allowed' => ['integer'], 'range' => true],
-                ['slug' => 'spad_primary_floor', 'aliases' => ['floor', 'floor_number', 'unit_floor', 'storey', 'spad_primary_floor'], 'titles' => ['طبقه', 'طبقه واحد'], 'title' => 'طبقه', 'type' => 'integer', 'allowed' => ['integer'], 'range' => true],
+                ['slug' => 'spad_primary_build_year', 'aliases' => ['age', 'year_built', 'build_year', 'construction_year', 'year_of_construction', 'spad_primary_build_year'], 'titles' => ['سال ساخت', 'سال بنا'], 'title' => 'سال ساخت', 'type' => 'integer', 'allowed' => ['integer', 'select', 'radio'], 'range' => true],
+                ['slug' => 'spad_primary_floor', 'aliases' => ['floor', 'floor_number', 'unit_floor', 'storey', 'spad_primary_floor'], 'titles' => ['طبقه', 'طبقه واحد'], 'title' => 'طبقه', 'type' => 'integer', 'allowed' => ['integer', 'select', 'radio'], 'range' => true],
                 ['slug' => 'spad_primary_sunlight', 'aliases' => ['sunlight', 'natural_light', 'light_exposure', 'spad_primary_sunlight'], 'titles' => ['نورگیر واحد', 'نورگیر', 'نورگیری'], 'title' => 'نورگیر واحد', 'type' => 'select', 'allowed' => ['select', 'radio', 'text'], 'range' => false, 'enum' => ['کم', 'متوسط', 'خوب', 'عالی']],
                 ['slug' => 'spad_primary_parking', 'aliases' => ['parking', 'parking_count', 'has_parking', 'spad_primary_parking'], 'titles' => ['پارکینگ', 'تعداد پارکینگ'], 'title' => 'پارکینگ', 'type' => 'boolean', 'allowed' => ['boolean', 'integer', 'select', 'radio'], 'range' => false],
                 ['slug' => 'spad_primary_elevator', 'aliases' => ['elevator', 'lift', 'has_elevator', 'spad_primary_elevator'], 'titles' => ['آسانسور'], 'title' => 'آسانسور', 'type' => 'boolean', 'allowed' => ['boolean', 'select', 'radio'], 'range' => false],
-                ['slug' => 'spad_primary_storage', 'aliases' => ['storage', 'storage_room', 'has_storage', 'spad_primary_storage'], 'titles' => ['انباری'], 'title' => 'انباری', 'type' => 'boolean', 'allowed' => ['boolean', 'select', 'radio'], 'range' => false],
+                ['slug' => 'spad_primary_storage', 'aliases' => ['warehouse', 'storage', 'storage_room', 'has_storage', 'spad_primary_storage'], 'titles' => ['انباری'], 'title' => 'انباری', 'type' => 'boolean', 'allowed' => ['boolean', 'select', 'radio'], 'range' => false],
             ];
 
             $existing = DB::table('properties')->select('slug', 'title', 'type')->get();
