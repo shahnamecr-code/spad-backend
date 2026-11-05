@@ -178,7 +178,7 @@ class PropertyValuationController extends Controller
             $estimate = $prices['price_per_m2'] * $area;
             $low = $prices['range_low'] ? $prices['range_low'] * $area : null;
             $high = $prices['range_high'] ? $prices['range_high'] * $area : null;
-            return response()->json(['status' => true, 'data' => [
+            $valuation = [
                 'place_id' => $placeId,
                 'place_name' => $placeName,
                 'match_level' => $level,
@@ -197,7 +197,28 @@ class PropertyValuationController extends Controller
                 'source' => 'نمودا',
                 'source_url' => $market->urlForPlace($placeId),
                 'caution' => 'برآورد از میانه قیمت‌های پیشنهادی بازار و متراژ اعلام‌شده است؛ قیمت معامله یا کارشناسی قطعی ملک نیست.',
-            ]]);
+            ];
+            // Issue a short-lived, unguessable, user-bound saving receipt.
+            // Clients cannot alter the postcode, market source or quoted price.
+            $quoteToken = Str::random(48);
+            Cache::put('spad:asset:quote:' . $quoteToken, [
+                'user_id' => (int) $request->user()->id,
+                'postal_code' => $record['postal_code'],
+                'address' => $record['details'],
+                'province' => $record['province'],
+                'city' => $record['city'],
+                'filters' => [
+                    'rooms' => $data['rooms'] ?? null,
+                    'age' => $data['age'] ?? null,
+                    'parking' => $data['parking'] ?? null,
+                    'elevator' => $data['elevator'] ?? null,
+                ],
+                'valuation' => $valuation,
+            ], now()->addMinutes(30));
+            return response()->json([
+                'status' => true,
+                'data' => $valuation + ['quote_token' => $quoteToken],
+            ])->header('Cache-Control', 'private, no-store');
         } catch (\Throwable $e) {
             return response()->json(['status' => false,
                 'message' => 'داده‌های بازار برای این ملک در دسترس نیستند؛ هیچ قیمت ساختگی نمایش داده نمی‌شود.'], 503);
