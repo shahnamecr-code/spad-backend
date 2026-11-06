@@ -14,6 +14,7 @@ Route::prefix('virtual-tours')->group(function () {
     Route::put('/{virtualTour}', [VirtualTourController::class, 'update']);
     Route::post('/{virtualTour}/scenes', [VirtualTourController::class, 'uploadScenes']);
     Route::post('/{virtualTour}/reorder-scenes', [VirtualTourController::class, 'reorderScenes']);
+    Route::post('/{virtualTour}/generate-navigation', [VirtualTourController::class, 'generateNavigation']);
     Route::post('/{virtualTour}/floorplan', [VirtualTourController::class, 'uploadFloorplan']);
     Route::delete('/{virtualTour}/floorplan', [VirtualTourController::class, 'deleteFloorplan']);
     Route::post('/{virtualTour}/floorplan-points', [VirtualTourController::class, 'saveFloorplanPoint']);

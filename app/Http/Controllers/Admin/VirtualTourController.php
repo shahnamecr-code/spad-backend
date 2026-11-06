@@ -336,6 +336,71 @@ class VirtualTourController extends Controller
         return response()->json(['status' => true]);
     }
 
+    /**
+     * Create a non-destructive two-way walkthrough from the ordered 360 scenes.
+     * The generated arrow positions are initial suggestions; the administrator
+     * can position each hotspot precisely in the panorama editor afterwards.
+     * Existing connections and manually positioned hotspots are never changed.
+     */
+    public function generateNavigation(Request $request, VirtualTour $virtualTour)
+    {
+        VirtualTourAccess::assertAdminCanManage(auth('admin')->user(), $virtualTour->advertisement);
+
+        if ($virtualTour->status === 'published') {
+            return response()->json(['status' => false, 'message' => 'برای بازسازی مسیرها، ابتدا تور را از انتشار خارج کنید.'], 409);
+        }
+
+        $scenes = $virtualTour->scenes()->orderBy('sort_order')->orderBy('id')->get();
+        if ($scenes->count() < 2) {
+            return response()->json(['status' => false, 'message' => 'برای ساخت مسیر خودکار حداقل دو تصویر ۳۶۰ لازم است.'], 422);
+        }
+        if ($scenes->contains(function ($scene) { return $scene->process_status !== 'ready'; })) {
+            return response()->json(['status' => false, 'message' => 'ابتدا پردازش همه تصاویر ۳۶۰ باید تکمیل شود.'], 422);
+        }
+
+        $created = DB::transaction(function () use ($virtualTour, $scenes) {
+            if (!$virtualTour->start_scene_id || !$scenes->contains('id', $virtualTour->start_scene_id)) {
+                $virtualTour->update(['start_scene_id' => $scenes->first()->id]);
+            }
+            $created = 0;
+            for ($index = 0; $index < $scenes->count() - 1; $index++) {
+                $pairs = [
+                    [$scenes[$index], $scenes[$index + 1], false],
+                    [$scenes[$index + 1], $scenes[$index], true],
+                ];
+                foreach ($pairs as $pair) {
+                    list($from, $to, $return) = $pair;
+                    $alreadyConnected = $from->hotspots()
+                        ->where('type', 'navigation')
+                        ->where('target_scene_id', $to->id)
+                        ->exists();
+                    if ($alreadyConnected) continue;
+                    $yaw = (float) $from->initial_yaw + ($return ? 180.0 : 0.0);
+                    if ($yaw > 180) $yaw -= 360;
+                    $from->hotspots()->create([
+                        'target_scene_id' => $to->id,
+                        'type' => 'navigation',
+                        'title' => ($return ? 'بازگشت به ' : 'رفتن به ') . $to->title,
+                        'yaw' => $yaw,
+                        'pitch' => -12,
+                        'icon' => 'arrow',
+                        'sort_order' => ((int) $from->hotspots()->max('sort_order')) + 1,
+                        'settings' => ['spad_auto_route' => true, 'position_needs_review' => true],
+                    ]);
+                    $created++;
+                }
+            }
+            return $created;
+        });
+
+        return response()->json([
+            'status' => true,
+            'created_links' => $created,
+            'message' => $created ? 'مسیر دوطرفه با موفقیت ساخته شد؛ موقعیت فلش‌ها را در تصویر تنظیم کنید.' : 'همه مسیرهای متوالی از قبل ثبت شده‌اند.',
+            'data' => VirtualTourPresenter::admin($virtualTour->fresh()),
+        ]);
+    }
+
     public function deleteScene(Request $request, VirtualTourScene $scene)
     {
         $tour = $scene->tour;
