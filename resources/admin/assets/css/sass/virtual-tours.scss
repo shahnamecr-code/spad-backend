@@ -80,3 +80,94 @@
   .vt-property-option__action { display:none; }
   .vt-property-option__body small { white-space:normal; }
 }
+
+
+/* SPAD 360 Studio — four-action guided workflow, native theme and typography. */
+.spad-vtour-admin {
+  font-family: IRANSans, sans-serif;
+}
+.spad-vtour-admin .vt-wizard {
+  padding: 18px 20px;
+  margin: 0 0 16px;
+  border: 1px solid #b8dcf6;
+  border-radius: 20px;
+  background: linear-gradient(132deg, #ffffff 5%, #eef8ff 72%, #e5f3ff 100%);
+  box-shadow: 0 13px 34px rgba(11, 99, 163, .08);
+}
+.spad-vtour-admin .vt-wizard-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.spad-vtour-admin .vt-wizard-head>div:first-child {
+  flex: 1;min-width: 0;
+}
+.spad-vtour-admin .vt-wizard-head span {
+  color: #1686ca;font-size: 10px;letter-spacing: .6px;
+}
+.spad-vtour-admin .vt-wizard-head h3 {
+  margin: 5px 0;color: #123d63;font-size: 17px;font-weight: 700;
+}
+.spad-vtour-admin .vt-wizard-head p {
+  margin: 0;color: #557b99;line-height: 1.9;font-size: 11px;
+}
+.spad-vtour-admin .vt-wizard-brand {
+  display: flex;flex-direction: column;align-items: center;justify-content: center;
+  min-width: 125px;min-height: 88px;padding: 12px;border-radius: 15px;
+  background: linear-gradient(130deg, #073b73, #0589cd);color: #fff;
+  box-shadow: 0 8px 21px rgba(7, 75, 146, .17);
+}
+.spad-vtour-admin .vt-wizard-brand strong {
+  font-size: 26px;line-height: 1.2;letter-spacing: 2px;
+}
+.spad-vtour-admin .vt-wizard-brand span {
+  color: #e0f6ff;font-size: 9px;
+}
+.spad-vtour-admin .vt-wizard-steps {
+  display: grid;grid-template-columns: repeat(4, minmax(0, 1fr));gap: 9px;
+}
+.spad-vtour-admin .vt-wizard-steps button {
+  display: flex;min-width: 0;min-height: 105px;flex-direction: column;
+  align-items: flex-start;gap: 4px;padding: 12px;
+  border: 1px solid #cfe4f5;border-radius: 14px;background: #fff;
+  text-align: right;font-family: inherit;cursor: pointer;
+  transition: background-color .16s, border-color .16s, transform .16s;
+}
+.spad-vtour-admin .vt-wizard-steps button:hover:not(:disabled) {
+  background: #f4fbff;border-color: #67b8ef;transform: translateY(-1px);
+}
+.spad-vtour-admin .vt-wizard-steps button:disabled {opacity: .5;cursor: not-allowed;}
+.spad-vtour-admin .vt-wizard-steps button b {
+  display: grid;place-items: center;width: 26px;height: 26px;
+  border-radius: 8px;background: #e8f5ff;color: #087ecf;font-size: 11px;
+}
+.spad-vtour-admin .vt-wizard-steps button span {
+  color: #174866;font-size: 12px;font-weight: 650;
+}
+.spad-vtour-admin .vt-wizard-steps button small {
+  color: #708ca2;font-size: 10px;line-height: 1.65;
+}
+.spad-vtour-admin .vt-wizard-steps button.vt-wizard-primary {
+  border-color: #0b85cc;background: linear-gradient(135deg, #117fca, #075b9e);
+}
+.spad-vtour-admin .vt-wizard-primary b {background: rgba(255,255,255,.2) !important;color: #fff !important;}
+.spad-vtour-admin .vt-wizard-primary span,
+.spad-vtour-admin .vt-wizard-primary small {color: #fff !important;}
+.spad-vtour-admin .vt-wizard-notice {
+  margin: 12px 0 0;color: #507c99;line-height: 1.9;font-size: 10px;
+}
+@media (max-width: 960px) {
+  .spad-vtour-admin .vt-wizard-steps {grid-template-columns: repeat(2,minmax(0,1fr));}
+}
+@media (max-width: 540px) {
+  .spad-vtour-admin .vt-wizard {padding: 14px;}
+  .spad-vtour-admin .vt-wizard-brand {min-width: 74px;min-height: 66px;}
+  .spad-vtour-admin .vt-wizard-brand strong {font-size: 17px;}
+  .spad-vtour-admin .vt-wizard-brand span {font-size: 7px;}
+  .spad-vtour-admin .vt-wizard-head h3 {font-size: 14px;}
+  .spad-vtour-admin .vt-wizard-steps button {min-height: 104px;padding: 9px;}
+  .spad-vtour-admin .vt-wizard-steps button span {font-size: 10px;}
+  .spad-vtour-admin .vt-wizard-steps button small {font-size: 9px;}
+}
