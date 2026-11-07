@@ -228,6 +228,173 @@ class VirtualTourController extends Controller
         return response()->json(['status' => true, 'data' => VirtualTourPresenter::admin($tour)]);
     }
 
+
+    /**
+     * Safely import a ZIP archive as panorama scenes. Do NOT extract archive
+     * paths or host embedded HTML/JS: only verified equirectangular images
+     * enter private virtual-tour storage.
+     */
+    public function importZipForAdvertisement(Request $request, Advertisement $advertisement, VirtualTourImageProcessor $processor)
+    {
+        VirtualTourAccess::assertAdminCanManage(auth('admin')->user(), $advertisement);
+        $request->validate(['file' => 'required|file|max:81920']);
+        $file = $request->file('file');
+        if (!$file || strtolower($file->getClientOriginalExtension()) !== 'zip') {
+            return response()->json(['status' => false, 'message' => 'فایل انتخاب‌شده باید ZIP معتبر باشد.'], 422);
+        }
+        if (!class_exists(\ZipArchive::class)) {
+            return response()->json(['status' => false, 'message' => 'افزونه ZIP روی سرور فعال نیست.'], 503);
+        }
+
+        $zip = new \ZipArchive();
+        if ($zip->open($file->getRealPath(), \ZipArchive::CHECKCONS) !== true) {
+            return response()->json(['status' => false, 'message' => 'فایل ZIP خراب یا نامعتبر است.'], 422);
+        }
+        $tempFiles = [];
+        $maxImages = 20;
+        $totalUnpacked = 0;
+        $warnings = [];
+        $disk = Storage::disk(config('virtual-tour.disk', 'local'));
+        $newPaths = [];
+        $newIds = [];
+        $tour = null;
+        try {
+            if ($zip->numFiles > 500) {
+                return response()->json(['status' => false, 'message' => 'تعداد فایل‌های بسته بیش از حد مجاز است.'], 422);
+            }
+            for ($index = 0; $index < $zip->numFiles; $index++) {
+                $stat = $zip->statIndex($index);
+                $name = $zip->getNameIndex($index);
+                if (!$stat || !is_string($name) || str_ends_with($name, '/')) continue;
+                // Ignore metadata and executable files; never write arbitrary ZIP paths.
+                if (!preg_match('/\.(jpe?g|png|webp)$/i', $name)) continue;
+                if (count($tempFiles) >= $maxImages) {
+                    return response()->json(['status' => false, 'message' => 'در هر ZIP حداکثر ۲۰ تصویر پانوراما قابل واردکردن است.'], 422);
+                }
+                $size = (int) ($stat['size'] ?? 0);
+                $compressed = (int) ($stat['comp_size'] ?? 0);
+                if ($size < 1024 || $size > 40 * 1024 * 1024 ||
+                    ($compressed > 0 && $size / $compressed > 150)) {
+                    return response()->json(['status' => false, 'message' => 'یکی از تصاویر بسته بیش از حد بزرگ یا بیش از حد فشرده است.'], 422);
+                }
+                $totalUnpacked += $size;
+                if ($totalUnpacked > 240 * 1024 * 1024) {
+                    return response()->json(['status' => false, 'message' => 'حجم بازشده تصاویر از ۲۴۰ مگابایت بیشتر است.'], 422);
+                }
+
+                $stream = $zip->getStream($name);
+                if (!$stream) {
+                    return response()->json(['status' => false, 'message' => 'یکی از تصاویر ZIP قابل خواندن نیست.'], 422);
+                }
+                $tmp = tempnam(sys_get_temp_dir(), 'spad-vt-');
+                if (!$tmp) { fclose($stream); throw new \RuntimeException('ساخت فایل موقت ممکن نشد.'); }
+                $tempFiles[] = ['path' => $tmp, 'name' => $name, 'mime' => null];
+                $out = fopen($tmp, 'wb');
+                $written = 0;
+                try {
+                    while (!feof($stream)) {
+                        $chunk = fread($stream, 1024 * 1024);
+                        if ($chunk === false) throw new \RuntimeException('خواندن ZIP ناموفق بود.');
+                        $written += strlen($chunk);
+                        if ($written > 40 * 1024 * 1024 || $written > $size + 4096) {
+                            throw new \RuntimeException('حجم بازشده تصویر نامعتبر است.');
+                        }
+                        if (fwrite($out, $chunk) !== strlen($chunk)) {
+                            throw new \RuntimeException('نوشتن تصویر موقت ناموفق بود.');
+                        }
+                    }
+                } finally {
+                    fclose($stream);
+                    fclose($out);
+                }
+                $info = @getimagesize($tmp);
+                if (!$info || !in_array($info['mime'] ?? '', ['image/jpeg', 'image/png', 'image/webp'], true)) {
+                    throw new \RuntimeException('تصویر دارای فرمت نامعتبر است.');
+                }
+                $w = (int) $info[0];
+                $h = (int) $info[1];
+                if ($w < 1000 || $h < 500 || $w * $h > 45000000) {
+                    throw new \RuntimeException('ابعاد تصویر پانوراما معتبر نیست.');
+                }
+                $ratio = $w / $h;
+                if ($ratio < 1.85 || $ratio > 2.15) {
+                    // Photos, thumbnails, cover images and cubemap tiles are not scenes.
+                    @unlink($tmp);
+                    array_pop($tempFiles);
+                    continue;
+                }
+                $tempFiles[count($tempFiles) - 1]['mime'] = $info['mime'];
+            }
+            if (count($tempFiles) < 1) {
+                return response()->json(['status' => false,
+                    'message' => 'در ZIP هیچ تصویر پانورامای ۳۶۰ درجه با نسبت ۲ به ۱ پیدا نشد. فایل اصلی JPG یا WebP پانوراما باید داخل بسته باشد.'], 422);
+            }
+
+            // Do not mutate a published tour while importing new scenes.
+            $tour = VirtualTour::where('advertisement_id', $advertisement->id)
+                ->where('status', 'draft')->latest('id')->first();
+            if (!$tour) {
+                $tour = VirtualTour::create([
+                    'advertisement_id' => $advertisement->id,
+                    'title' => 'تور مجازی ملک #' . $advertisement->id,
+                    'slug' => $this->uniqueSlug('virtual-tour-' . $advertisement->id),
+                    'status' => 'draft',
+                    'created_by' => auth('admin')->id(),
+                    'settings' => ['auto_rotate' => false, 'show_thumbnails' => true, 'transition_ms' => 420],
+                ]);
+            }
+            $nextOrder = ((int) $tour->scenes()->max('sort_order')) + 1;
+            foreach ($tempFiles as $item) {
+                $uuid = (string) Str::uuid();
+                $extension = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp'][$item['mime']];
+                $relative = 'virtual-tours/' . $tour->id . '/scenes/' . $uuid . '/original.' . $extension;
+                $handle = fopen($item['path'], 'rb');
+                try {
+                    if (!$disk->put($relative, $handle)) throw new \RuntimeException('ذخیره تصویر تور ناموفق بود.');
+                } finally {
+                    fclose($handle);
+                }
+                $newPaths[] = 'virtual-tours/' . $tour->id . '/scenes/' . $uuid;
+                $title = mb_substr(pathinfo(str_replace('\\', '/', $item['name']), PATHINFO_FILENAME), 0, 191);
+                $scene = $tour->scenes()->create([
+                    'uuid' => $uuid,
+                    'title' => $title ?: 'فضای ' . $nextOrder,
+                    'original_path' => $relative,
+                    'sort_order' => $nextOrder++,
+                    'process_status' => 'pending',
+                    'metadata' => ['source' => 'zip_import'],
+                ]);
+                $newIds[] = $scene->id;
+                if (config('virtual-tour.async_processing')) {
+                    ProcessVirtualTourSceneImage::dispatch($scene->id)->onQueue('virtual-tour');
+                } else {
+                    $processor->process($scene);
+                }
+            }
+            if (!$tour->start_scene_id) $tour->update(['start_scene_id' => $newIds[0]]);
+            // Publication is a separate deliberate admin action.
+            return response()->json([
+                'status' => true, 'data' => VirtualTourPresenter::admin($tour->fresh()),
+                'imported_scenes' => count($newIds),
+                'message' => config('virtual-tour.async_processing')
+                    ? 'بسته استخراج شد؛ تصاویر در صف پردازش قرار گرفتند.'
+                    : 'بسته استخراج و تصاویر پانوراما آماده شدند. پس از بررسی تور را منتشر کنید.',
+            ]);
+        } catch (\Throwable $e) {
+            // Restore previous draft scenes on failed imports and remove their files.
+            if ($newIds) VirtualTourScene::whereIn('id', $newIds)->delete();
+            foreach ($newPaths as $prefix) $disk->deleteDirectory($prefix);
+            \Log::warning('virtual_tour_zip_import_failed', [
+                'advertisement_id' => $advertisement->id,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json(['status' => false, 'message' => 'استخراج تور ناموفق بود. ساختار ZIP و تصاویر پانوراما را بررسی کنید.'], 422);
+        } finally {
+            foreach ($tempFiles as $item) if (is_file($item['path'])) @unlink($item['path']);
+            $zip->close();
+        }
+    }
+
     public function show(VirtualTour $virtualTour)
     {
         VirtualTourAccess::assertAdminCanManage(auth('admin')->user(), $virtualTour->advertisement);
