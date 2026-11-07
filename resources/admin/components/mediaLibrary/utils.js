@@ -1,27 +1,25 @@
+import React from "react";
 import PdfImage from "../../assets/img/pdf.png";
 import ZipImage from "../../assets/img/zip.png";
 import XslxImage from "../../assets/img/xlsx.png";
 import UnknownImage from "../../assets/img/unknown.png";
 
+const image = (src) => <img src={src || UnknownImage} alt="" className="file-manager__file-image"
+  onError={event => {
+    if (event.currentTarget.src !== window.location.origin + UnknownImage) {
+      event.currentTarget.onerror = null;
+      event.currentTarget.src = UnknownImage;
+    }
+  }} />;
+
 export const renderFileImage = (file) => {
-  switch (file.type) {
-    case "image/jpeg":
-    case "image/jpg":
-    case "image/png":
-      return <img src={file.url} className="file-manager__file-image" />;
-    case "application/pdf":
-      return <img src={PdfImage} className="file-manager__file-image" />;
-    case "application/x-rar-compressed":
-    case "application/x-rar":
-    case "application/zip":
-    case "application/gzip":
-      <img src={ZipImage} className="file-manager__file-image" />;
-    case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-      return <img src={XslxImage} className="file-manager__file-image" />;
-    default:
-      if (file.url)
-        return <img src={file.url} className="file-manager__file-image" />;
-      else
-        return <img src={UnknownImage} className="file-manager__file-image" />;
+  const kind = String(file?.type || "").toLowerCase();
+  if (["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif", "image/avif"].includes(kind)) {
+    return image(file?.url);
   }
+  if (kind === "application/pdf") return image(PdfImage);
+  if (kind.includes("zip") || kind.includes("rar") || kind.includes("gzip")) return image(ZipImage);
+  if (kind.includes("spreadsheet") || kind.includes("excel")) return image(XslxImage);
+  // PHP, scripts and other files must never be treated as image URLs.
+  return image(UnknownImage);
 };
