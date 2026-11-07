@@ -72,8 +72,12 @@ class VirtualTourPackageImporter
                     }
                 }
                 // Symlinks in ZIP would allow linking outside the package.
-                $mode = ((int) ($stat['external_attributes'] ?? 0) >> 16) & 0170000;
-                if ($mode === 0120000) throw new RuntimeException('فایل پیوندی در ZIP مجاز نیست.');
+                $opsys = 0;
+                $attributes = 0;
+                if ($archive->getExternalAttributesIndex($i, $opsys, $attributes)) {
+                    $mode = (((int) $attributes) >> 16) & 0170000;
+                    if ($mode === 0120000) throw new RuntimeException('فایل پیوندی در ZIP مجاز نیست.');
+                }
                 if ($isDir) continue;
 
                 $uncompressed = (int) ($stat['size'] ?? -1);
