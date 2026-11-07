@@ -117,10 +117,12 @@ class SpadSmsService
      */
     public function notify(string $event, string $mobile, array $params = [], ?string $reference = null): bool
     {
-        if (!$this->eventEnabled($event)) return false;
         try {
+            if (!$this->eventEnabled($event)) return false;
             return $this->send($event, $mobile, $params, $reference, false);
         } catch (\Throwable $e) {
+            // Notices are strictly best-effort and must not alter successful
+            // financial, authentication or identity transactions.
             return false;
         }
     }
