@@ -616,6 +616,7 @@ class AdvertisementController extends Controller
                 $this->saveDepositSettings($request, $advertisement);
                 return response()->json([
                     'status' => true,
+                    'advertisement_id' => $advertisement->id,
                     'data' => $data
                 ]);
             }
