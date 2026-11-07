@@ -211,6 +211,13 @@ class PropertyHandoverSignatureController extends Controller {
    if($count===2)DB::table('spad_handover_checklists')->where('id',$row->id)
     ->update(['status'=>'completed','completed_at'=>now(),'updated_at'=>now()]);
   });
+  $final=DB::table('spad_handover_checklists')->where('id',$row->id)->first();
+  if ($final && $final->status==='completed') {
+   app(\App\Services\SpadSmsService::class)->notify(
+    'handover_approved',(string)$sig->mobile,[],
+    'handover-completed:'.$row->id.':'.$sig->id
+   );
+  }
   return response()->json(['message'=>'تأیید پیامکی این طرف ثبت شد.',
     'data'=>['status'=>DB::table('spad_handover_checklists')->where('id',$row->id)->value('status')]]);
  }
