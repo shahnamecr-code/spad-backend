@@ -31,6 +31,7 @@ export const MediaLibrary = ({
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(null);
   const [directories, setDirectories] = useState([]);
   const [selectedFiles, setSelectedFiles] = useState([...defaultFileIdz]);
   const [showDropzone, setShowDropzone] = useState(false);
@@ -53,8 +54,7 @@ export const MediaLibrary = ({
 
   // ** general
   const goBack = () => {
-    activeDirectories.splice(-1);
-    setActiveDirectories(activeDirectories.splice(-1));
+    setActiveDirectories(old => old.slice(0, -1));
   };
 
   const getMedia = () => {
@@ -161,6 +161,7 @@ export const MediaLibrary = ({
 
   const refreshMedia = () => {
     setShowDropzone(false);
+    setUploadProgress(null);
     setSelectedDirectories([]);
     setSelectedFiles([]);
     getMedia();
@@ -215,7 +216,7 @@ export const MediaLibrary = ({
       },
       buttons: ["لغو", "ایجاد"],
     }).then((result) => {
-      if (result.length > 0) {
+      if (result && result.length > 0) {
         let body = {
           name: result,
         };
@@ -522,7 +523,15 @@ export const MediaLibrary = ({
 
   return (
     <div className="file-manager">
-      <div className="p-3 file-manager__content">
+      <div className="p-3 file-manager__content" dir="rtl">
+        <div className="spad-media-library-head">
+          <div className="spad-media-library-head__symbol"><i className="simple-icon-picture" /></div>
+          <div className="spad-media-library-head__copy">
+            <strong>کتابخانه رسانه اسپاد</strong>
+            <span>مدیریت پوشه‌ها، انتخاب تصویر و بارگذاری فایل‌ها</span>
+          </div>
+          <span className="spad-media-library-head__count">{files.length.toLocaleString("fa-IR")} فایل • {directories.length.toLocaleString("fa-IR")} پوشه</span>
+        </div>
         <Row className="justify-content-between align-items-center">
           <Col className="align-items-center">
             <Button
@@ -593,33 +602,56 @@ export const MediaLibrary = ({
         </Row>
 
         {showDropzone && (
-          <div className="mt-3">
+          <section className="spad-media-upload" aria-label="بارگذاری رسانه">
+            <div className="spad-media-upload__title">
+              <div><strong>آپلود فایل جدید</strong><span>فایل‌ها را انتخاب کنید یا داخل کادر بکشید.</span></div>
+              {!uploading && <Button color="light" size="sm" type="button" onClick={() => {setShowDropzone(false);setUploadProgress(null);}}>بستن</Button>}
+            </div>
             <DropzoneComponent
-              config={{
-                postUrl: `${adminPathApi}/file/upload`,
-              }}
+              config={{postUrl: `${adminPathApi}/file/upload`}}
               djsConfig={dropzoneConfig}
               eventHandlers={{
-                addedfile: (file) => {
+                addedfile: file => {
                   setUploading(true);
+                  setUploadProgress({name:file.name,loaded:0,total:file.size,percent:0,phase:"upload"});
                 },
-                success: (event, response) => {
-                  if (response.status) {
-                    setTimeout(() => {
-                      setShowDropzone(false);
-                      getMedia();
-                    }, 2000);
+                uploadprogress: (file, progress, bytesSent) => {
+                  const total=Number(file.size||0);
+                  const loaded=Math.min(total,Math.max(0,Number(bytesSent||file.upload?.bytesSent||0)));
+                  const percent=Math.min(100,Math.max(0,Math.round(Number(progress||0))));
+                  setUploadProgress({name:file.name,loaded,total,percent,phase:percent>=100?"processing":"upload"});
+                },
+                success: (file, response) => {
+                  if (response?.status) {
+                    setUploadProgress(prev => ({...(prev||{}),name:file.name,loaded:file.size,total:file.size,percent:100,phase:"complete"}));
+                    getMedia();
                   } else {
-                    event._removeLink.click();
-                    NotificationManager.error(response.message);
+                    setUploadProgress(prev => ({...(prev||{}),phase:"failed"}));
+                    NotificationManager.error(response?.message || "آپلود فایل ناموفق بود.");
                   }
                 },
-                queuecomplete: (file) => {
-                  setUploading(false);
+                error: (file, error) => {
+                  setUploadProgress(prev => ({...(prev||{}),name:file.name,phase:"failed"}));
+                  NotificationManager.error(typeof error === "string" ? error : "آپلود فایل انجام نشد.");
                 },
+                queuecomplete: () => { setUploading(false); },
               }}
             />
-          </div>
+            {uploadProgress && <div className="spad-media-upload__progress" role="status" aria-live="polite">
+              <div className="spad-media-upload__progress-head">
+                <strong>{uploadProgress.name}</strong>
+                <span>{uploadProgress.phase === "complete" ? "آپلود کامل شد" : uploadProgress.phase === "failed" ? "خطا در آپلود" : uploadProgress.phase === "processing" ? "آپلود شد؛ در حال ذخیره‌سازی" : "در حال آپلود"}</span>
+                <b>{(uploadProgress.percent||0).toLocaleString("fa-IR")}٪</b>
+              </div>
+              <div className="spad-media-upload__track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploadProgress.percent||0}>
+                <span style={{width: `${uploadProgress.percent||0}%`}} />
+              </div>
+              <small>{(() => {
+                const fmt=n=>n<1024?Math.round(n).toLocaleString("fa-IR")+" بایت":(n/1048576).toFixed(1)+" مگابایت";
+                return "ارسال‌شده: "+fmt(uploadProgress.loaded||0)+" • باقی‌مانده: "+fmt(Math.max(0,(uploadProgress.total||0)-(uploadProgress.loaded||0)));
+              })()}</small>
+            </div>}
+          </section>
         )}
 
         {loading ? (
@@ -703,7 +735,7 @@ const MediaLibraryButton = ({
       </div>
       <Modal
         size="xl"
-        className="p-2"
+        className="spad-media-library-modal"
         style={{ background: "transparent" }}
         isOpen={show}
         toggle={() => setShow(!show)}
