@@ -9,6 +9,7 @@ import { NotificationManager } from "../../../components/common/react-notificati
 import { adminPathApi } from "../../../constants/defaultValues";
 import AdvertisementFormLayout from "./components/AdvertisementFormLayout";
 import VirtualTourPropertyCard from "../virtual-tours/components/VirtualTourPropertyCard";
+import { uploadTourZip } from "./upload-tour-zip";
 
 const defaultPropertyTools = {
   virtual_tour_enabled: false,
@@ -59,6 +60,8 @@ const AdvertisementEdit = ({ match }) => {
   const [categoryName, setCategoryName] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [tourZip, setTourZip] = useState(null);
+  const [tourZipProgress, setTourZipProgress] = useState(null);
   const history = useHistory();
 
   const handleApiError = (error, fallback) => {
@@ -131,13 +134,23 @@ const AdvertisementEdit = ({ match }) => {
     setSubmitting(true);
     axios
       .post(`${adminPathApi}/advertisements/edit/${match.params.id}`, values)
-      .then((response) => {
+      .then(async (response) => {
         const data = response.data || {};
         if (!data.status) {
           NotificationManager.error(validationMessage(data.errors), "اطلاعات آگهی نیاز به بررسی دارد");
           return;
         }
-
+        if (tourZip) {
+          try {
+            const result = await uploadTourZip(match.params.id, tourZip, setTourZipProgress);
+            NotificationManager.success(result.message || "سکانس‌های تور مجازی استخراج و ذخیره شدند.");
+          } catch (uploadError) {
+            setTourZipProgress(prev => ({ ...(prev || {}), phase: "failed" }));
+            NotificationManager.error(uploadError.response?.data?.message || uploadError.message || "بارگذاری تور مجازی ناموفق بود.",
+              "تغییرات آگهی ذخیره شد، اما ZIP تور وارد نشد");
+            return;
+          }
+        }
         NotificationManager.success(data.message || "تغییرات آگهی با موفقیت ذخیره شد.");
         history.push("/spad-admin/advertisements/adver-list");
       })
@@ -171,6 +184,9 @@ const AdvertisementEdit = ({ match }) => {
               submitting={submitting}
               onBack={() => history.push("/spad-admin/advertisements/adver-list")}
               extraContent={<VirtualTourPropertyCard advertisementId={match.params.id} />}
+              tourZip={tourZip}
+              onTourZipChange={file => { setTourZip(file); setTourZipProgress(null); }}
+              tourZipProgress={tourZipProgress}
             />
           </Form>
         </Formik>
