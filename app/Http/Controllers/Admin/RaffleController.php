@@ -194,6 +194,11 @@ class RaffleController extends Controller
             ]);
         });
 
+        $winner=$ticket->user;
+        if ($winner) app(\App\Services\SpadSmsService::class)->notify(
+            'raffle_result',(string)$winner->mobile,['id'=>$raffle->id],
+            'raffle-winner:'.$raffle->id.':'.$ticket->id
+        );
         return response()->json(['status' => true, 'message' => 'برنده با موفقیت ثبت شد. نتیجه در پنل کاربران قابل مشاهده است.']);
     }
 
