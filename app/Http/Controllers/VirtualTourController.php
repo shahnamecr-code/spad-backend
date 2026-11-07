@@ -74,6 +74,91 @@ class VirtualTourController extends Controller
         return $response;
     }
 
+    /**
+     * Deliver whitelisted files of a published ready-made tour.
+     * They are isolated by a CSP sandbox and the embedding iframe sandbox.
+     * No server executable can ever be served from an uploaded archive.
+     */
+    public function packageAsset(VirtualTour $virtualTour, $asset)
+    {
+        $this->assertPublished($virtualTour);
+        $settings = $virtualTour->settings ?: [];
+        $root = $settings['package_root'] ?? '';
+        $allowed = $settings['package_files'] ?? [];
+        if (empty($settings['package_ready'])
+            || !is_string($root)
+            || !str_starts_with($root, 'virtual-tours/packages/' . $virtualTour->id . '/')
+            || !is_string($asset)
+            || strlen($asset) > 260
+            || str_contains($asset, '\\')
+            || str_contains($asset, "\0")
+            || str_contains($asset, '..')
+            || str_starts_with($asset, '/')
+            || !is_array($allowed)
+            || !in_array($asset, $allowed, true)) {
+            abort(404);
+        }
+        $disk = Storage::disk(config('virtual-tour.disk', 'local'));
+        $relative = $root . '/' . $asset;
+        if (!$disk->exists($relative)) abort(404);
+
+        $ext = strtolower(pathinfo($asset, PATHINFO_EXTENSION));
+        $types = [
+            'html' => 'text/html; charset=UTF-8',
+            'js' => 'text/javascript; charset=UTF-8',
+            'css' => 'text/css; charset=UTF-8',
+            'json' => 'application/json',
+            'svg' => 'image/svg+xml',
+            'png' => 'image/png',
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            'gif' => 'image/gif',
+            'ico' => 'image/x-icon',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'webm' => 'video/webm',
+            'mp4' => 'video/mp4',
+        ];
+        if (!isset($types[$ext])) abort(404);
+
+        $headers = [
+            'Content-Type' => $types[$ext],
+            'X-Content-Type-Options' => 'nosniff',
+            'Access-Control-Allow-Origin' => '*',
+            'Cross-Origin-Resource-Policy' => 'cross-origin',
+            'Cache-Control' => 'no-store',
+            'Referrer-Policy' => 'no-referrer',
+        ];
+        if ($asset === 'index.html') {
+            // Sandbox with an opaque origin; user-provided JavaScript cannot
+            // read SPAD cookies, local storage or the parent website.
+            $headers['Content-Security-Policy'] =
+                "sandbox allow-scripts; default-src 'none'; " .
+                "script-src 'self' 'unsafe-inline'; " .
+                "style-src 'self' 'unsafe-inline'; " .
+                "img-src 'self' data: blob:; font-src 'self' data:; " .
+                "media-src 'self' blob:; connect-src 'none'; " .
+                "object-src 'none'; base-uri 'none'; form-action 'none'; " .
+                "frame-ancestors https://spad.estate https://www.spad.estate https://panel.spad.estate";
+        }
+
+        // The packaged SPAD WebGL player uses <img> -> texture. When
+        // embedded in an opaque sandbox, that image must opt into CORS.
+        if ($asset === 'app.js') {
+            $script = $disk->get($relative);
+            $script = str_replace(
+                "const img=new Image();img.decoding='async';",
+                "const img=new Image();img.crossOrigin='anonymous';img.decoding='async';",
+                $script
+            );
+            return response($script, 200, $headers);
+        }
+
+        return response()->file($disk->path($relative), $headers);
+    }
+
     public function byAdvertisement(Advertisement $advertisement)
     {
         if ($advertisement->is_investor_exclusive) abort(404);
@@ -82,7 +167,7 @@ class VirtualTourController extends Controller
             ->latest('published_at')
             ->first();
 
-        if (!$tour || !$tour->scenes()->where('process_status', 'ready')->exists()) {
+        if (!$tour || (!data_get($tour->settings, 'package_ready') && !$tour->scenes()->where('process_status', 'ready')->exists())) {
             return response()->json(['status' => false, 'data' => null], 404);
         }
 
@@ -93,7 +178,7 @@ class VirtualTourController extends Controller
     {
         $tour = VirtualTour::where('slug', $slug)->where('status', 'published')->firstOrFail();
         $this->assertPublished($tour);
-        if (!$tour->scenes()->where('process_status', 'ready')->exists()) abort(404);
+        if (!data_get($tour->settings, 'package_ready') && !$tour->scenes()->where('process_status', 'ready')->exists()) abort(404);
         return response()->json(['status' => true, 'data' => VirtualTourPresenter::public($tour)]);
     }
 
