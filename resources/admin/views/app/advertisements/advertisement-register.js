@@ -8,6 +8,7 @@ import { useHistory } from "react-router-dom";
 import { NotificationManager } from "../../../components/common/react-notifications";
 import { adminPathApi } from "../../../constants/defaultValues";
 import AdvertisementFormLayout from "./components/AdvertisementFormLayout";
+import { uploadTourZip } from "./upload-tour-zip";
 
 const defaultPropertyTools = {
   virtual_tour_enabled: false,
@@ -100,6 +101,8 @@ const AdvertisementRegister = ({ match }) => {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [options, setOptions] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [tourZip, setTourZip] = useState(null);
+  const [tourZipProgress, setTourZipProgress] = useState(null);
   const history = useHistory();
 
   const handleApiError = (error, fallback) => {
@@ -123,17 +126,33 @@ const AdvertisementRegister = ({ match }) => {
         ...values,
         category: selectedCategory.id,
       })
-      .then((response) => {
+      .then(async (response) => {
         const data = response.data || {};
         if (!data.status) {
           NotificationManager.error(validationMessage(data.errors), "اطلاعات آگهی نیاز به بررسی دارد");
           return;
         }
-
-        NotificationManager.success(
-          data.message || "آگهی با موفقیت ثبت شد.",
-          "عملیات با موفقیت انجام شد"
-        );
+        if (tourZip) {
+          const newId = data.advertisement_id;
+          if (!newId) {
+            NotificationManager.warning("آگهی ثبت شد اما شناسه آن برای آپلود ZIP برنگشت؛ از صفحه ویرایش فایل را مجدداً انتخاب کنید.");
+            history.push("/spad-admin/advertisements/adver-list");
+            return;
+          }
+          try {
+            const result = await uploadTourZip(newId, tourZip, setTourZipProgress);
+            NotificationManager.success(result.message || "فایل ZIP استخراج شد و سکانس‌ها به تور ملک اضافه شدند.");
+          } catch (uploadError) {
+            setTourZipProgress(prev => ({ ...(prev || {}), phase: "failed" }));
+            NotificationManager.error(
+              uploadError.response?.data?.message || uploadError.message || "آپلود تور مجازی ناموفق بود. آگهی ذخیره شده است؛ فایل را در فرم ویرایش دوباره بارگذاری کنید.",
+              "آگهی ثبت شد؛ خطای تور مجازی"
+            );
+            history.push(`/spad-admin/advertisements/edit/${newId}`);
+            return;
+          }
+        }
+        NotificationManager.success(data.message || "آگهی با موفقیت ثبت شد.");
         history.push("/spad-admin/advertisements/adver-list");
       })
       .catch((error) => handleApiError(error, "ثبت آگهی انجام نشد."))
@@ -229,6 +248,9 @@ const AdvertisementRegister = ({ match }) => {
                 categoryName={selectedCategory.name}
                 submitting={submitting}
                 onBack={resetCategory}
+                tourZip={tourZip}
+                onTourZipChange={file => { setTourZip(file); setTourZipProgress(null); }}
+                tourZipProgress={tourZipProgress}
               />
             </Form>
           </Formik>
