@@ -55,12 +55,16 @@ class AccountMobileController extends Controller
     private function sendOtp(string $mobile, string $code): void
     {
         try {
-            $gateway = app(ApiIrAccountServices::class);
-            abort_unless($gateway->enabled('sms_otp'), 503, 'سرویس پیامکی حساب در دسترس نیست.');
-            $gateway->sendOtp($mobile, $code);
+            $sms=app(\App\Services\SpadSmsService::class);
+            if ($sms->configured()) $sms->sendOtp('phone_change_otp', $mobile, $code);
+            else {
+                $gateway = app(ApiIrAccountServices::class);
+                abort_unless($gateway->enabled('sms_otp'), 503, 'سرویس پیامکی حساب در دسترس نیست.');
+                $gateway->sendOtp($mobile, $code);
+            }
         } catch (\Throwable $e) {
             report($e);
-            abort(503, 'ارسال پیامک تأیید انجام نشد. اتصال API.ir را بررسی کنید.');
+            abort(503, 'ارسال پیامک تأیید انجام نشد؛ تنظیمات سرویس پیامکی را بررسی کنید.');
         }
     }
 
