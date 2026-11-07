@@ -28,8 +28,8 @@ export const uploadTourZip = (advertisementId, file, onProgress) => {
       onProgress({ phase: percent >= 100 ? "processing" : "upload", percent, loaded, total });
     },
   }).then(response => {
-    if (!response.data?.status) throw new Error(response.data?.message || "استخراج ZIP ناموفق بود.");
-    onProgress?.({ phase: "complete", percent: 100, loaded: file.size, total: file.size });
+    if (!response.data?.status) throw new Error(response.data?.message || "نصب تور آماده ناموفق بود.");
+    onProgress?.({ phase: "complete", percent: 100, loaded: file.size, total: file.size, preview_url: response.data?.preview_url });
     return response.data;
   });
 };
