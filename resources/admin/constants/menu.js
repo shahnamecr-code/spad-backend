@@ -47,6 +47,12 @@ const data = [
         // roles: [UserRole.Admin],
       },
       {
+        icon: "simple-icon-diamond",
+        label: "افزودن ملک سرمایه‌گذاری",
+        to: `${adminRoot}/partner-panels/investor-opportunities?create=1`,
+        roles: [UserRole.Admin],
+      },
+      {
         icon: "simple-icon-list",
         label: "menu.advertisements.list",
         to: `${adminRoot}/advertisements/adver-list`,
