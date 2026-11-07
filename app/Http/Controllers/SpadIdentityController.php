@@ -396,6 +396,11 @@ class SpadIdentityController extends Controller
             'review_note'=>$data['note'],'reviewed_by'=>auth('admin')->id(),
             'reviewed_at'=>now(),'updated_at'=>now(),
         ]);
+        $recipient=\App\Models\User::find($v->user_id);
+        if ($recipient) app(\App\Services\SpadSmsService::class)->notify(
+            'kyc_rejected',(string)$recipient->mobile,[],
+            'kyc-rejected:'.$v->id.':'.now()->timestamp
+        );
         return response()->json(['message'=>'اعتبار پرونده لغو شد؛ تأیید دستی مجاز نیست.']);
     }
 
