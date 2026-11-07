@@ -114,7 +114,8 @@ class PropertyHandoverSignatureController extends Controller {
       :'درخواست کد تأیید برای هر دو طرف ثبت شد.'],count($failed)?202:200);
  }
  private function sendCode($signature) {
-  $this->template();
+  $provider=app(\App\Services\SpadSmsService::class);
+  if (!$provider->configured()) $this->template();
   if($signature->verified_at)abort(422,'این طرف قبلاً تأیید کرده است.');
   abort_if($signature->send_count>=5,429,'سقف ارسال کد برای این پرونده تکمیل شده است.');
   if($signature->last_sent_at)abort_if(now()->diffInSeconds($signature->last_sent_at)<90,429,
@@ -122,12 +123,17 @@ class PropertyHandoverSignatureController extends Controller {
   $otp=(string)random_int(100000,999999);
   // Do not expose the OTP in responses, logs or the database.
   $param=config('sms.handover_parameter','code');
-  $template=$this->template();
-  $result=sms()->send('hi',function($sms)use($signature,$template,$param,$otp){
-   $sms->to([$signature->mobile]);
-   $sms->template($template,[$param=>$otp]);
-  });
-  abort_if($result===false,503,'ارسال پیامک از طرف سرویس‌دهنده تأیید نشد.');
+  if ($provider->configured()) {
+   try { $provider->sendOtp('handover_otp',(string)$signature->mobile,$otp); }
+   catch (\Throwable $e) { abort(503,'ارسال کد تحویل ملک ناموفق بود. تنظیمات پیامک را بررسی کنید.'); }
+  } else {
+   $template=$this->template();
+   $result=sms()->send('hi',function($sms)use($signature,$template,$param,$otp){
+    $sms->to([$signature->mobile]);
+    $sms->template($template,[$param=>$otp]);
+   });
+   abort_if($result===false,503,'ارسال پیامک از طرف سرویس‌دهنده تأیید نشد.');
+  }
   DB::table('spad_handover_signatures')->where('id',$signature->id)
     ->whereNull('verified_at')->update([
      'otp_hash'=>Hash::make($otp),'expires_at'=>now()->addMinutes(10),
