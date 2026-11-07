@@ -21,6 +21,13 @@ class RafflePaymentController extends Controller
         }
 
         if ($order->status === 'paid') {
+            $paidOrder=$order->fresh(['user']);
+            if ($paidOrder && $paidOrder->status==='paid' && $paidOrder->user) {
+                app(\App\Services\SpadSmsService::class)->notify(
+                    'raffle_ticket',(string)$paidOrder->user->mobile,
+                    ['id'=>$paidOrder->raffle_id], 'raffle-paid:'.$paidOrder->id
+                );
+            }
             return redirect()->away($frontend . '/raffle/payment-result?status=success&order=' . $order->id);
         }
 
