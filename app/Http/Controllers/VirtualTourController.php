@@ -35,6 +35,22 @@ class VirtualTourController extends Controller
         return $response;
     }
 
+    public function modelAsset(VirtualTour $virtualTour)
+    {
+        $this->assertPublished($virtualTour);
+        $path = data_get($virtualTour->settings, 'model_path');
+        $disk = Storage::disk(config('virtual-tour.disk', 'local'));
+        if (!$path || !str_starts_with($path, 'virtual-tours/' . $virtualTour->id . '/models/') || !$disk->exists($path)) {
+            abort(404);
+        }
+        return response()->file($disk->path($path), [
+            'Content-Type' => 'model/gltf-binary',
+            'Access-Control-Allow-Origin' => '*',
+            'Cache-Control' => 'public, max-age=604800',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function floorplanAsset(VirtualTour $virtualTour)
     {
         $this->assertPublished($virtualTour);
@@ -66,7 +82,7 @@ class VirtualTourController extends Controller
             ->latest('published_at')
             ->first();
 
-        if (!$tour) {
+        if (!$tour || !data_get($tour->settings, 'model_path')) {
             return response()->json(['status' => false, 'data' => null], 404);
         }
 
@@ -77,6 +93,7 @@ class VirtualTourController extends Controller
     {
         $tour = VirtualTour::where('slug', $slug)->where('status', 'published')->firstOrFail();
         $this->assertPublished($tour);
+        if (!data_get($tour->settings, 'model_path')) abort(404);
         return response()->json(['status' => true, 'data' => VirtualTourPresenter::public($tour)]);
     }
 

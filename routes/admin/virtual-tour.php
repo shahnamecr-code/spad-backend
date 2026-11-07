@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\VirtualTourController;
 
 Route::prefix('virtual-tours')->group(function () {
     Route::get('/assets/scenes/{scene}/{variant}', [VirtualTourController::class, 'sceneAsset'])->where('variant', 'ultra|high|medium|preview|thumbnail');
+    Route::get('/assets/tours/{virtualTour}/model', [VirtualTourController::class, 'modelAsset']);
     Route::get('/assets/tours/{virtualTour}/floorplan', [VirtualTourController::class, 'floorplanAsset']);
     Route::get('/assets/hotspots/{hotspot}', [VirtualTourController::class, 'hotspotAsset']);
     Route::get('/', [VirtualTourController::class, 'index']);
@@ -12,6 +13,8 @@ Route::prefix('virtual-tours')->group(function () {
     Route::post('/property/{advertisement}', [VirtualTourController::class, 'ensureForAdvertisement']);
     Route::get('/{virtualTour}', [VirtualTourController::class, 'show']);
     Route::put('/{virtualTour}', [VirtualTourController::class, 'update']);
+    Route::post('/{virtualTour}/model', [VirtualTourController::class, 'uploadModel']);
+    Route::delete('/{virtualTour}/model', [VirtualTourController::class, 'deleteModel']);
     Route::post('/{virtualTour}/scenes', [VirtualTourController::class, 'uploadScenes']);
     Route::post('/{virtualTour}/reorder-scenes', [VirtualTourController::class, 'reorderScenes']);
     Route::post('/{virtualTour}/generate-navigation', [VirtualTourController::class, 'generateNavigation']);

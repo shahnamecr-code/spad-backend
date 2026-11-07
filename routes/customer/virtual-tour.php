@@ -4,6 +4,7 @@ use App\Http\Controllers\VirtualTourController;
 
 Route::prefix('virtual-tours')->group(function () {
     Route::get('/assets/scenes/{scene}/{variant}', [VirtualTourController::class, 'sceneAsset'])->where('variant', 'ultra|high|medium|preview|thumbnail');
+    Route::get('/assets/tours/{virtualTour}/model', [VirtualTourController::class, 'modelAsset']);
     Route::get('/assets/tours/{virtualTour}/floorplan', [VirtualTourController::class, 'floorplanAsset']);
     Route::get('/assets/hotspots/{hotspot}', [VirtualTourController::class, 'hotspotAsset']);
     Route::get('/property/{advertisement}', [VirtualTourController::class, 'byAdvertisement']);

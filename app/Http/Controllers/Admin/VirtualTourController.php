@@ -50,6 +50,7 @@ class VirtualTourController extends Controller
                 'slug' => $tour->slug,
                 'public_url' => rtrim(env('FRONTEND_URL', env('CLIENT_URL', 'https://spad.estate')), '/') . '/virtual-tour/' . $tour->slug,
                 'status' => $tour->status,
+                'model_ready' => !empty(data_get($tour->settings, 'model_path')),
                 'scenes_count' => $tour->scenes_count,
                 'hotspots_count' => $tour->hotspots_count,
                 'views_count' => $tour->views_count,
@@ -95,6 +96,68 @@ class VirtualTourController extends Controller
         });
 
         return response()->json(['status' => true, 'data' => $items]);
+    }
+
+    public function modelAsset(VirtualTour $virtualTour)
+    {
+        VirtualTourAccess::assertAdminCanManage(auth('admin')->user(), $virtualTour->advertisement);
+        $path = data_get($virtualTour->settings, 'model_path');
+        $disk = Storage::disk(config('virtual-tour.disk', 'local'));
+        if (!$path || !str_starts_with($path, 'virtual-tours/' . $virtualTour->id . '/models/') || !$disk->exists($path)) abort(404);
+        return response()->file($disk->path($path), [
+            'Content-Type' => 'model/gltf-binary',
+            'Cache-Control' => 'private, no-store',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
+    public function uploadModel(Request $request, VirtualTour $virtualTour)
+    {
+        VirtualTourAccess::assertAdminCanManage(auth('admin')->user(), $virtualTour->advertisement);
+        $request->validate(['model' => 'required|file|max:204800']);
+        $file = $request->file('model');
+        if (strtolower($file->getClientOriginalExtension()) !== 'glb') {
+            return response()->json(['status' => false, 'message' => 'فقط مدل سه‌بعدی با فرمت GLB قابل قبول است.'], 422);
+        }
+        $handle = fopen($file->getRealPath(), 'rb');
+        $header = $handle ? fread($handle, 12) : false;
+        if ($handle) fclose($handle);
+        if (!$header || strlen($header) !== 12 || substr($header, 0, 4) !== 'glTF' ||
+            unpack('V', substr($header, 4, 4))[1] !== 2 ||
+            unpack('V', substr($header, 8, 4))[1] !== $file->getSize()) {
+            return response()->json(['status' => false, 'message' => 'ساختار فایل GLB معتبر نیست. خروجی glTF Binary نسخه ۲ تهیه کنید.'], 422);
+        }
+        $disk = Storage::disk(config('virtual-tour.disk', 'local'));
+        $path = $file->storeAs('virtual-tours/' . $virtualTour->id . '/models', Str::uuid() . '.glb', config('virtual-tour.disk', 'local'));
+        if (!$path || !$disk->exists($path)) {
+            return response()->json(['status' => false, 'message' => 'ذخیره مدل انجام نشد.'], 500);
+        }
+        $settings = $virtualTour->settings ?: [];
+        $oldPath = $settings['model_path'] ?? null;
+        $settings['model_path'] = $path;
+        $settings['model_filename'] = mb_substr($file->getClientOriginalName(), 0, 191);
+        $settings['model_bytes'] = $file->getSize();
+        $virtualTour->update(['settings' => $settings]);
+        if ($oldPath && $oldPath !== $path && str_starts_with($oldPath, 'virtual-tours/' . $virtualTour->id . '/models/')) {
+            $disk->delete($oldPath);
+        }
+        return response()->json(['status' => true, 'data' => VirtualTourPresenter::admin($virtualTour->fresh())]);
+    }
+
+    public function deleteModel(VirtualTour $virtualTour)
+    {
+        VirtualTourAccess::assertAdminCanManage(auth('admin')->user(), $virtualTour->advertisement);
+        if ($virtualTour->status === 'published') {
+            return response()->json(['status' => false, 'message' => 'برای حذف مدل ابتدا انتشار تور را متوقف کنید.'], 409);
+        }
+        $settings = $virtualTour->settings ?: [];
+        $path = $settings['model_path'] ?? null;
+        unset($settings['model_path'], $settings['model_filename'], $settings['model_bytes']);
+        $virtualTour->update(['settings' => $settings]);
+        if ($path && str_starts_with($path, 'virtual-tours/' . $virtualTour->id . '/models/')) {
+            Storage::disk(config('virtual-tour.disk', 'local'))->delete($path);
+        }
+        return response()->json(['status' => true, 'data' => VirtualTourPresenter::admin($virtualTour->fresh())]);
     }
 
     public function sceneAsset(VirtualTourScene $scene, $variant)
@@ -184,6 +247,20 @@ class VirtualTourController extends Controller
             if (!$virtualTour->scenes()->whereKey($data['start_scene_id'])->exists()) {
                 return response()->json(['status' => false, 'message' => 'Start Scene متعلق به این تور نیست.'], 422);
             }
+        }
+        if (array_key_exists('settings', $data)) {
+            $existing = $virtualTour->settings ?: [];
+            $allowed = ['spawn_x', 'spawn_y', 'spawn_z', 'heading'];
+            foreach ($allowed as $key) {
+                if (array_key_exists($key, $data['settings'])) {
+                    $value = $data['settings'][$key];
+                    if (!is_numeric($value) || !is_finite((float) $value) || abs((float) $value) > 10000) {
+                        return response()->json(['status' => false, 'message' => 'موقعیت شروع یا جهت دوربین معتبر نیست.'], 422);
+                    }
+                    $existing[$key] = (float) $value;
+                }
+            }
+            $data['settings'] = $existing; // Preserve server-owned model_path and model metadata.
         }
         $virtualTour->update($data);
         return response()->json(['status' => true, 'data' => VirtualTourPresenter::admin($virtualTour->fresh())]);
@@ -578,6 +655,22 @@ class VirtualTourController extends Controller
                 $copy->floorplan_path = $floor;
                 $copy->save();
             }
+
+
+            $originalModel = data_get($virtualTour->settings, 'model_path');
+            $copySettings = $copy->settings ?: [];
+            unset($copySettings['model_path'], $copySettings['model_filename'], $copySettings['model_bytes']);
+            if ($originalModel && str_starts_with($originalModel, 'virtual-tours/' . $virtualTour->id . '/models/') &&
+                Storage::disk(config('virtual-tour.disk', 'local'))->exists($originalModel)) {
+                $copyModel = 'virtual-tours/' . $copy->id . '/models/' . Str::uuid() . '.glb';
+                if (Storage::disk(config('virtual-tour.disk', 'local'))->copy($originalModel, $copyModel)) {
+                    $copySettings['model_path'] = $copyModel;
+                    $copySettings['model_filename'] = data_get($virtualTour->settings, 'model_filename');
+                    $copySettings['model_bytes'] = data_get($virtualTour->settings, 'model_bytes');
+                }
+            }
+            $copy->settings = $copySettings;
+            $copy->save();
 
             $sceneMap = [];
             foreach ($virtualTour->scenes as $scene) {

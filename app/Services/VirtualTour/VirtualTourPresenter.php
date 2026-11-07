@@ -3,6 +3,7 @@
 namespace App\Services\VirtualTour;
 
 use App\Models\VirtualTour;
+use Illuminate\Support\Facades\Storage;
 
 class VirtualTourPresenter
 {
@@ -20,6 +21,9 @@ class VirtualTourPresenter
             'slug' => $tour->slug,
             'public_url' => self::frontendUrl($tour),
             'status' => $tour->status,
+            'model_url' => self::modelUrl($tour, true),
+            'model_filename' => data_get($tour->settings, 'model_filename'),
+            'model_bytes' => data_get($tour->settings, 'model_bytes'),
             'start_scene_id' => $tour->start_scene_id,
             'floorplan_url' => $tour->floorplan_path ? url('/api/admin/virtual-tours/assets/tours/' . $tour->id . '/floorplan') : null,
             'settings' => $tour->settings ?: [],
@@ -55,6 +59,7 @@ class VirtualTourPresenter
             'title' => $tour->title,
             'slug' => $tour->slug,
             'public_url' => self::frontendUrl($tour),
+            'model_url' => self::modelUrl($tour, false),
             'start_scene_id' => $tour->start_scene_id,
             'floorplan_url' => $tour->floorplan_path ? url('/api/virtual-tours/assets/tours/' . $tour->id . '/floorplan') : null,
             'settings' => $tour->settings ?: [],
@@ -70,6 +75,15 @@ class VirtualTourPresenter
                 ];
             })->values(),
         ];
+    }
+
+    private static function modelUrl(VirtualTour $tour, bool $admin)
+    {
+        $path = data_get($tour->settings, 'model_path');
+        if (!$path || !str_starts_with($path, 'virtual-tours/' . $tour->id . '/models/')) return null;
+        if (!Storage::disk(config('virtual-tour.disk', 'local'))->exists($path)) return null;
+        $prefix = $admin ? '/api/admin/virtual-tours/assets/tours/' : '/api/virtual-tours/assets/tours/';
+        return url($prefix . $tour->id . '/model');
     }
 
     private static function scene($scene, $admin)
