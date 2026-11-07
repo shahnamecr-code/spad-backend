@@ -15,7 +15,6 @@ import {
 } from "reactstrap";
 import { Field, useFormikContext } from "formik";
 import { FormikSwitch } from "../../../../containers/form-validations/FormikFields";
-import MediaLibraryButton from "../../../../components/mediaLibrary/MediaLibrary";
 import ShirazAreaPicker from "./ShirazAreaPicker";
 import { bytesLabel } from "../upload-tour-zip";
 
@@ -110,10 +109,6 @@ const SwitchField = ({ name, label }) => {
 const PropertyToolsFields = ({ tourZip, onTourZipChange, tourZipProgress }) => {
   const { values, setFieldValue } = useFormikContext();
   const tools = values.property_tools || {};
-  const tourFiles = Array.isArray(tools.virtual_tour_files)
-    ? tools.virtual_tour_files
-    : [];
-
   return (
     <Card className="spad-ad-tools-card mb-4">
       <div className="spad-ad-tools-header">
@@ -197,7 +192,7 @@ const PropertyToolsFields = ({ tourZip, onTourZipChange, tourZipProgress }) => {
           <div>
             <strong>اطلاعات این بخش مستقیماً به صفحه ملک متصل است.</strong>
             <span>
-              برای تور ۳۶۰ می‌توانید فایل پانوراما یا لینک تور وارد کنید؛ نقشه سه‌بعدی نیز فقط توسط مدیریت و از طریق لینک Viewer فعال می‌شود.
+              برای بازدید آنلاین، فقط بسته ZIP کامل تور آماده را بارگذاری کنید. داخل سایت هیچ نیازی به ساخت یا ویرایش تور نیست.
             </span>
           </div>
         </div>
@@ -209,37 +204,15 @@ const PropertyToolsFields = ({ tourZip, onTourZipChange, tourZipProgress }) => {
                 <span className="spad-ad-tool-icon spad-ad-tool-icon--blue">360°</span>
                 <div>
                   <h4>بازدید آنلاین ۳۶۰ درجه</h4>
-                  <p>تور مجازی یا پانورامای تعاملی ملک</p>
+                  <p>پخش تور آماده‌ای که خارج از سایت ساخته‌اید</p>
                 </div>
               </div>
-
-              <SwitchField
-                name="property_tools.virtual_tour_enabled"
-                label="نمایش دکمه بازدید آنلاین ۳۶۰ درجه"
-              />
-
-              <FormGroup>
-                <Label>فایل / تصویر تور مجازی</Label>
-                <div className="spad-ad-media-field spad-ad-media-field--large">
-                  <MediaLibraryButton
-                    multiple={false}
-                    defaultFileIdz={tourFiles}
-                    onSubmit={(files) =>
-                      setFieldValue("property_tools.virtual_tour_files", files || [])
-                    }
-                    onChange={(files) =>
-                      setFieldValue("property_tools.virtual_tour_files", files || [])
-                    }
-                  />
-                </div>
-                <FormText color="muted">برای تصاویر تکی از کتابخانه رسانه استفاده کنید. بسته ZIP را از بخش پایین همین کارت وارد کنید.</FormText>
-              </FormGroup>
 
               {onTourZipChange && <div className="spad-vtour-zip-box" dir="rtl">
                 <div className="spad-vtour-zip-box__head">
                   <span className="spad-vtour-zip-box__icon"><i className="simple-icon-cloud-upload" /></span>
                   <div><strong>بارگذاری تور مجازی با فایل ZIP</strong>
-                    <small>تصاویر پانوراما به‌طور خودکار استخراج و به سکانس‌های ملک تبدیل می‌شوند.</small></div>
+                    <small>تمام فایل‌های تور آماده بدون تغییر استخراج و برای همین ملک قابل پخش می‌شوند.</small></div>
                 </div>
                 <label className="spad-vtour-zip-box__choose">
                   <i className="simple-icon-folder" />
@@ -262,32 +235,18 @@ const PropertyToolsFields = ({ tourZip, onTourZipChange, tourZipProgress }) => {
                 </div>}
                 {tourZipProgress && <div className="spad-vtour-zip-progress" role="status" aria-live="polite">
                   <div className="spad-vtour-zip-progress__headline">
-                    <span>{tourZipProgress.phase === "complete" ? "استخراج کامل شد" : tourZipProgress.phase === "processing" ? "آپلود تمام شد؛ در حال استخراج و پردازش تصاویر" : tourZipProgress.phase === "failed" ? "بارگذاری یا استخراج ناموفق بود" : "در حال آپلود فایل ZIP"}</span>
+                    <span>{tourZipProgress.phase === "complete" ? "تور نصب و منتشر شد" : tourZipProgress.phase === "processing" ? "فایل آپلود شد؛ در حال نصب تور آماده" : tourZipProgress.phase === "failed" ? "بارگذاری تور کامل نشد" : "در حال آپلود فایل ZIP"}</span>
                     <strong>{Math.round(tourZipProgress.percent || 0).toLocaleString("fa-IR")}٪</strong>
                   </div>
                   <div className="spad-vtour-zip-progress__track" role="progressbar" aria-valuenow={tourZipProgress.percent || 0} aria-valuemin={0} aria-valuemax={100}>
                     <span style={{width: `${tourZipProgress.percent || 0}%`}} />
                   </div>
-                  <small>{tourZipProgress.phase === "processing" ? "لطفاً فرم را نبندید؛ تبدیل تصاویر روی سرور در حال انجام است." :
+                  <small>{tourZipProgress.phase === "processing" ? "در حال استخراج فایل‌های تور روی سرور؛ لطفاً این صفحه را نبندید." :
                     `آپلود شده: ${bytesLabel(tourZipProgress.loaded || 0)} • باقی‌مانده: ${bytesLabel(Math.max(0, (tourZipProgress.total || 0) - (tourZipProgress.loaded || 0)))}`}</small>
                 </div>}
-                <small className="spad-vtour-zip-box__hint">حداکثر ۸۰ مگابایت؛ فقط تصاویر ۳۶۰ درجه با نسبت ۲ به ۱ استخراج می‌شوند. پس از ذخیره آگهی، بسته بارگذاری و استخراج می‌شود؛ انتشار نهایی تور از استودیو انجام می‌گیرد.</small>
+                <small className="spad-vtour-zip-box__hint">حداکثر ۸۰ مگابایت. بسته باید فایل index.html و فایل‌های همراه آن را داشته باشد. بعد از ذخیره آگهی، تور به‌صورت خودکار منتشر می‌شود؛ نیازی به استودیو نیست.</small>
               </div>}
 
-              <FormGroup className="mb-0">
-                <Label>لینک تور مجازی (اختیاری)</Label>
-                <div className="spad-ad-input-with-icon">
-                  <i className="simple-icon-link" />
-                  <Field
-                    name="property_tools.virtual_tour_url"
-                    type="url"
-                    className="form-control"
-                    placeholder="https://..."
-                    dir="ltr"
-                  />
-                </div>
-                <FormText color="muted">اگر لینک وارد شود، نسبت به فایل آپلودی اولویت دارد.</FormText>
-              </FormGroup>
             </div>
           </Col>
 
