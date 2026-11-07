@@ -1,1 +1,36 @@
 .spad-investor-admin{direction:rtl}.spad-investor-admin__hero{position:relative;overflow:hidden;margin-bottom:18px;padding:28px 30px;border-radius:20px;color:#fff;background:linear-gradient(125deg,#081626,#0b3158 62%,#0d6ab7);display:flex;align-items:center;justify-content:space-between;box-shadow:0 18px 45px rgba(8,36,62,.18)}.spad-investor-admin__hero:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;left:-90px;top:-130px;background:rgba(60,157,240,.16)}.spad-investor-admin__hero span{font-size:10px;letter-spacing:1.5px;color:#76bfff}.spad-investor-admin__hero h2{margin:5px 0;font-weight:800}.spad-investor-admin__hero p{margin:0;color:rgba(255,255,255,.7);font-size:12px}.spad-investor-admin__lock{position:relative;z-index:2;padding:10px 13px;border:1px solid rgba(255,255,255,.16);border-radius:12px;background:rgba(255,255,255,.08);font-size:11px}.spad-investor-admin__stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}.spad-investor-admin__stats>div{padding:16px 18px;border-radius:15px;background:#fff;border:1px solid #e8edf2;box-shadow:0 7px 22px rgba(20,40,60,.04)}.spad-investor-admin__stats small,.spad-investor-admin__stats strong{display:block}.spad-investor-admin__stats small{color:#7d8996}.spad-investor-admin__stats strong{margin-top:5px;font-size:22px;color:#173650}.spad-investor-admin__filters{display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:8px;margin-bottom:15px}.spad-investor-admin table td small{display:block;color:#8c98a4;margin-top:4px}.spad-investor-admin__actions{white-space:nowrap}.spad-investor-admin__actions .btn{margin:2px}@media(max-width:900px){.spad-investor-admin__stats{grid-template-columns:repeat(2,1fr)}.spad-investor-admin__filters{grid-template-columns:1fr 1fr}.spad-investor-admin__hero{align-items:flex-start;gap:15px;flex-direction:column}}
+/* Approved public property picker, shown only in the investor-price admin form. */
+.spad-investor-admin__price{color:#07805b;font-weight:800;white-space:nowrap}
+.spad-investor-admin .table-responsive{border-radius:14px;border:1px solid #e6eff6}
+.spad-investor-admin .table{margin:0;background:#fff;font-size:11px}
+.spad-investor-admin .table thead th{background:#f2f8fd;border:0;color:#285570;font-weight:700;padding:15px 12px;white-space:nowrap}
+.spad-investor-admin .table tbody td{vertical-align:middle;padding:13px 12px;border-bottom:1px solid #edf3f8}
+.spad-investor-admin .table td a{display:block;width:max-content;color:#157bba;font-size:10px;margin-top:5px}
+.spad-investor-pricing-modal{font-family:inherit;direction:rtl}
+.spad-investor-pricing-modal .modal-content{background:#fbfdff;border:1px solid #d8e9f6;border-radius:18px;overflow:hidden;box-shadow:0 30px 90px rgba(8,43,79,.16)}
+.spad-investor-pricing-modal .modal-header{border-bottom:1px solid #dcebf6;background:linear-gradient(110deg,#eff8ff,#fff);color:#184b73}
+.spad-investor-pricing-modal .modal-body{padding:19px}
+.spad-investor-pricing-modal .modal-footer{border-top:1px solid #e0edf6;background:#f8fcff}
+.spad-investor-pricing-modal .form-control{min-height:40px;border-radius:10px;border:1px solid #d2e1ed}
+.spad-investor-pricing-modal label{font-size:11px;color:#28506e}
+.spad-investor-property-picker{border:1px solid #cddfea;background:#f5faff;border-radius:14px;padding:13px;margin-bottom:14px}
+.spad-investor-property-picker>label{display:block;font-weight:700;font-size:12px}
+.spad-investor-property-picker__results{display:flex;flex-direction:column;gap:6px;overflow:auto;max-height:238px;margin-top:10px;padding:2px}
+.spad-investor-property-picker__results button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:right;background:#fff;border:1px solid #e1eaf2;border-radius:10px;padding:10px 12px;cursor:pointer;color:#234766;font-family:inherit;transition:background .15s,border-color .15s}
+.spad-investor-property-picker__results button:hover{background:#eaf7ff;border-color:#77b8df}
+.spad-investor-property-picker__results button.is-selected{background:#e2f5ef;border-color:#28a878}
+.spad-investor-property-picker__results button span{display:flex;flex-direction:column;align-items:flex-start;min-width:0;gap:5px}
+.spad-investor-property-picker__results button strong{font-size:11px;white-space:normal}
+.spad-investor-property-picker__results button small{color:#718aa1;font-size:10px}
+.spad-investor-property-picker__results p{color:#7291a6;font-size:11px;padding:12px}
+.spad-investor-property-picker__selected{display:flex;align-items:center;gap:7px;padding:10px 12px;background:#edfbf4;border:1px solid #bcebd7;border-radius:10px;color:#137252;font-size:12px;margin-bottom:13px}
+@media(max-width:650px){
+ .spad-investor-pricing-modal .modal-dialog{margin:8px}
+ .spad-investor-admin__hero{padding:18px;border-radius:15px}
+ .spad-investor-admin__hero h2{font-size:18px}
+ .spad-investor-admin__hero p{font-size:11px;line-height:1.9}
+ .spad-investor-admin__stats{gap:7px}
+ .spad-investor-admin__stats>div{padding:12px}
+ .spad-investor-admin__stats strong{font-size:17px}
+ .spad-investor-admin__filters{grid-template-columns:1fr}
+}
