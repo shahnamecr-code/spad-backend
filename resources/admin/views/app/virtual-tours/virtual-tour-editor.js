@@ -1,118 +1,105 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { Badge, Button, Card, CardBody, Input, Label, Modal, ModalBody, ModalFooter, ModalHeader, Row } from "reactstrap";
+import { Badge, Button, Card, CardBody, Input, Label, Row } from "reactstrap";
 import { Colxx, Separator } from "../../../components/common/CustomBootstrap";
 import Breadcrumb from "../../../containers/navs/Breadcrumb";
 import { adminPathApi } from "../../../constants/defaultValues";
 import { NotificationManager } from "../../../components/common/react-notifications";
-import PanoramaEditor from "./components/PanoramaEditor";
 
-const emptyHotspot = { id:null, type:"navigation", title:"", content:"", target_scene_id:"", yaw:0, pitch:0, icon:"arrow", link_url:"", settings:{} };
-const imageFor = (scene) => scene?.images?.preview || scene?.images?.medium || scene?.images?.high || scene?.images?.original || "";
-const fmtSec = (s) => `${Math.floor((s||0)/60)}:${String((s||0)%60).padStart(2,"0")}`;
-
-const VirtualTourEditor = ({ match }) => {
+const Studio3d = ({match}) => {
   const id = match.params.id;
-  const panoRef = useRef(null);
   const fileInput = useRef(null);
-  const replaceInput = useRef(null);
-  const floorInput = useRef(null);
-  const hotspotFile = useRef(null);
-  const [tour,setTour]=useState(null), [sceneId,setSceneId]=useState(null), [busy,setBusy]=useState(false);
-  const [hotspot,setHotspot]=useState(null), [showHotspot,setShowHotspot]=useState(false), [showSettings,setShowSettings]=useState(false), [showFloor,setShowFloor]=useState(false), [showPreview,setShowPreview]=useState(false), [previewSceneId,setPreviewSceneId]=useState(null), [analytics,setAnalytics]=useState(null);
-  const [dragScene,setDragScene]=useState(null), [uploading,setUploading]=useState(false), [publishCheck,setPublishCheck]=useState(null);
-  const scene = useMemo(()=>tour?.scenes?.find(x=>x.id===sceneId) || tour?.scenes?.[0] || null,[tour,sceneId]);
-  const load=()=>axios.get(`${adminPathApi}/virtual-tours/${id}`).then(r=>{setTour(r.data.data); setSceneId(old=>old || r.data.data?.start_scene_id || r.data.data?.scenes?.[0]?.id || null);});
-  useEffect(()=>{load().catch(e=>NotificationManager.error(e.response?.data?.message||"تور پیدا نشد"));},[id]);
+  const [tour,setTour] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const [uploading,setUploading] = useState(false);
+  const [validation,setValidation] = useState(null);
+  const load = () => axios.get(adminPathApi + "/virtual-tours/" + id)
+    .then(r => setTour(r.data.data))
+    .catch(e => NotificationManager.error(e.response?.data?.message || "دریافت اطلاعات تور انجام نشد"));
+  useEffect(() => {load()},[id]);
 
-  const saveTour=(patch)=>{setBusy(true);return axios.put(`${adminPathApi}/virtual-tours/${id}`,patch).then(r=>{setTour(r.data.data);NotificationManager.success("ذخیره شد");}).catch(e=>NotificationManager.error(e.response?.data?.message||"ذخیره نشد")).finally(()=>setBusy(false));};
-  const uploadScenes=(files)=>{if(!files?.length)return;const fd=new FormData();Array.from(files).forEach(f=>fd.append("images[]",f));setUploading(true);axios.post(`${adminPathApi}/virtual-tours/${id}/scenes`,fd,{headers:{"Content-Type":"multipart/form-data"}}).then(r=>{setTour(r.data.data);(r.data.warnings||[]).forEach(w=>NotificationManager.warning(w));NotificationManager.success("تصاویر افزوده شدند");}).catch(e=>NotificationManager.error(e.response?.data?.message||"آپلود انجام نشد")).finally(()=>setUploading(false));};
-  const reorder=(targetId)=>{if(!dragScene||dragScene===targetId)return;const ids=(tour.scenes||[]).map(x=>x.id), from=ids.indexOf(dragScene), to=ids.indexOf(targetId);ids.splice(to,0,ids.splice(from,1)[0]);setTour({...tour,scenes:ids.map(x=>tour.scenes.find(s=>s.id===x))});setDragScene(null);axios.post(`${adminPathApi}/virtual-tours/${id}/reorder-scenes`,{scene_ids:ids}).then(()=>load()).catch(e=>NotificationManager.error(e.response?.data?.message||"ترتیب فضاها ذخیره نشد"));};
-  const generateNavigation=()=>{
-    if (!tour?.scenes || tour.scenes.length<2) {
-      NotificationManager.warning("برای اتصال فضاها، حداقل دو تصویر ۳۶۰ آپلود کنید.");
-      return;
-    }
-    if(tour.status==="published"){
-      NotificationManager.warning("برای ساخت مسیر خودکار ابتدا تور را از انتشار خارج کنید.");
-      return;
-    }
+  const apply = (url, body, method = "post", doneMessage = "تغییرات ذخیره شد") => {
     setBusy(true);
-    axios.post(`${adminPathApi}/virtual-tours/${id}/generate-navigation`)
-      .then(r=>{setTour(r.data.data);NotificationManager.success(r.data.message||"مسیرهای دوطرفه ایجاد شدند");})
-      .catch(e=>NotificationManager.error(e.response?.data?.message||"ایجاد مسیرها ناموفق بود"))
-      .finally(()=>setBusy(false));
+    return axios({url:adminPathApi + "/virtual-tours/" + id + url,method,data:body})
+      .then(r => {if(r.data?.data)setTour(r.data.data);NotificationManager.success(doneMessage);})
+      .catch(e => NotificationManager.error(e.response?.data?.message || "عملیات انجام نشد"))
+      .finally(() => setBusy(false));
   };
-  const saveScene=(patch)=>axios.put(`${adminPathApi}/virtual-tours/scenes/${scene.id}`,patch).then(r=>{setTour(r.data.data);NotificationManager.success("Scene ذخیره شد");});
-  const setInitialView=()=>{const v=panoRef.current?.getView(); if(v) saveScene({initial_yaw:v.yaw,initial_pitch:v.pitch,initial_fov:v.fov});};
-  const removeScene=()=>{if(!scene)return;axios.delete(`${adminPathApi}/virtual-tours/scenes/${scene.id}`).then(r=>{setTour(r.data.data);setSceneId(r.data.data?.scenes?.[0]?.id||null);}).catch(e=>{if(e.response?.status===409&&window.confirm((e.response.data.message||"Scene دارای اتصال است.")+"\nحذف اجباری انجام شود؟")){axios.delete(`${adminPathApi}/virtual-tours/scenes/${scene.id}`,{params:{force:1}}).then(r=>{setTour(r.data.data);setSceneId(r.data.data?.scenes?.[0]?.id||null);});}else NotificationManager.error(e.response?.data?.message||"حذف انجام نشد");});};
-  const replaceScene=(files)=>{const f=files?.[0];if(!f)return;const fd=new FormData();fd.append("image",f);axios.post(`${adminPathApi}/virtual-tours/scenes/${scene.id}/replace`,fd).then(r=>setTour(r.data.data)).catch(e=>NotificationManager.error(e.response?.data?.message||"جایگزینی انجام نشد"));};
-
-  const openNewHotspot=(coords)=>{setHotspot({...emptyHotspot,yaw:Number(coords.yaw.toFixed(3)),pitch:Number(coords.pitch.toFixed(3))});setShowHotspot(true);};
-  const editHotspot=(h)=>{setHotspot({...emptyHotspot,...h,target_scene_id:h.target_scene_id||""});setShowHotspot(true);};
-  const saveHotspot=()=>{if(!hotspot)return;const payload={...hotspot,target_scene_id:hotspot.type==="navigation"?Number(hotspot.target_scene_id)||null:null,create_return:!!hotspot.create_return};const req=hotspot.id?axios.put(`${adminPathApi}/virtual-tours/hotspots/${hotspot.id}`,payload):axios.post(`${adminPathApi}/virtual-tours/scenes/${scene.id}/hotspots`,payload);req.then(r=>{setTour(r.data.data);setShowHotspot(false);NotificationManager.success("Hotspot ذخیره شد");}).catch(e=>NotificationManager.error(e.response?.data?.message||"Hotspot ذخیره نشد"));};
-  const deleteHotspot=()=>{if(!hotspot?.id||!window.confirm("این Hotspot حذف شود؟"))return;axios.delete(`${adminPathApi}/virtual-tours/hotspots/${hotspot.id}`).then(r=>{setTour(r.data.data);setShowHotspot(false);});};
-  const uploadHotspotFile=(files)=>{if(!hotspot?.id||!files?.[0])return;const fd=new FormData();fd.append("file",files[0]);axios.post(`${adminPathApi}/virtual-tours/hotspots/${hotspot.id}/media`,fd).then(r=>{setTour(r.data.data);setShowHotspot(false);NotificationManager.success("فایل Hotspot ذخیره شد");});};
-
-  const publish=()=>{axios.get(`${adminPathApi}/virtual-tours/${id}/validate-publish`).then(r=>{const v=r.data;setPublishCheck(v);if((v.errors||[]).length){NotificationManager.error("خطاهای انتشار را برطرف کنید");return;}const doPub=()=>axios.post(`${adminPathApi}/virtual-tours/${id}/publish`,{accept_warnings:true}).then(r=>{setTour(r.data.data);NotificationManager.success("تور منتشر شد");});if((v.warnings||[]).length){if(window.confirm("هشدارهای انتشار:\n- "+v.warnings.join("\n- ")+"\n\nبا این هشدارها منتشر شود؟"))doPub();}else doPub();});};
-  const unpublish=()=>axios.post(`${adminPathApi}/virtual-tours/${id}/unpublish`).then(r=>{setTour(r.data.data);NotificationManager.success("تور از انتشار خارج شد");});
-  const loadAnalytics=()=>axios.get(`${adminPathApi}/virtual-tours/${id}/analytics`).then(r=>setAnalytics(r.data.data));
-
-  const uploadFloor=(files)=>{if(!files?.[0])return;const fd=new FormData();fd.append("floorplan",files[0]);axios.post(`${adminPathApi}/virtual-tours/${id}/floorplan`,fd).then(r=>setTour(r.data.data));};
-  const floorClick=(e)=>{if(!scene||!tour.floorplan_url)return;const r=e.currentTarget.getBoundingClientRect();axios.post(`${adminPathApi}/virtual-tours/${id}/floorplan-points`,{scene_id:scene.id,x:((e.clientX-r.left)/r.width)*100,y:((e.clientY-r.top)/r.height)*100,label:scene.title}).then(res=>setTour(res.data.data));};
-
+  const save = () => apply("", {title:tour.title,settings:tour.settings}, "put");
+  const upload = files => {
+    const file=files?.[0];
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".glb")) {NotificationManager.error("فقط فایل GLB انتخاب کنید");return}
+    if (file.size > 200*1024*1024) {NotificationManager.error("حجم فایل باید کمتر از ۲۰۰ مگابایت باشد");return}
+    const body = new FormData();body.append("model",file);
+    setUploading(true);
+    axios.post(adminPathApi + "/virtual-tours/" + id + "/model",body, {
+      headers:{"Content-Type":"multipart/form-data"},timeout:300000
+    }).then(r=>{setTour(r.data.data);setValidation(null);NotificationManager.success("مدل سه‌بعدی بارگذاری شد")})
+      .catch(e=>NotificationManager.error(e.response?.data?.message || "بارگذاری مدل ناموفق بود"))
+      .finally(()=>{setUploading(false);if(fileInput.current)fileInput.current.value=""});
+  };
+  const remove = () => {
+    if (!window.confirm("مدل فعلی حذف شود؟ تصاویر قدیمی تور محفوظ می‌مانند.")) return;
+    apply("/model",null,"delete","مدل حذف شد");
+  };
+  const publish=async()=>{
+    setBusy(true);
+    try {
+      const response=await axios.get(adminPathApi + "/virtual-tours/" + id + "/validate-publish");
+      const v=response.data;setValidation(v);
+      if (v.errors?.length) {NotificationManager.error(v.errors.join(" - "));return}
+      if (v.warnings?.length && !window.confirm(v.warnings.join("\n") + "\nبا این وضعیت منتشر شود؟")) return;
+      const r=await axios.post(adminPathApi + "/virtual-tours/" + id + "/publish",{accept_warnings:true});
+      setTour(r.data.data);NotificationManager.success("بازدید سه‌بعدی منتشر شد");
+    } catch (e) { NotificationManager.error(e.response?.data?.message || "انتشار انجام نشد"); }
+    finally {setBusy(false)}
+  };
   if(!tour)return <div className="loading"/>;
-  return <div className="spad-vtour-admin vt-editor-page">
-    <Row><Colxx xxs="12"><Breadcrumb heading="ویرایش تور مجازی ۳۶۰°" match={match}/><Separator className="mb-3"/></Colxx></Row>
-    <div className="vt-editor-topbar">
-      <div><span className="vt-eyebrow">PROPERTY #{tour.advertisement_id}</span><Input value={tour.title||""} onChange={e=>setTour({...tour,title:e.target.value})} onBlur={()=>saveTour({title:tour.title})}/></div>
-      <div className="vt-top-actions"><Badge color={tour.status==="published"?"success":"secondary"}>{tour.status==="published"?"منتشرشده":"پیش‌نویس"}</Badge><Button outline color="primary" onClick={()=>setShowSettings(true)}>تنظیمات</Button><Button outline color="primary" onClick={loadAnalytics}>آمار</Button><Button outline color="primary" onClick={()=>{setPreviewSceneId(tour.start_scene_id||tour.scenes?.[0]?.id);setShowPreview(true)}}>Preview</Button>{tour.status==="published"?<Button color="warning" onClick={unpublish}>عدم انتشار</Button>:<Button color="success" onClick={publish}>Publish</Button>}</div>
-    </div>
-
-    <section className="vt-wizard" aria-label="راهنمای گام‌به‌گام ساخت تور هوشمند اسپاد">
-      <div className="vt-wizard-head">
-        <div><span>SPAD AUTOMATIC TOUR BUILDER</span><h3>تور مجازی شما، آماده نمایش حرفه‌ای</h3><p>فقط عکس‌های پانورامای ۳۶۰ درجه را بارگذاری کنید، ترتیب فضاها را بچینید و نقاط ورود و خروج را تعیین کنید؛ قالب اسپاد، برندینگ و منوها خودکار اعمال می‌شوند.</p></div>
-        <div className="vt-wizard-brand"><strong>SPAD</strong><span>360° STUDIO</span></div>
-      </div>
-      <div className="vt-wizard-steps">
-        <button type="button" onClick={()=>fileInput.current?.click()} disabled={uploading}><b>۰۱</b><span>آپلود تصاویر</span><small>{uploading?"در حال آپلود...":`${tour.scenes?.length||0} فضای ثبت‌شده`}</small></button>
-        <button type="button" onClick={()=>document.querySelector(".vt-scene-list")?.scrollIntoView({behavior:"smooth",block:"center"})} disabled={!tour.scenes?.length}><b>۰۲</b><span>ترتیب نمایش</span><small>کشیدن و رهاکردن تصاویر</small></button>
-        <button type="button" className="vt-wizard-primary" onClick={generateNavigation} disabled={busy||tour.status==="published"||(tour.scenes?.length||0)<2}><b>۰۳</b><span>ساخت مسیر خودکار</span><small>اتصال رفت و برگشت فضاهای متوالی</small></button>
-        <button type="button" onClick={()=>{setPreviewSceneId(tour.start_scene_id||tour.scenes?.[0]?.id);setShowPreview(true)}} disabled={!tour.scenes?.length}><b>۰۴</b><span>پیش‌نمایش و انتشار</span><small>بازبینی و سپس Publish</small></button>
-      </div>
-      <p className="vt-wizard-notice">برای دقت بیشتر، روی تصویر هر فضا کلیک کنید و محل دقیق فلش جابه‌جایی را تنظیم کنید. «ساخت مسیر خودکار» هیچ اتصال دستی موجود را پاک یا جابه‌جا نمی‌کند.</p>
+  const settings=tour.settings || {};
+  const setValue=(key,value)=>setTour({...tour,settings:{...settings,[key]:value}});
+  return <div className="spad-vtour-admin vt-editor-page" dir="rtl">
+    <Row><Colxx xxs="12"><Breadcrumb heading="استودیو بازدید سه‌بعدی اسپاد" match={match}/><Separator className="mb-3"/></Colxx></Row>
+    <section className="vt-manager-hero">
+      <div><span className="vt-studio-badge">موتور نمایش سه‌بعدی اسپاد</span><h2>مدیریت مدل واقعی ملک {tour.advertisement_id}</h2>
+        <p>برای حرکت آزاد بازدیدکننده، مدل سه‌بعدی دقیق ساختمان را با فرمت جی‌ال‌بی بارگذاری کنید. تصاویر و داده‌های قدیمی همچنان در آرشیو باقی می‌مانند.</p></div>
+      <div className="vt-hero-stat"><strong>{tour.model_url?"آماده":"فاقد مدل"}</strong><span>وضعیت مدل سه‌بعدی</span></div>
     </section>
-
-    <div className="vt-builder-shell">
-      <aside className="vt-scenes-panel">
-        <div className="vt-panel-head"><div><b>فضاها</b><small>{tour.scenes?.length||0} Scene</small></div><Button size="sm" color="primary" onClick={()=>fileInput.current?.click()}>+ افزودن</Button><input ref={fileInput} hidden multiple type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>uploadScenes(e.target.files)}/></div>
-        <div className={`vt-dropzone ${uploading?"loading-zone":""}`} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();uploadScenes(e.dataTransfer.files)}}>{uploading?"در حال پردازش تصاویر...":"تصاویر ۳۶۰ را اینجا Drag & Drop کنید"}</div>
-        <div className="vt-scene-list">{(tour.scenes||[]).map(s=><div key={s.id} draggable onDragStart={()=>setDragScene(s.id)} onDragOver={e=>e.preventDefault()} onDrop={()=>reorder(s.id)} onClick={()=>setSceneId(s.id)} className={`vt-scene-item ${scene?.id===s.id?"active":""}`}><img src={s.images?.thumbnail||s.images?.preview||"/assets/img/placeholder.jpg"} alt=""/><div><b>{s.title}</b><small>{s.process_status==="ready"?`${s.hotspots?.length||0} Hotspot`:s.process_status}</small></div>{tour.start_scene_id===s.id&&<span className="vt-start-dot">شروع</span>}</div>)}</div>
-      </aside>
-
-      <main className="vt-canvas-panel">
-        {scene ? <>
-          <div className="vt-viewer-wrap"><PanoramaEditor ref={panoRef} src={imageFor(scene)} initialYaw={scene.initial_yaw} initialPitch={scene.initial_pitch} initialFov={scene.initial_fov} hotspots={scene.hotspots||[]} onPanoramaClick={openNewHotspot} onHotspotClick={editHotspot}/>{scene.process_status!=="ready"&&<div className="vt-processing-cover"><b>{scene.process_status==="failed"?"پردازش تصویر ناموفق بود":"در حال آماده‌سازی نسخه‌های وب..."}</b><span>{scene.process_error||"لطفاً کمی صبر کنید."}</span>{scene.process_status==="failed"&&<Button size="sm" color="light" onClick={()=>axios.post(`${adminPathApi}/virtual-tours/scenes/${scene.id}/reprocess`).then(r=>setTour(r.data.data))}>تلاش مجدد</Button>}</div>}</div>
-          <div className="vt-viewer-tools"><Button color="primary" onClick={()=>openNewHotspot(panoRef.current?.getView()||{yaw:0,pitch:0})}>+ نقطه اتصال / Hotspot</Button><Button outline color="primary" onClick={setInitialView}>ثبت زاویه شروع</Button><Button outline color="primary" onClick={()=>saveTour({start_scene_id:scene.id})}>انتخاب به‌عنوان شروع تور</Button><Button outline color="secondary" onClick={()=>replaceInput.current?.click()}>جایگزینی تصویر</Button><input ref={replaceInput} hidden type="file" accept="image/*" onChange={e=>replaceScene(e.target.files)}/><Button outline color="danger" onClick={removeScene}>حذف Scene</Button></div>
-        </> : <div className="vt-empty-viewer"><span>360°</span><b>اولین تصویر ۳۶۰ را اضافه کنید</b><p>تصاویر Equirectangular نزدیک نسبت 2:1 قابل استفاده هستند.</p></div>}
-      </main>
-
-      <aside className="vt-inspector-panel">
-        {scene?<><div className="vt-inspector-title"><div><b>تنظیمات Scene</b><small>فضای فعال</small></div></div><Label>نام فضا</Label><Input value={scene.title||""} onChange={e=>setTour({...tour,scenes:tour.scenes.map(s=>s.id===scene.id?{...s,title:e.target.value}:s)})} onBlur={e=>saveScene({title:e.target.value})}/><div className="vt-view-values"><div><span>Yaw</span><b>{Number(scene.initial_yaw).toFixed(1)}°</b></div><div><span>Pitch</span><b>{Number(scene.initial_pitch).toFixed(1)}°</b></div><div><span>FOV</span><b>{Number(scene.initial_fov).toFixed(0)}°</b></div></div><hr/><div className="vt-inspector-title"><b>Hotspotها</b><Button size="sm" color="light" onClick={()=>openNewHotspot(panoRef.current?.getView()||{yaw:0,pitch:0})}>+</Button></div><div className="vt-hotspot-list">{(scene.hotspots||[]).map(h=><button type="button" key={h.id} onClick={()=>editHotspot(h)}><span className={`vt-hotspot-type type-${h.type}`}>{h.type==="navigation"?"➜":h.type==="feature"?"★":h.type==="photo"?"▣":h.type==="video"?"▶":h.type==="link"?"↗":"i"}</span><div><b>{h.title||"بدون عنوان"}</b><small>{h.type}</small></div></button>)}{!(scene.hotspots||[]).length&&<small className="text-muted">روی نقطه موردنظر در Viewer کلیک کنید تا Hotspot بسازید.</small>}</div><hr/><Button block outline color="primary" onClick={()=>setShowFloor(true)}>پلان تعاملی</Button></>:<p>Scene انتخاب نشده است.</p>}
-      </aside>
-    </div>
-
-    <Modal isOpen={showHotspot} toggle={()=>setShowHotspot(false)} size="lg" className="vt-modal"><ModalHeader toggle={()=>setShowHotspot(false)}>{hotspot?.id?"ویرایش Hotspot":"Hotspot جدید"}</ModalHeader><ModalBody>{hotspot&&<Row><Colxx md="4"><Label>نوع</Label><Input type="select" value={hotspot.type} onChange={e=>setHotspot({...hotspot,type:e.target.value})}><option value="navigation">انتقال بین فضاها</option><option value="information">اطلاعات</option><option value="feature">ویژگی ملک</option><option value="photo">عکس</option><option value="video">ویدئو</option><option value="link">لینک</option></Input></Colxx><Colxx md="5"><Label>عنوان</Label><Input value={hotspot.title||""} onChange={e=>setHotspot({...hotspot,title:e.target.value})}/></Colxx><Colxx md="3"><Label>آیکون</Label><Input type="select" value={hotspot.icon||"arrow"} onChange={e=>setHotspot({...hotspot,icon:e.target.value})}><option value="arrow">فلش</option><option value="info">اطلاعات</option><option value="star">ستاره</option><option value="photo">عکس</option><option value="video">ویدئو</option><option value="link">لینک</option><option value="pin">نقطه</option><option value="home">خانه</option></Input></Colxx>{hotspot.type==="navigation"&&<Colxx md="12" className="mt-3"><Label>انتقال به Scene</Label><Input type="select" value={hotspot.target_scene_id||""} onChange={e=>setHotspot({...hotspot,target_scene_id:e.target.value})}><option value="">انتخاب مقصد</option>{tour.scenes.filter(s=>s.id!==scene.id).map(s=><option key={s.id} value={s.id}>{s.title}</option>)}</Input>{!hotspot.id&&<label className="vt-check"><input type="checkbox" checked={!!hotspot.create_return} onChange={e=>setHotspot({...hotspot,create_return:e.target.checked})}/> ساخت خودکار مسیر برگشت</label>}</Colxx>}{hotspot.type!=="navigation"&&<Colxx md="12" className="mt-3"><Label>توضیحات</Label><Input type="textarea" rows="4" value={hotspot.content||""} onChange={e=>setHotspot({...hotspot,content:e.target.value})}/></Colxx>}{hotspot.type==="link"&&<Colxx md="12" className="mt-3"><Label>لینک</Label><Input dir="ltr" value={hotspot.link_url||""} onChange={e=>setHotspot({...hotspot,link_url:e.target.value})}/></Colxx>}<Colxx md="6" className="mt-3"><Label>Yaw</Label><Input type="number" value={hotspot.yaw} onChange={e=>setHotspot({...hotspot,yaw:Number(e.target.value)})}/></Colxx><Colxx md="6" className="mt-3"><Label>Pitch</Label><Input type="number" value={hotspot.pitch} onChange={e=>setHotspot({...hotspot,pitch:Number(e.target.value)})}/></Colxx>{hotspot.id&&(hotspot.type==="photo"||hotspot.type==="video")&&<Colxx md="12" className="mt-3"><Button outline color="primary" onClick={()=>hotspotFile.current?.click()}>آپلود رسانه Hotspot</Button><input hidden ref={hotspotFile} type="file" accept={hotspot.type==="photo"?"image/*":"video/*"} onChange={e=>uploadHotspotFile(e.target.files)}/></Colxx>}</Row>}</ModalBody><ModalFooter>{hotspot?.id&&<Button color="danger" outline onClick={deleteHotspot}>حذف</Button>}<Button color="secondary" onClick={()=>setShowHotspot(false)}>انصراف</Button><Button color="primary" onClick={saveHotspot}>ذخیره</Button></ModalFooter></Modal>
-
-
-    <Modal isOpen={showPreview} toggle={()=>setShowPreview(false)} size="xl" className="vt-modal vt-preview-modal"><ModalHeader toggle={()=>setShowPreview(false)}>پیش‌نمایش کامل تور</ModalHeader><ModalBody>{(()=>{const ps=tour.scenes.find(x=>x.id===previewSceneId)||tour.scenes[0];return ps?<div className="vt-preview-stage"><PanoramaEditor src={imageFor(ps)} initialYaw={ps.initial_yaw} initialPitch={ps.initial_pitch} initialFov={ps.initial_fov} hotspots={ps.hotspots||[]} onHotspotClick={(h)=>{if(h.type==="navigation"&&h.target_scene_id)setPreviewSceneId(h.target_scene_id)}}/><div className="vt-preview-scenes">{tour.scenes.map(s=><button key={s.id} className={s.id===ps.id?"active":""} onClick={()=>setPreviewSceneId(s.id)}><img src={s.images?.thumbnail||s.images?.preview||""}/><span>{s.title}</span></button>)}</div></div>:<div className="vt-empty-floor">Scene آماده‌ای برای Preview وجود ندارد.</div>})()}</ModalBody></Modal>
-
-    <Modal isOpen={showSettings} toggle={()=>setShowSettings(false)} size="lg" className="vt-modal"><ModalHeader toggle={()=>setShowSettings(false)}>تنظیمات تور</ModalHeader><ModalBody><Label>عنوان تور</Label><Input value={tour.title||""} onChange={e=>setTour({...tour,title:e.target.value})}/><div className="vt-settings-grid"><label><input type="checkbox" checked={!!tour.settings?.auto_rotate} onChange={e=>setTour({...tour,settings:{...tour.settings,auto_rotate:e.target.checked}})}/> چرخش خودکار</label><label><input type="checkbox" checked={tour.settings?.show_thumbnails!==false} onChange={e=>setTour({...tour,settings:{...tour.settings,show_thumbnails:e.target.checked}})}/> نمایش فضاها</label><label><input type="checkbox" checked={tour.settings?.show_floorplan!==false} onChange={e=>setTour({...tour,settings:{...tour.settings,show_floorplan:e.target.checked}})}/> نمایش پلان</label></div><Label>زمان Transition (ms)</Label><Input type="number" min="150" max="1200" value={tour.settings?.transition_ms||420} onChange={e=>setTour({...tour,settings:{...tour.settings,transition_ms:Number(e.target.value)}})}/></ModalBody><ModalFooter><Button color="primary" disabled={busy} onClick={()=>saveTour({title:tour.title,settings:tour.settings}).then(()=>setShowSettings(false))}>ذخیره تنظیمات</Button></ModalFooter></Modal>
-
-    <Modal isOpen={showFloor} toggle={()=>setShowFloor(false)} size="lg" className="vt-modal"><ModalHeader toggle={()=>setShowFloor(false)}>پلان تعاملی</ModalHeader><ModalBody><div className="vt-floor-toolbar"><Button color="primary" onClick={()=>floorInput.current?.click()}>آپلود / جایگزینی پلان</Button>{tour.floorplan_url&&<Button outline color="danger" onClick={()=>axios.delete(`${adminPathApi}/virtual-tours/${id}/floorplan`).then(r=>setTour(r.data.data))}>حذف پلان</Button>}<input ref={floorInput} hidden type="file" accept="image/*" onChange={e=>uploadFloor(e.target.files)}/><small>Scene موردنظر را انتخاب کنید و روی محل آن در پلان کلیک کنید.</small></div>{tour.floorplan_url?<div className="vt-floor-editor" onClick={floorClick}><img src={tour.floorplan_url} alt="floor plan"/>{(tour.floorplan_points||[]).map(p=><button type="button" onClick={e=>{e.stopPropagation();setSceneId(p.scene_id)}} key={p.id||p.scene_id} style={{left:`${p.x}%`,top:`${p.y}%`}} className={p.scene_id===scene?.id?"active":""} title={p.label}>●</button>)}</div>:<div className="vt-empty-floor">هنوز پلان آپلود نشده است.</div>}</ModalBody></Modal>
-
-    <Modal isOpen={!!analytics} toggle={()=>setAnalytics(null)} size="lg" className="vt-modal"><ModalHeader toggle={()=>setAnalytics(null)}>آمار تور</ModalHeader><ModalBody>{analytics&&<><div className="vt-stats"><div><strong>{analytics.views}</strong><span>بازدید</span></div><div><strong>{analytics.sessions}</strong><span>Session</span></div><div><strong>{fmtSec(analytics.average_viewing_seconds)}</strong><span>میانگین زمان</span></div><div><strong>{(analytics.hotspot_clicks||[]).reduce((a,x)=>a+(x.clicks_count||0),0)}</strong><span>کلیک Hotspot</span></div></div><h5>بازدید فضاها</h5>{(analytics.scene_views||[]).map(x=><div className="vt-stat-row" key={x.id}><span>{x.title}</span><b>{x.views_count}</b></div>)}</>}</ModalBody></Modal>
+    <Card className="vt-card mb-4"><CardBody>
+      <Label>عنوان تور</Label><Input value={tour.title||""} onChange={e=>setTour({...tour,title:e.target.value})}/>
+      <div className="mt-4 mb-3"><h3>فایل مدل سه‌بعدی</h3><p>فایل استاندارد مدل سه‌بعدی باید دارای کف، دیوارها، سقف و راه‌های عبور واقعی باشد. واحد اندازه‌گیری پیشنهادی: متر.</p></div>
+      <input ref={fileInput} type="file" hidden accept=".glb,model/gltf-binary" onChange={e=>upload(e.target.files)}/>
+      <div className="vt-hero-actions">
+        <Button color="primary" disabled={busy||uploading} onClick={()=>fileInput.current?.click()}>{uploading?"در حال بارگذاری...":tour.model_url?"جایگزینی مدل سه‌بعدی":"بارگذاری مدل سه‌بعدی"}</Button>
+        {tour.model_url && tour.status!=="published" && <Button outline color="danger" disabled={busy} onClick={remove}>حذف مدل</Button>}
+      </div>
+      <div className="mt-3"><Badge color={tour.model_url?"success":"secondary"}>{tour.model_url?"مدل سه‌بعدی روی سرور موجود است":"هنوز مدل واقعی برای ملک ثبت نشده است"}</Badge>
+        {tour.model_filename && <p className="mt-2">فایل: {tour.model_filename} | حجم: {Math.round((tour.model_bytes||0)/1048576)} مگابایت</p>}</div>
+    </CardBody></Card>
+    <Card className="vt-card mb-4"><CardBody>
+      <h3>نقطه شروع بازدیدکننده</h3><p>مختصات نقطه ورود و جهت اولیه نگاه را متناسب با مدل تنظیم کنید. ارتفاع چشم معمولاً ۱٫۶۵ متر است.</p>
+      <Row>{[
+        {key:"spawn_x",title:"موقعیت افقی",fallback:0},
+        {key:"spawn_y",title:"ارتفاع چشم",fallback:1.65},
+        {key:"spawn_z",title:"موقعیت عمقی",fallback:0},
+        {key:"heading",title:"زاویه شروع (درجه)",fallback:0}
+      ].map(entry=><Colxx key={entry.key} xxs="12" sm="6" lg="3"><Label>{entry.title}</Label>
+        <Input type="number" step="0.1" value={settings[entry.key] ?? entry.fallback} onChange={e=>setValue(entry.key,Number(e.target.value))}/></Colxx>)}</Row>
+      <div className="vt-hero-actions mt-4"><Button color="primary" disabled={busy} onClick={save}>ذخیره عنوان و موقعیت شروع</Button></div>
+    </CardBody></Card>
+    <Card className="vt-card mb-4"><CardBody>
+      <h3>انتشار بازدید سه‌بعدی</h3>
+      <p>پس از بارگذاری مدل واقعی و تعیین موقعیت شروع، انتشار باعث نمایش دکمه بازدید سه‌بعدی در صفحه ملک می‌شود.</p>
+      <div className="vt-hero-actions">
+        {tour.status==="published"
+          ? <Button color="warning" disabled={busy} onClick={()=>apply("/unpublish",{},"post","انتشار متوقف شد")}>توقف انتشار</Button>
+          : <Button color="success" disabled={busy||!tour.model_url} onClick={publish}>بررسی و انتشار</Button>}
+        {tour.status==="published" && tour.model_url && <Button outline color="primary" onClick={()=>window.open(tour.public_url,"_blank","noopener,noreferrer")}>مشاهده بازدید سه‌بعدی</Button>}
+        <Badge color={tour.status==="published"?"success":"secondary"}>{tour.status==="published"?"منتشرشده":"پیش‌نویس"}</Badge>
+      </div>
+      {validation?.errors?.length>0 && <div className="alert alert-danger mt-3">{validation.errors.join(" - ")}</div>}
+      {validation?.warnings?.length>0 && <div className="alert alert-warning mt-3">{validation.warnings.join(" - ")}</div>}
+    </CardBody></Card>
   </div>;
 };
-
-export default VirtualTourEditor;
+export default Studio3d;

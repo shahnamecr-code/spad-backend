@@ -820,9 +820,9 @@ module.exports = {
   "menu.inquiries.services": "سرویس‌های استعلام",
   "menu.inquiries.settings": "تنظیمات استعلامات",
 
-  "menu.virtual-tours": "استودیو تور مجازی ۳۶۰°",
-  "menu.virtual-tours.list": "مدیریت تورهای مجازی",
-  "menu.virtual-tours.create": "ساخت تور جدید",
+  "menu.virtual-tours": "بازدید سه‌بعدی املاک",
+  "menu.virtual-tours.list": "مدیریت مدل‌های سه‌بعدی",
+  "menu.virtual-tours.create": "ایجاد بازدید سه‌بعدی",
   "menu.material-prices": "مدیریت قیمت مصالح",
   "menu.building-management": "مدیریت ساختمان",
   "menu.top-builders": "سازندگان برتر",
