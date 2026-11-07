@@ -28,6 +28,11 @@ class UserRegisterListener
     public function handle(UserRegisterEvent $event)
     {
         $user = $event->user;
+        $sms = app(\App\Services\SpadSmsService::class);
+        if ($sms->configured()) {
+            $sms->notify('registration',(string)$user->mobile,[], 'registration:'.$user->id);
+            return;
+        }
         $templateId = config('sms.welcome_template');
 
         // Welcome SMS is optional. Registration must never fail just because
