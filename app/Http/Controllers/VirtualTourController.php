@@ -82,7 +82,7 @@ class VirtualTourController extends Controller
             ->latest('published_at')
             ->first();
 
-        if (!$tour || !data_get($tour->settings, 'model_path')) {
+        if (!$tour || !$tour->scenes()->where('process_status', 'ready')->exists()) {
             return response()->json(['status' => false, 'data' => null], 404);
         }
 
@@ -93,7 +93,7 @@ class VirtualTourController extends Controller
     {
         $tour = VirtualTour::where('slug', $slug)->where('status', 'published')->firstOrFail();
         $this->assertPublished($tour);
-        if (!data_get($tour->settings, 'model_path')) abort(404);
+        if (!$tour->scenes()->where('process_status', 'ready')->exists()) abort(404);
         return response()->json(['status' => true, 'data' => VirtualTourPresenter::public($tour)]);
     }
 
