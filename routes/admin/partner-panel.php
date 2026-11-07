@@ -16,6 +16,7 @@ Route::prefix('partner-panels')->middleware('role:Super Admin,admin')->group(fun
 
 Route::prefix('investor-listings')->middleware('role:Super Admin,admin')->group(function () {
     Route::get('meta', [InvestorListingController::class, 'meta']);
+    Route::get('available-properties', [InvestorListingController::class, 'availableProperties']);
     Route::get('', [InvestorListingController::class, 'index']);
     Route::post('', [InvestorListingController::class, 'store']);
     Route::put('{investorListing}', [InvestorListingController::class, 'update']);
