@@ -389,6 +389,10 @@ class RaffleController extends Controller
                 ];
             });
 
+            app(\App\Services\SpadSmsService::class)->notify(
+                'raffle_ticket',(string)$user->mobile,['id'=>$raffle->id],
+                'raffle-paid:'.$result['order']->id
+            );
             return response()->json([
                 'status' => true,
                 'payment_method' => 'wallet',
