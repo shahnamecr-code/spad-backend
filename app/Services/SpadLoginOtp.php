@@ -28,9 +28,16 @@ class SpadLoginOtp
         $code = (string)random_int(100000,999999);
         $challenge = LoginRequest::updateOrCreate(['mobile'=>$mobile],['token'=>Hash::make($code)]);
         try {
-            $gateway = app(ApiIrAccountServices::class);
-            if ($gateway->enabled('sms_otp')) $gateway->sendOtp($mobile,$code);
-            else if ($legacySender($code) === false) throw new RuntimeException('ارسال پیامک تأیید نشد.');
+            $sms = app(SpadSmsService::class);
+            if ($sms->configured()) {
+                $sms->sendOtp('login_otp', $mobile, $code);
+            } else {
+                // Controlled transition: keep existing login working until the
+                // administrator enables MeliPayamak with a valid key.
+                $gateway = app(ApiIrAccountServices::class);
+                if ($gateway->enabled('sms_otp')) $gateway->sendOtp($mobile,$code);
+                else if ($legacySender($code) === false) throw new RuntimeException('ارسال پیامک تأیید نشد.');
+            }
         } catch (\Throwable $e) {
             LoginRequest::whereKey($challenge->id)->where('token',$challenge->token)->delete();
             throw new RuntimeException('ارسال کد انجام نشد؛ تنظیمات پیامک را بررسی کنید.');
