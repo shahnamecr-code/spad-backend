@@ -127,6 +127,9 @@ const AdvertisementFormLayout = ({
   submitting = false,
   onBack,
   extraContent,
+  tourZip,
+  onTourZipChange,
+  tourZipProgress,
 }) => {
   const isEdit = mode === "edit";
 
@@ -198,7 +201,7 @@ const AdvertisementFormLayout = ({
 
       <ImportantPlacesSection options={options} />
 
-      <PropertyToolsFields />
+      <PropertyToolsFields tourZip={tourZip} onTourZipChange={onTourZipChange} tourZipProgress={tourZipProgress} />
 
       {extraContent ? <div className="spad-ad-extra-content">{extraContent}</div> : null}
 
