@@ -253,6 +253,8 @@ class VirtualTourController extends Controller
         $tempFiles = [];
         $maxImages = 20;
         $totalUnpacked = 0;
+        $highQualityPanoramas = false;
+        $sceneNames = [];
         $warnings = [];
         $disk = Storage::disk(config('virtual-tour.disk', 'local'));
         $newPaths = [];
@@ -262,10 +264,33 @@ class VirtualTourController extends Controller
             if ($zip->numFiles > 500) {
                 return response()->json(['status' => false, 'message' => 'تعداد فایل‌های بسته بیش از حد مجاز است.'], 422);
             }
+            // Prefer the highest-quality panorama when a ready-made tour
+            // package contains both pano-high and pano-lite copies.
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $candidate = $zip->getNameIndex($i);
+                if (!is_string($candidate)) continue;
+                if (preg_match('~(?:^|/)pano-high/~i', $candidate)) $highQualityPanoramas = true;
+                if (preg_match('~(?:^|/)scenes\\.js$~i', $candidate)) {
+                    $info = $zip->statIndex($i);
+                    if ($info && ($info['size'] ?? 0) <= 100000) {
+                        $configText = $zip->getFromIndex($i);
+                        // Parse human-readable labels as TEXT only: JavaScript
+                        // from an uploaded archive is never evaluated or hosted.
+                        if (is_string($configText) &&
+                            preg_match_all('~index\\s*:\\s*([0-9]{1,3})\\s*,\\s*name\\s*:\\s*([^,\\r\\n]+)~u', $configText, $found, PREG_SET_ORDER)) {
+                            foreach ($found as $entry) {
+                                $label = trim($entry[2], " \\t\\r\\n\\x00\\x0B'\\\"");
+                                if ($label !== '') $sceneNames[(int) $entry[1]] = mb_substr(strip_tags($label), 0, 90);
+                            }
+                        }
+                    }
+                }
+            }
             for ($index = 0; $index < $zip->numFiles; $index++) {
                 $stat = $zip->statIndex($index);
                 $name = $zip->getNameIndex($index);
                 if (!$stat || !is_string($name) || str_ends_with($name, '/')) continue;
+                if ($highQualityPanoramas && preg_match('~(?:^|/)pano-lite/~i', $name)) continue;
                 // Ignore metadata and executable files; never write arbitrary ZIP paths.
                 if (!preg_match('/\.(jpe?g|png|webp)$/i', $name)) continue;
                 if (count($tempFiles) >= $maxImages) {
@@ -329,6 +354,13 @@ class VirtualTourController extends Controller
                 return response()->json(['status' => false,
                     'message' => 'در ZIP هیچ تصویر پانورامای ۳۶۰ درجه با نسبت ۲ به ۱ پیدا نشد. فایل اصلی JPG یا WebP پانوراما باید داخل بسته باشد.'], 422);
             }
+            // Ready-made tour archives may store the scene files out of order.
+            usort($tempFiles, function ($left, $right) {
+                $a = pathinfo($left['name'], PATHINFO_FILENAME);
+                $b = pathinfo($right['name'], PATHINFO_FILENAME);
+                if (ctype_digit((string) $a) && ctype_digit((string) $b)) return (int) $a <=> (int) $b;
+                return strnatcasecmp($a, $b);
+            });
 
             // Do not mutate a published tour while importing new scenes.
             $tour = VirtualTour::where('advertisement_id', $advertisement->id)
@@ -355,7 +387,10 @@ class VirtualTourController extends Controller
                     fclose($handle);
                 }
                 $newPaths[] = 'virtual-tours/' . $tour->id . '/scenes/' . $uuid;
-                $title = mb_substr(pathinfo(str_replace('\\', '/', $item['name']), PATHINFO_FILENAME), 0, 191);
+                $filename = pathinfo(str_replace('\\', '/', $item['name']), PATHINFO_FILENAME);
+                $title = ctype_digit((string) $filename)
+                    ? ($sceneNames[(int) $filename] ?? 'فضای ' . ((int) $filename + 1))
+                    : mb_substr($filename, 0, 191);
                 $scene = $tour->scenes()->create([
                     'uuid' => $uuid,
                     'title' => $title ?: 'فضای ' . $nextOrder,
