@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\InvestorOpportunityResource;
 use App\Models\Advertisement;
 use App\Models\InvestorListing;
+use App\Support\SpadLocation;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -35,6 +36,69 @@ class InvestorListingController extends Controller
             ->additional(['meta' => $this->metaPayload()]);
     }
 
+    /**
+     * Only approved, publicly visible properties may receive a special
+     * investor price. This endpoint is inside the admin role middleware.
+     */
+    public function availableProperties(Request $request)
+    {
+        $data = $this->validate($request, [
+            'search' => 'nullable|string|max:80',
+        ]);
+        $search = trim($data['search'] ?? '');
+        $query = Advertisement::query()
+            ->publicCatalog()
+            ->where('city_id', SpadLocation::cityId())
+            ->whereDoesntHave('investorListing')
+            ->with(['city', 'region', 'properties' => function ($query) {
+                $query->where('property_slug', 'title')
+                    ->orWhereHas('property', function ($p) {
+                        $p->where('type', 'integer')
+                            ->where(function ($price) {
+                                $price->where('title', 'like', '%قیمت%')
+                                    ->orWhere('title', 'like', '%مبلغ فروش%');
+                            });
+                    })
+                    ->with('property');
+            }])
+            ->orderByDesc('updated_at');
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                if (ctype_digit($search)) $q->orWhere('id', (int)$search);
+                $q->orWhereHas('properties', function ($p) use ($search) {
+                    $p->where('property_slug', 'title')
+                        ->where('text_value', 'like', '%' . $search . '%');
+                });
+            });
+        }
+        return response()->json([
+            'status' => true,
+            'data' => $query->limit(30)->get()->map(function ($ad) {
+                $title = optional($ad->properties->firstWhere('property_slug', 'title'))->text_value;
+                $priceProperty = $ad->properties->first(function ($p) {
+                    $label = $p->property->title ?? '';
+                    return $p->property && $p->property->type === 'integer'
+                        && (int) $p->integer_value > 0
+                        && preg_match('/قیمت|مبلغ فروش/u', $label)
+                        && !preg_match('/متر|وام|رهن|اجاره|ودیعه|قسط/u', $label);
+                });
+                $publicPrice = $priceProperty
+                    ? userShowAdvertisementProperty($priceProperty)
+                    : null;
+                return [
+                    'id' => $ad->id,
+                    'title' => $title ?: 'ملک کد ' . $ad->id,
+                    'city' => optional($ad->city)->name,
+                    'region' => optional($ad->region)->name,
+                    'public_price_label' => $publicPrice
+                        ? $publicPrice['title'] . ': ' . $publicPrice['value'] . ' ' . ($publicPrice['unit'] ?? '')
+                        : 'قیمت عمومی از صفحه آگهی قابل مشاهده است',
+                ];
+            })->values(),
+        ]);
+    }
+
     public function meta()
     {
         return response()->json(['status' => true, 'data' => $this->metaPayload()]);
@@ -56,8 +120,10 @@ class InvestorListingController extends Controller
         $data = $this->validated($request, true);
         $data = $this->normalizePricing($data);
         $advertisement = Advertisement::findOrFail($data['advertisement_id']);
-        if (InvestorListing::withTrashed()->where('advertisement_id', $advertisement->id)->exists()) {
-            return response()->json(['message' => 'برای این ملک قبلاً رکورد سرمایه‌گذاری ساخته شده است.'], 422);
+        $existing = InvestorListing::withTrashed()
+            ->where('advertisement_id', $advertisement->id)->first();
+        if ($existing && !$existing->trashed()) {
+            return response()->json(['message' => 'این ملک قبلاً به فهرست سرمایه‌گذاری اضافه شده است. از بخش ویرایش، قیمت ویژه را تغییر دهید.'], 422);
         }
         if (($data['status'] ?? InvestorListing::STATUS_ACTIVE) === InvestorListing::STATUS_ACTIVE && $advertisement->status !== Advertisement::APPROVED) {
             return response()->json(['message' => 'برای انتشار فرصت، آگهی ابتدا باید تایید شده باشد.'], 422);
@@ -66,12 +132,18 @@ class InvestorListingController extends Controller
         $data['source'] = InvestorListing::SOURCE_ADMIN;
         $data['created_by'] = auth()->id();
         $data['updated_by'] = auth()->id();
-        if (($data['status'] ?? null) === InvestorListing::STATUS_ACTIVE) $data['published_at'] = now();
-        $listing = InvestorListing::create($data);
+        if (($data['status'] ?? InvestorListing::STATUS_ACTIVE) === InvestorListing::STATUS_ACTIVE) $data['published_at'] = now();
+        if ($existing) {
+            $existing->restore();
+            $existing->update($data);
+            $listing = $existing;
+        } else {
+            $listing = InvestorListing::create($data);
+        }
 
         return response()->json([
             'status' => true,
-            'message' => 'فرصت سرمایه‌گذاری ایجاد شد و از کاتالوگ عمومی خارج شد.',
+            'message' => 'ملک عمومی با قیمت اختصاصی سرمایه‌گذاری ثبت شد؛ آگهی اصلی همچنان عمومی است.',
             'data' => (new InvestorOpportunityResource($listing->load(['advertisement.category','advertisement.city','advertisement.region'])))->resolve($request),
         ]);
     }
@@ -93,8 +165,11 @@ class InvestorListingController extends Controller
     public function approve(Request $request, InvestorListing $investorListing)
     {
         $advertisement = $investorListing->advertisement;
-        if ($advertisement->status !== Advertisement::APPROVED) {
-            $advertisement->update(['status' => Advertisement::APPROVED]);
+        if (!$advertisement || (int)$advertisement->status !== Advertisement::APPROVED) {
+            return response()->json(['message' => 'ابتدا آگهی عمومی را تأیید کنید؛ وضعیت قیمت اختصاصی نباید وضعیت آگهی اصلی را تغییر دهد.'], 422);
+        }
+        if (!(int)$investorListing->investor_price) {
+            return response()->json(['message' => 'قبل از فعال‌سازی، قیمت سرمایه‌گذاری را وارد کنید.'], 422);
         }
         $investorListing->update([
             'status' => InvestorListing::STATUS_ACTIVE,
@@ -106,28 +181,19 @@ class InvestorListingController extends Controller
 
     public function reject(Request $request, InvestorListing $investorListing)
     {
-        if ($investorListing->source === InvestorListing::SOURCE_INVESTOR) {
-            $investorListing->advertisement->update(['status' => Advertisement::REJECTED]);
-        }
+        // Reject the special investor offer only, never the public property.
         $investorListing->update(['status' => InvestorListing::STATUS_REJECTED, 'updated_by' => auth()->id()]);
         return response()->json(['status' => true, 'message' => 'فرصت رد شد.']);
     }
 
     public function destroy(InvestorListing $investorListing)
     {
-        // Investor-submitted properties must never become public as a side effect of
-        // removing the private deal record. Admin-origin deals return to their former
-        // public catalogue state only through this explicit delete action.
-        if ($investorListing->source === InvestorListing::SOURCE_INVESTOR &&
-            $investorListing->advertisement->status === Advertisement::APPROVED) {
-            $investorListing->advertisement->update(['status' => Advertisement::REJECTED]);
-        }
+        // The investment record is a supplementary price; deleting it must not
+        // hide, reject, or otherwise mutate the shared public advertisement.
         $investorListing->forceDelete();
         return response()->json([
             'status' => true,
-            'message' => $investorListing->source === InvestorListing::SOURCE_INVESTOR
-                ? 'رکورد حذف شد و ملک سرمایه‌گذار از انتشار عمومی نیز محافظت شد.'
-                : 'فرصت از بازار خصوصی حذف شد و آگهی اصلی می‌تواند دوباره در کاتالوگ عمومی نمایش داده شود.',
+            'message' => 'قیمت ویژه سرمایه‌گذاری حذف شد؛ آگهی اصلی عمومی بدون تغییر باقی ماند.',
         ]);
     }
 
@@ -159,7 +225,7 @@ class InvestorListingController extends Controller
         $rules = [
             'status' => ['sometimes', Rule::in(array_keys(InvestorListing::statuses()))],
             'market_price' => 'nullable|integer|min:0',
-            'investor_price' => 'nullable|integer|min:0',
+            'investor_price' => $creating ? 'required|integer|min:1' : 'sometimes|required|integer|min:1',
             'discount_percent' => 'nullable|numeric|min:0|max:99.99',
             'investment_score' => 'nullable|integer|min:1|max:100',
             'investment_horizon_months' => 'nullable|integer|min:1|max:240',
@@ -167,7 +233,10 @@ class InvestorListingController extends Controller
             'risk_note' => 'nullable|string|max:5000',
             'expires_at' => 'nullable|date',
         ];
-        if ($creating) $rules['advertisement_id'] = ['required', Rule::exists('advertisements', 'id')];
+        if ($creating) $rules['advertisement_id'] = [
+            'required', 'integer',
+            Rule::exists('advertisements', 'id')->where('status', Advertisement::APPROVED),
+        ];
         return $this->validate($request, $rules);
     }
 }
