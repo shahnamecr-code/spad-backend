@@ -63,8 +63,9 @@ class SpadIdentityController extends Controller
 
     private function availability(): array
     {
+        $sms=app(\App\Services\SpadSmsService::class);
         return [
-            'sms_otp'=>$this->gateway()->enabled('sms_otp'),
+            'sms_otp'=>$sms->configured() ? $sms->eventEnabled('kyc_otp') : $this->gateway()->enabled('sms_otp'),
             'shahkar_pro'=>$this->gateway()->enabled('shahkar_pro'),
         ];
     }
@@ -72,7 +73,7 @@ class SpadIdentityController extends Controller
     private function ensureAvailable(): void
     {
         abort_unless(!in_array(false, $this->availability(), true), 503,
-            'مدیر اسپاد باید SmsOTP و ShahkarPro را در مرکز وب‌سرویس‌های API.ir فعال کند.');
+            'احراز هویت به سرویس پیامک تأیید و شاهکار پرو نیاز دارد. تنظیمات آنها را بررسی کنید.');
     }
 
     private function record(int $uid)
@@ -241,13 +242,17 @@ class SpadIdentityController extends Controller
         });
         RateLimiter::hit($key,86400);
         RateLimiter::hit($ipKey,86400);
-        try { $this->gateway()->sendOtp($mobile,$code); }
+        try {
+            $sms=app(\App\Services\SpadSmsService::class);
+            if ($sms->configured()) $sms->sendOtp('kyc_otp',$mobile,$code);
+            else $this->gateway()->sendOtp($mobile,$code);
+        }
         catch (\Throwable $e) {
             DB::table('spad_user_verifications')->where('user_id',$uid)
                 ->where('phone_code_hash',$hash)->update([
                     'phone_code_hash'=>null,'phone_code_expires_at'=>null,
                 ]);
-            abort(503,'ارسال OTP با API.ir ناموفق بود. تنظیمات، مجوز و اعتبار سرویس بررسی شود.');
+            abort(503,'ارسال پیامک احراز هویت ناموفق بود؛ تنظیمات سرویس را بررسی کنید.');
         }
         return response()->json(['message'=>'کد یک‌بارمصرف ارسال شد.'])
             ->header('Cache-Control','private, no-store');
@@ -337,6 +342,11 @@ class SpadIdentityController extends Controller
             ->where('national_code_hash',hash_hmac('sha256',$national,config('app.key')))
             ->update($fields);
         abort_unless($updated===1,409,'پرونده در حین استعلام تغییر کرده است.');
+        if ($matched) {
+            app(\App\Services\SpadSmsService::class)->notify(
+                'kyc_approved',$mobile,[], 'kyc-approved:'.$uid.':'.$v->id
+            );
+        }
         return $this->status($request);
     }
 
