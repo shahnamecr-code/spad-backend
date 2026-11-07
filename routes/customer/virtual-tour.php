@@ -3,6 +3,7 @@
 use App\Http\Controllers\VirtualTourController;
 
 Route::prefix('virtual-tours')->group(function () {
+    Route::get('/fonts/{weight}', [VirtualTourController::class, 'tourFont'])->where('weight', 'regular|medium|bold|black|light|ultralight');
     Route::get('/packages/{virtualTour}/{asset}', [VirtualTourController::class, 'packageAsset'])->where('asset', '.*');
     Route::get('/assets/scenes/{scene}/{variant}', [VirtualTourController::class, 'sceneAsset'])->where('variant', 'ultra|high|medium|preview|thumbnail');
     Route::get('/assets/tours/{virtualTour}/model', [VirtualTourController::class, 'modelAsset']);
