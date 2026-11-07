@@ -88,16 +88,6 @@ const data = [
     ],
   },
   {
-    id: "virtual-tours",
-    icon: "simple-icon-picture",
-    label: "menu.virtual-tours",
-    to: `${adminRoot}/virtual-tours/list`,
-    subs: [
-      { icon: "simple-icon-list", label: "menu.virtual-tours.list", to: `${adminRoot}/virtual-tours/list` },
-      { icon: "simple-icon-plus", label: "menu.virtual-tours.create", to: `${adminRoot}/virtual-tours/create` },
-    ],
-  },
-  {
     id: "inquiries",
     icon: "iconsminds-search-people",
     label: "menu.inquiries",
