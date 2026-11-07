@@ -11,15 +11,31 @@ class VirtualTourPublishValidator
     {
         $errors = [];
         $warnings = [];
-        $path = data_get($tour->settings, 'model_path');
+        $disk = Storage::disk(config('virtual-tour.disk', 'local'));
 
-        if (!$path || !str_starts_with($path, 'virtual-tours/' . $tour->id . '/models/') ||
-            !Storage::disk(config('virtual-tour.disk', 'local'))->exists($path)) {
-            $errors[] = 'برای انتشار بازدید سه‌بعدی، ابتدا فایل مدل GLB معتبر را بارگذاری کنید.';
+        // A virtual tour is a sequence of processed 360-degree images, not a GLB model.
+        $ready = $tour->scenes()->where('process_status', 'ready')->get()
+            ->filter(function ($scene) use ($disk) {
+                foreach (['medium_path', 'high_path', 'preview_path'] as $field) {
+                    if ($scene->{$field} && $disk->exists($scene->{$field})) return true;
+                }
+                return false;
+            });
+
+        if ($ready->isEmpty()) {
+            $errors[] = 'برای انتشار تور مجازی، حداقل یک تصویر پانورامای ۳۶۰ درجه پردازش‌شده لازم است.';
         }
-        if (!$tour->floorplan_path) {
-            $warnings[] = 'پلان اختیاری هنوز ثبت نشده است؛ مسیر حرکت با خود مدل سه‌بعدی کنترل می‌شود.';
+
+        $unfinished = $tour->scenes()->where('process_status', '!=', 'ready')->count();
+        if ($unfinished > 0) {
+            $warnings[] = 'برخی تصاویر هنوز آماده نیستند و تا تکمیل پردازش در تور نمایش داده نمی‌شوند.';
         }
+
+        if ($ready->isNotEmpty() && $tour->start_scene_id &&
+            !$ready->contains('id', (int) $tour->start_scene_id)) {
+            $warnings[] = 'سکانس شروع آماده نیست؛ تور از اولین سکانس آماده آغاز می‌شود.';
+        }
+
         return compact('errors', 'warnings');
     }
 }
