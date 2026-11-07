@@ -20,6 +20,7 @@ class VirtualTourPresenter
             'title' => $tour->title,
             'slug' => $tour->slug,
             'public_url' => self::frontendUrl($tour),
+            'package_url' => self::packageUrl($tour),
             'status' => $tour->status,
             'model_url' => self::modelUrl($tour, true),
             'model_filename' => data_get($tour->settings, 'model_filename'),
@@ -59,6 +60,7 @@ class VirtualTourPresenter
             'title' => $tour->title,
             'slug' => $tour->slug,
             'public_url' => self::frontendUrl($tour),
+            'package_url' => self::packageUrl($tour),
             'model_url' => self::modelUrl($tour, false),
             'start_scene_id' => $tour->start_scene_id,
             'floorplan_url' => $tour->floorplan_path ? url('/api/virtual-tours/assets/tours/' . $tour->id . '/floorplan') : null,
@@ -75,6 +77,12 @@ class VirtualTourPresenter
                 ];
             })->values(),
         ];
+    }
+
+    private static function packageUrl(VirtualTour $tour)
+    {
+        if (!data_get($tour->settings, 'package_ready')) return null;
+        return url('/api/virtual-tours/packages/' . $tour->id . '/index.html');
     }
 
     private static function modelUrl(VirtualTour $tour, bool $admin)
