@@ -27,6 +27,13 @@ class WalletPaymentController extends Controller
         }
 
         if ($topup->status === 'paid') {
+            $paid=$topup->fresh(['user']);
+            if ($paid && $paid->status==='paid' && $paid->user) {
+                app(\App\Services\SpadSmsService::class)->notify(
+                    'wallet_transaction',(string)$paid->user->mobile,[],
+                    'wallet-topup-paid:'.$paid->id
+                );
+            }
             return redirect()->away($frontend . '/wallet/payment-result?status=success&topup=' . $topup->id);
         }
 
