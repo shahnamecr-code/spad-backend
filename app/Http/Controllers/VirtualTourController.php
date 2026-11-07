@@ -161,7 +161,7 @@ class VirtualTourController extends Controller
 
     public function byAdvertisement(Advertisement $advertisement)
     {
-        if ($advertisement->is_investor_exclusive) abort(404);
+        if ((int) $advertisement->status !== Advertisement::APPROVED) abort(404);
         $tour = VirtualTour::where('advertisement_id', $advertisement->id)
             ->where('status', 'published')
             ->latest('published_at')
@@ -282,7 +282,7 @@ class VirtualTourController extends Controller
 
     private function assertPublished(VirtualTour $tour)
     {
-        if ($tour->status !== 'published' || optional($tour->advertisement)->is_investor_exclusive) {
+        if ($tour->status !== 'published' || !$tour->advertisement || (int) $tour->advertisement->status !== Advertisement::APPROVED) {
             abort(404);
         }
     }
