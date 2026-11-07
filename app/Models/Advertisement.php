@@ -34,15 +34,17 @@ class Advertisement extends Model
 
     public function scopePublicCatalog($query)
     {
-        // Any live InvestorListing record keeps the advertisement out of the public
-        // catalogue, regardless of whether that private deal is pending, active,
-        // rejected or archived. Releasing it publicly must be an explicit admin action.
-        return $query->whereDoesntHave('investorListing');
+        // A verified investment price is a second, partner-only price for the
+        // SAME public advertisement. Investment listings must not hide an
+        // approved property from the public catalogue.
+        return $query->where('status', self::APPROVED);
     }
 
     public function getIsInvestorExclusiveAttribute()
     {
-        return $this->investorListing()->exists();
+        // Kept as a compatibility accessor for older callers; deal membership
+        // is no longer an exclusivity flag. Never expose unapproved properties.
+        return false;
     }
 
     public function properties()
