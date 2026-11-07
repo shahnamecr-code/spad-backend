@@ -420,6 +420,10 @@ class SpadCommunityController extends Controller
    }
    return ['amount_toman'=>(int)$d['amount_toman'],'minimum_next_toman'=>(int)$d['amount_toman']+(int)$x->minimum_increment_toman];
   },3);
+  if ($r->user()) app(\App\Services\SpadSmsService::class)->notify(
+   'auction_bid',(string)$r->user()->mobile,['id'=>$id],
+   'auction-bid:'.$id.':'.$uid.':'.$result['amount_toman']
+  );
   return response()->json(['data'=>$result,'message'=>'پیشنهاد ثبت شد؛ تأیید نهایی معامله منوط به تشریفات قانونی است.'],201);
  }
  public function adminSettings()
