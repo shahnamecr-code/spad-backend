@@ -31,8 +31,16 @@ final class SpadTourTemplateV3
             return $source;
         }
 
-        if ($asset === 'styles.css' && str_contains($source, '.welcome-box') && !str_contains($source, 'SPAD 360 template v3')) {
-            return $source . "\n" . self::styles();
+        if ($asset === 'styles.css' && str_contains($source, '.welcome-box')) {
+            // The ready-made ZIP has no bundled site webfont. The sandboxed
+            // player needs an explicit @font-face, including on iOS/Android.
+            if (!str_contains($source, 'SPAD 360 template v3')) {
+                $source .= "\n" . self::styles();
+            }
+            if (!str_contains($source, 'SPAD_IRANSANS_FONT_V4')) {
+                $source .= "\n" . self::fontStyles();
+            }
+            return $source;
         }
 
         return $source;
@@ -54,6 +62,26 @@ final class SpadTourTemplateV3
             }
         }
         return $js;
+    }
+
+    /**
+     * Match the public site's IRANSans FaNum webfont. CSS-family fallbacks
+     * alone never load fonts into an isolated iframe, especially on mobile.
+     */
+    private static function fontStyles(): string
+    {
+        return <<<'CSS'
+/* SPAD_IRANSANS_FONT_V4 - unified mobile/tablet/desktop typography */
+@font-face{font-family:"SPAD-IRANSans-FaNum";src:url("/api/virtual-tours/fonts/regular") format("woff");font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:"SPAD-IRANSans-FaNum";src:url("/api/virtual-tours/fonts/medium") format("woff");font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:"SPAD-IRANSans-FaNum";src:url("/api/virtual-tours/fonts/bold") format("woff");font-weight:700;font-style:normal;font-display:swap}
+@font-face{font-family:"SPAD-IRANSans-FaNum";src:url("/api/virtual-tours/fonts/black") format("woff");font-weight:900;font-style:normal;font-display:swap}
+@font-face{font-family:"SPAD-IRANSans-FaNum";src:url("/api/virtual-tours/fonts/light") format("woff");font-weight:300;font-style:normal;font-display:swap}
+@font-face{font-family:"SPAD-IRANSans-FaNum";src:url("/api/virtual-tours/fonts/ultralight") format("woff");font-weight:100;font-style:normal;font-display:swap}
+html,body,body *,button,input,textarea,select,option{
+ font-family:"SPAD-IRANSans-FaNum","IRANSans",sans-serif!important;
+}
+CSS;
     }
 
     private static function styles(): string
