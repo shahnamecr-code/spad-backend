@@ -9,6 +9,7 @@ use App\Models\VirtualTourHotspot;
 use App\Models\VirtualTourScene;
 use App\Models\VirtualTourSession;
 use App\Services\VirtualTour\VirtualTourPresenter;
+use App\Services\VirtualTour\SpadTourTemplateV3;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -146,14 +147,18 @@ class VirtualTourController extends Controller
 
         // The packaged SPAD WebGL player uses <img> -> texture. When
         // embedded in an opaque sandbox, that image must opt into CORS.
-        if ($asset === 'app.js') {
-            $script = $disk->get($relative);
-            $script = str_replace(
-                "const img=new Image();img.decoding='async';",
-                "const img=new Image();img.crossOrigin='anonymous';img.decoding='async';",
-                $script
-            );
-            return response($script, 200, $headers);
+        // Presentation-only v3 transformation. Keep stored ZIP bytes and
+        // unrelated packages untouched; no studio or upload migration needed.
+        if (in_array($asset, ['index.html', 'styles.css', 'scenes.js', 'app.js'], true)) {
+            $source = $disk->get($relative);
+            if ($asset === 'app.js') {
+                $source = str_replace(
+                    "const img=new Image();img.decoding='async';",
+                    "const img=new Image();img.crossOrigin='anonymous';img.decoding='async';",
+                    $source
+                );
+            }
+            return response(SpadTourTemplateV3::apply($asset, $source), 200, $headers);
         }
 
         return response()->file($disk->path($relative), $headers);
