@@ -15,6 +15,7 @@ class SpadSmsService
         'login_otp' => 'کد ورود و ثبت‌نام',
         'kyc_otp' => 'کد تأیید هویت',
         'phone_change_otp' => 'تأیید تغییر شماره موبایل',
+        'handover_otp' => 'کد تأیید تحویل یا تخلیه ملک',
         'password_reset_otp' => 'تأیید بازیابی رمز',
         'registration' => 'ثبت‌نام موفق',
         'password_changed' => 'تغییر رمز عبور',
@@ -94,7 +95,7 @@ class SpadSmsService
      */
     public function sendOtp(string $event, string $mobile, string $code): void
     {
-        if (!in_array($event, ['login_otp','kyc_otp','phone_change_otp','password_reset_otp'], true)
+        if (!in_array($event, ['login_otp','kyc_otp','phone_change_otp','password_reset_otp','handover_otp'], true)
             || !preg_match('/^\d{4,8}$/D', $code)) {
             throw new RuntimeException('درخواست کد تأیید نامعتبر است.');
         }
@@ -218,6 +219,7 @@ class SpadSmsService
             'kyc_otp' => "کد احراز هویت اسپاد: {$code}",
             'phone_change_otp' => "کد تأیید تغییر شماره اسپاد: {$code}",
             'password_reset_otp' => "کد بازیابی رمز اسپاد: {$code}",
+            'handover_otp' => "کد تأیید تحویل ملک در اسپاد: {$code}",
             'registration' => 'ثبت‌نام شما در اسپاد با موفقیت انجام شد.',
             'password_changed' => 'رمز حساب اسپاد تغییر کرد. اگر شما نبوده‌اید با پشتیبانی تماس بگیرید.',
             'kyc_approved' => 'احراز هویت حساب اسپاد شما تأیید شد.',
