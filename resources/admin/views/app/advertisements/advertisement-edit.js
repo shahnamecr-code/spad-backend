@@ -8,7 +8,6 @@ import { useHistory } from "react-router-dom";
 import { NotificationManager } from "../../../components/common/react-notifications";
 import { adminPathApi } from "../../../constants/defaultValues";
 import AdvertisementFormLayout from "./components/AdvertisementFormLayout";
-import VirtualTourPropertyCard from "../virtual-tours/components/VirtualTourPropertyCard";
 import { uploadTourZip } from "./upload-tour-zip";
 
 const defaultPropertyTools = {
@@ -183,7 +182,6 @@ const AdvertisementEdit = ({ match }) => {
               categoryName={categoryName}
               submitting={submitting}
               onBack={() => history.push("/spad-admin/advertisements/adver-list")}
-              extraContent={<VirtualTourPropertyCard advertisementId={match.params.id} />}
               tourZip={tourZip}
               onTourZipChange={file => { setTourZip(file); setTourZipProgress(null); }}
               tourZipProgress={tourZipProgress}
