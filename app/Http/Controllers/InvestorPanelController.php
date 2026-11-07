@@ -31,7 +31,9 @@ class InvestorPanelController extends Controller
     {
         $panel = $this->investorPanel($request, $partnerPanel);
         $active = InvestorListing::query()->active()
-            ->whereHas('advertisement', fn ($q) => $q->where('status', Advertisement::APPROVED));
+            ->where('investor_price', '>', 0)
+            ->whereHas('advertisement', fn ($q) => $q->publicCatalog()
+                ->where('city_id', SpadLocation::cityId()));
 
         $avgDiscount = (clone $active)->get()->pluck('calculated_discount')->filter()->avg();
         $myPending = InvestorListing::query()
@@ -59,9 +61,9 @@ class InvestorPanelController extends Controller
     {
         $this->investorPanel($request, $partnerPanel);
         $query = InvestorListing::query()->active()
+            ->where('investor_price', '>', 0)
             ->whereHas('advertisement', function ($query) {
-                $query->where('status', Advertisement::APPROVED)
-                    ->where('city_id', SpadLocation::cityId());
+                $query->publicCatalog()->where('city_id', SpadLocation::cityId());
             })
             ->with(['advertisement.category', 'advertisement.city', 'advertisement.region'])
             ->orderByDesc('investment_score')->orderByDesc('published_at');
@@ -85,12 +87,13 @@ class InvestorPanelController extends Controller
     {
         $this->investorPanel($request, $partnerPanel);
         $listing = InvestorListing::query()->active()
+            ->where('investor_price', '>', 0)
             ->where('advertisement_id', $advertisement->id)->firstOrFail();
         if ($advertisement->status !== Advertisement::APPROVED) throw new ModelNotFoundException();
 
+        // The investor route shows the very same public property payload
+        // and gallery/tour; the partner-only price comes from the deal.
         $property = userShowCategorySingleLayout($advertisement);
-        // Public similar-list logic is intentionally removed from the private deal room.
-        $property['similar_ads'] = [];
 
         return response()->json([
             'status' => true,
