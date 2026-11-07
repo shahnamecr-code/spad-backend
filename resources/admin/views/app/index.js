@@ -94,7 +94,6 @@ class CommunityPageErrorBoundary extends React.Component {
  }
 }
 const Inquiries = React.lazy(() => import(/* webpackChunkName: "inquiries" */'./inquiries'));
-const VirtualTours = React.lazy(() => import(/* webpackChunkName: "virtual-tours" */'./virtual-tours'));
 const PartnerPanels = React.lazy(() => import(/* webpackChunkName: "partner-panels" */'./partner-panels'));
 const InvestorListings = React.lazy(() => import(/* webpackChunkName: "investor-listings" */'./investor-listings'));
 /*const Shops = React.lazy(() => import(/!* webpackChunkName: "shops" *!/'./shops'));
@@ -202,10 +201,6 @@ const App = ({ match, step, location }) => {
                 <Route
                   path={`${match.url}/inquiries`}
                   render={(props) => <Inquiries {...props} />}
-                />
-                <Route
-                  path={`${match.url}/virtual-tours`}
-                  render={(props) => <VirtualTours {...props} />}
                 />
                 <Route
                   path={`${match.url}/partner-panels/broker-properties`}
