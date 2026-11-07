@@ -193,6 +193,13 @@ class PropertyDepositController extends Controller
             $order->refresh();
             if ($order->status !== 'paid') $order->update(['failure_message' => 'verification_pending']);
         }
+        $paid=$order->fresh(['user']);
+        if ($paid && $paid->status==='paid' && $paid->user) {
+            app(\App\Services\SpadSmsService::class)->notify(
+                'property_deposit',(string)$paid->user->mobile,['id'=>$paid->advertisement_id],
+                'property-deposit-paid:'.$paid->id
+            );
+        }
         return redirect()->away($result);
     }
 
