@@ -368,6 +368,12 @@ const data = [
     roles: [UserRole.Admin],
     subs: [
       {
+        icon: "simple-icon-envelope-letter",
+        label: "تنظیمات پیامک ملی پیامک",
+        to: `${adminRoot}/settings/sms`,
+        roles: [UserRole.Admin],
+      },
+      {
         icon: "simple-icon-settings",
         id: "main-settings",
         label: "menu.settings",
