@@ -94,6 +94,12 @@ class AuctionParticipationController extends Controller
    ]);
    return ['status'=>'held','amount_toman'=>$amount,'already_joined'=>false];
   },3);
+  if (!$result['already_joined']) {
+   app(\App\Services\SpadSmsService::class)->notify(
+    'auction_joined',(string)$user->mobile,['id'=>$id],
+    'auction-join:'.$id.':'.$uid
+   );
+  }
   return response()->json(['data'=>$result,'message'=>$result['already_joined']?'مشارکت شما پیش‌تر ثبت شده است.':'ودیعه از کیف پول کسر شد و مشارکت شما ثبت گردید.']);
  }
  public function adminList($id) {
@@ -130,6 +136,12 @@ class AuctionParticipationController extends Controller
    ]);
    return ['id'=>(int)$entry->id,'wallet_refund_id'=>(int)$tx->id];
   },3);
+  $refunded=DB::table('spad_auction_participations')->where('id',$result['id'])->first();
+  $recipient=$refunded?User::find((int)$refunded->user_id):null;
+  if ($recipient) app(\App\Services\SpadSmsService::class)->notify(
+   'auction_refund',(string)$recipient->mobile,['id'=>$id],
+   'auction-refund:'.$result['id']
+  );
   return response()->json(['message'=>'ودیعه به کیف پول کاربر بازگشت داده شد و سند مالی ثبت گردید.','data'=>$result]);
  }
 }
