@@ -1,0 +1,33 @@
+groups:
+  - name: spad-market-intelligence
+    rules:
+      - alert: MarketAPIUnavailable
+        expr: up{job="market-api"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "SPAD market analytics API unavailable"}
+      - alert: MarketSnapshotsStale
+        expr: spad_market_snapshot_age_seconds > 1200
+        for: 10m
+        labels: {severity: critical}
+        annotations: {summary: "Market analytics worker has stopped or is delayed"}
+      - alert: MarketIngestStale
+        expr: spad_market_ingest_age_seconds > 21600
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "No fresh authorized market data for six hours"}
+      - alert: MarketLowConfidence
+        expr: spad_market_qualified_neighborhoods == 0
+        for: 1h
+        labels: {severity: warning}
+        annotations: {summary: "No neighborhood has enough samples for price estimation"}
+      - alert: MarketHostDiskAlmostFull
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.12
+        for: 10m
+        labels: {severity: critical}
+        annotations: {summary: "Market server root disk under 12% free"}
+      - alert: MarketHostMemoryPressure
+        expr: (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) < 0.10
+        for: 15m
+        labels: {severity: warning}
+        annotations: {summary: "Market server memory under 10% available"}
