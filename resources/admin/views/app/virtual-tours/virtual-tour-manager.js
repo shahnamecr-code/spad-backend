@@ -60,14 +60,14 @@ const Manager = ({ match, history, startCreate }) => {
   };
 
   return <div className="spad-vtour-admin">
-    <Row><Colxx xxs="12"><Breadcrumb heading="استودیو بازدید سه‌بعدی اسپاد" match={match}/><Separator className="mb-4"/></Colxx></Row>
+    <Row><Colxx xxs="12"><Breadcrumb heading="استودیو تور مجازی اسپاد" match={match}/><Separator className="mb-4"/></Colxx></Row>
 
     <div className="vt-manager-hero">
       <div>
-        <span className="vt-eyebrow">سامانه اختصاصی بازدید سه‌بعدی</span>
-        <div className="vt-studio-badge"><span className="vt-studio-badge-dot"/> موتور بازدید آزاد سه‌بعدی</div>
-        <h2>مدیریت بازدیدهای سه‌بعدی</h2>
-        <p>بارگذاری مدل واقعی ساختمان، تنظیم موقعیت ورود، انتشار و اتصال مستقیم به آگهی‌های اسپاد.</p>
+        <span className="vt-eyebrow">سامانه اختصاصی تور مجازی ۳۶۰ درجه</span>
+        <div className="vt-studio-badge"><span className="vt-studio-badge-dot"/> موتور تور مجازی پانوراما</div>
+        <h2>مدیریت تورهای مجازی ۳۶۰ درجه</h2>
+        <p>بارگذاری عکس‌های ۳۶۰ درجه، تنظیم ترتیب و مسیر فضاها و انتشار تور برای آگهی‌های اسپاد.</p>
         <div className="vt-hero-actions">
           <Button color="primary" className="vt-main-create" onClick={() => setShowCreate(true)}>+ شروع ساخت تور مجازی</Button>
           <Button outline color="primary" onClick={() => load(1)}>بروزرسانی</Button>
@@ -87,15 +87,15 @@ const Manager = ({ match, history, startCreate }) => {
     {loading ? <div className="loading"/> : <div className="vt-tour-grid">
       {(data.data || []).map((item)=><Card className="vt-tour-card" key={item.id}>
         <div className="vt-cover">
-          {item.cover ? <img src={item.cover} alt=""/> : <div className="vt-cover-empty">سه‌بعدی</div>}
+          {item.cover ? <img src={item.cover} alt=""/> : <div className="vt-cover-empty">۳۶۰ درجه</div>}
           <Badge color={item.status === "published" ? "success" : "secondary"}>{item.status === "published" ? "منتشرشده" : "پیش‌نویس"}</Badge>
         </div>
         <CardBody>
           <h3>{item.title}</h3>
-          <div className="vt-tour-meta"><span>ملک #{item.advertisement_id}</span><span>{item.model_ready?"مدل سه‌بعدی آماده":"در انتظار مدل"}</span><span>{item.views_count} بازدید</span></div>
+          <div className="vt-tour-meta"><span>ملک #{item.advertisement_id}</span><span>{item.scenes_count ? item.scenes_count + " سکانس" : "در انتظار تصاویر ۳۶۰ درجه"}</span><span>{item.views_count} بازدید</span></div>
           <div className="vt-card-actions">
             <Button color="primary" onClick={()=>history.push(`${adminRoot}/virtual-tours/${item.id}/edit`)}>باز کردن استودیو</Button>
-            <Button outline color="primary" onClick={()=>item.status==="published"?window.open(item.public_url || `/virtual-tour/${item.slug}`,"_blank"):history.push(`${adminRoot}/virtual-tours/${item.id}/edit`)}>Preview</Button>
+            <Button outline color="primary" onClick={()=>item.status==="published"?window.open(item.public_url || `/virtual-tour/${item.slug}`,"_blank"):history.push(`${adminRoot}/virtual-tours/${item.id}/edit`)}>پیش‌نمایش</Button>
             
             
           </div>
@@ -111,7 +111,7 @@ const Manager = ({ match, history, startCreate }) => {
       <ModalBody>
         <div className="vt-create-help">
           <strong>ابتدا ملک را انتخاب کنید</strong>
-          <span>پس از انتخاب ملک وارد استودیو سه‌بعدی می‌شوید تا فایل مدل واقعی را بارگذاری و موقعیت شروع بازدید را تعیین کنید.</span>
+          <span>پس از انتخاب ملک وارد استودیو تور مجازی می‌شوید تا تصاویر ۳۶۰ درجه را بارگذاری و فضای شروع بازدید را مشخص کنید.</span>
         </div>
         <div className="vt-property-search">
           <Input value={propertySearch} onChange={(e)=>setPropertySearch(e.target.value)} onKeyDown={(e)=>{if(e.key==="Enter")loadProperties()}} placeholder="کد ملک یا بخشی از آدرس..."/>
@@ -120,7 +120,7 @@ const Manager = ({ match, history, startCreate }) => {
         <div className="vt-property-list">
           {propertyLoading ? <div className="loading"/> : properties.map((item)=>(
             <button type="button" className="vt-property-option" key={item.id} onClick={()=>createForProperty(item)} disabled={creating}>
-              <span className="vt-property-option__icon">سه‌بعدی</span>
+              <span className="vt-property-option__icon">۳۶۰</span>
               <span className="vt-property-option__body">
                 <b>ملک {item.code}</b>
                 <small>{[item.city,item.region,item.address].filter(Boolean).join(" • ") || "بدون آدرس"}</small>
