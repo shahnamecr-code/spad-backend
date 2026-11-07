@@ -13,6 +13,7 @@ class SpadSmsService
     // event dispatch. All notification categories are opt-in.
     public const EVENTS = [
         'login_otp' => 'کد ورود و ثبت‌نام',
+        'admin_signup_otp' => 'تأیید شماره در ثبت‌نام اپراتور',
         'kyc_otp' => 'کد تأیید هویت',
         'phone_change_otp' => 'تأیید تغییر شماره موبایل',
         'handover_otp' => 'کد تأیید تحویل یا تخلیه ملک',
@@ -95,7 +96,7 @@ class SpadSmsService
      */
     public function sendOtp(string $event, string $mobile, string $code): void
     {
-        if (!in_array($event, ['login_otp','kyc_otp','phone_change_otp','password_reset_otp','handover_otp'], true)
+        if (!in_array($event, ['login_otp','kyc_otp','phone_change_otp','password_reset_otp','handover_otp','admin_signup_otp'], true)
             || !preg_match('/^\d{4,8}$/D', $code)) {
             throw new RuntimeException('درخواست کد تأیید نامعتبر است.');
         }
@@ -216,6 +217,7 @@ class SpadSmsService
         // No free-text admin templates or arbitrary user interpolation.
         $templates = [
             'login_otp' => "کد ورود اسپاد: {$code}\nاین کد را در اختیار دیگران قرار ندهید.",
+            'admin_signup_otp' => "کد تأیید ثبت‌نام اپراتور اسپاد: {$code}",
             'kyc_otp' => "کد احراز هویت اسپاد: {$code}",
             'phone_change_otp' => "کد تأیید تغییر شماره اسپاد: {$code}",
             'password_reset_otp' => "کد بازیابی رمز اسپاد: {$code}",
