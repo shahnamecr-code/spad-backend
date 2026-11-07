@@ -980,6 +980,10 @@ class UsersController extends Controller
         if ($request->user()->update([
             'password'=>$data['password']
         ])){
+            app(\App\Services\SpadSmsService::class)->notify(
+                'password_changed',(string)$request->user()->mobile,[],
+                'password-changed:'.$request->user()->id.':'.now()->timestamp
+            );
             return response()->json([
                 'status'=>true,
                 'message'=>'رمز عبور شما با موفقیت تغییر یافت'
