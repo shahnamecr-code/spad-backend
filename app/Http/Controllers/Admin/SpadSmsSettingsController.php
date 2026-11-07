@@ -39,7 +39,7 @@ class SpadSmsSettingsController extends Controller
         $this->admin($request);
         $data = $request->validate([
             'enabled' => 'required|boolean',
-            'username' => 'required|string|max:120',
+            'username' => 'nullable|string|max:120',
             'api_key' => 'nullable|string|min:8|max:512',
             'sender' => 'nullable|string|max:30|regex:/^[0-9+]*$/',
             'daily_limit' => 'required|integer|min:10|max:10000',
