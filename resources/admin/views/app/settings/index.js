@@ -17,10 +17,13 @@ const Sidebar = React.lazy(() =>
 );
 
 
+const SmsSettings = React.lazy(() => import(/* webpackChunkName: "spad-sms-settings" */ './sms'));
+
 const Settings = ({match}) => {
   return (
     <Suspense fallback={<div className="loading"/>}>
       <Switch>
+        <Route exact path={`${match.url}/sms`} render={props => <SmsSettings {...props} />} />
         <Route
           path={`${match.url}/main`}
           render={(props) => <Setting {...props} />}
