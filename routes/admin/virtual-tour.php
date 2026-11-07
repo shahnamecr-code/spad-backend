@@ -11,6 +11,7 @@ Route::prefix('virtual-tours')->group(function () {
     Route::get('/property/{advertisement}', [VirtualTourController::class, 'forAdvertisement']);
     Route::get('/properties', [VirtualTourController::class, 'properties']);
     Route::post('/property/{advertisement}', [VirtualTourController::class, 'ensureForAdvertisement']);
+    Route::post('/property/{advertisement}/zip', [VirtualTourController::class, 'importZipForAdvertisement']);
     Route::get('/{virtualTour}', [VirtualTourController::class, 'show']);
     Route::put('/{virtualTour}', [VirtualTourController::class, 'update']);
     Route::post('/{virtualTour}/model', [VirtualTourController::class, 'uploadModel']);
