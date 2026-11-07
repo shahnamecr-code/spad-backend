@@ -17,6 +17,34 @@ use Illuminate\Validation\Rule;
 
 class VirtualTourController extends Controller
 {
+    /**
+     * Read-only site-owned IRANSans FaNum fonts. Files are deployed from
+     * SPAD's existing private source repository, not from user ZIP uploads.
+     * CORS is required because a sandboxed tour iframe has an opaque origin.
+     */
+    public function tourFont($weight)
+    {
+        $names = [
+            'regular' => 'IRANSansWeb(FaNum).woff',
+            'medium' => 'IRANSansWeb(FaNum)_Medium.woff',
+            'bold' => 'IRANSansWeb(FaNum)_Bold.woff',
+            'black' => 'IRANSansWeb(FaNum)_Black.woff',
+            'light' => 'IRANSansWeb(FaNum)_Light.woff',
+            'ultralight' => 'IRANSansWeb(FaNum)_UltraLight.woff',
+        ];
+        if (!isset($names[$weight])) abort(404);
+        $file = storage_path('app/spad-tour-fonts/' . $names[$weight]);
+        if (!is_file($file) || !is_readable($file)) abort(404);
+
+        return response()->file($file, [
+            'Content-Type' => 'font/woff',
+            'X-Content-Type-Options' => 'nosniff',
+            'Access-Control-Allow-Origin' => '*',
+            'Cross-Origin-Resource-Policy' => 'cross-origin',
+            'Cache-Control' => 'public, max-age=604800',
+        ]);
+    }
+
     public function sceneAsset(VirtualTourScene $scene, $variant)
     {
         $tour = $scene->tour;
@@ -139,7 +167,7 @@ class VirtualTourController extends Controller
                 "sandbox allow-scripts; default-src 'none'; " .
                 "script-src 'self' 'unsafe-inline'; " .
                 "style-src 'self' 'unsafe-inline'; " .
-                "img-src 'self' data: blob:; font-src 'self' data:; " .
+                "img-src 'self' data: blob:; font-src 'self' https://panel.spad.estate data:; " .
                 "media-src 'self' blob:; connect-src 'none'; " .
                 "object-src 'none'; base-uri 'none'; form-action 'none'; " .
                 "frame-ancestors https://spad.estate https://www.spad.estate https://panel.spad.estate";
