@@ -17,6 +17,7 @@ import { Field, useFormikContext } from "formik";
 import { FormikSwitch } from "../../../../containers/form-validations/FormikFields";
 import MediaLibraryButton from "../../../../components/mediaLibrary/MediaLibrary";
 import ShirazAreaPicker from "./ShirazAreaPicker";
+import { bytesLabel } from "../upload-tour-zip";
 
 const faNumber = (value) => {
   const number = String(value || "").replace(/[^0-9]/g, "");
@@ -106,7 +107,7 @@ const SwitchField = ({ name, label }) => {
   );
 };
 
-const PropertyToolsFields = () => {
+const PropertyToolsFields = ({ tourZip, onTourZipChange, tourZipProgress }) => {
   const { values, setFieldValue } = useFormikContext();
   const tools = values.property_tools || {};
   const tourFiles = Array.isArray(tools.virtual_tour_files)
@@ -231,8 +232,47 @@ const PropertyToolsFields = () => {
                     }
                   />
                 </div>
-                <FormText color="muted">پیشنهاد: تصویر پانورامای ۲:۱ JPG/WebP یا فایل HTML مستقل.</FormText>
+                <FormText color="muted">برای تصاویر تکی از کتابخانه رسانه استفاده کنید. بسته ZIP را از بخش پایین همین کارت وارد کنید.</FormText>
               </FormGroup>
+
+              {onTourZipChange && <div className="spad-vtour-zip-box" dir="rtl">
+                <div className="spad-vtour-zip-box__head">
+                  <span className="spad-vtour-zip-box__icon"><i className="simple-icon-cloud-upload" /></span>
+                  <div><strong>بارگذاری تور مجازی با فایل ZIP</strong>
+                    <small>تصاویر پانوراما به‌طور خودکار استخراج و به سکانس‌های ملک تبدیل می‌شوند.</small></div>
+                </div>
+                <label className="spad-vtour-zip-box__choose">
+                  <i className="simple-icon-folder" />
+                  {tourZip ? "تغییر فایل ZIP انتخاب‌شده" : "انتخاب بسته ZIP تور مجازی"}
+                  <input type="file" name="spad_tour_zip_archive" accept=".zip,application/zip" hidden
+                    onChange={event => {
+                      const file = event.target.files?.[0] || null;
+                      if (file && (!/\\.zip$/i.test(file.name) || file.size > 80 * 1024 * 1024)) {
+                        window.alert("فایل ZIP معتبر با حجم کمتر از ۸۰ مگابایت انتخاب کنید.");
+                        event.target.value = "";
+                        return;
+                      }
+                      onTourZipChange(file);
+                    }}/>
+                </label>
+                {tourZip && <div className="spad-vtour-zip-box__file">
+                  <span><i className="simple-icon-doc" /> {tourZip.name} — {bytesLabel(tourZip.size)}</span>
+                  {!tourZipProgress || tourZipProgress.phase === "failed" ?
+                    <button type="button" title="حذف فایل" onClick={() => onTourZipChange(null)}>حذف</button> : null}
+                </div>}
+                {tourZipProgress && <div className="spad-vtour-zip-progress" role="status" aria-live="polite">
+                  <div className="spad-vtour-zip-progress__headline">
+                    <span>{tourZipProgress.phase === "complete" ? "استخراج کامل شد" : tourZipProgress.phase === "processing" ? "آپلود تمام شد؛ در حال استخراج و پردازش تصاویر" : tourZipProgress.phase === "failed" ? "بارگذاری یا استخراج ناموفق بود" : "در حال آپلود فایل ZIP"}</span>
+                    <strong>{Math.round(tourZipProgress.percent || 0).toLocaleString("fa-IR")}٪</strong>
+                  </div>
+                  <div className="spad-vtour-zip-progress__track" role="progressbar" aria-valuenow={tourZipProgress.percent || 0} aria-valuemin={0} aria-valuemax={100}>
+                    <span style={{width: `${tourZipProgress.percent || 0}%`}} />
+                  </div>
+                  <small>{tourZipProgress.phase === "processing" ? "لطفاً فرم را نبندید؛ تبدیل تصاویر روی سرور در حال انجام است." :
+                    `آپلود شده: ${bytesLabel(tourZipProgress.loaded || 0)} • باقی‌مانده: ${bytesLabel(Math.max(0, (tourZipProgress.total || 0) - (tourZipProgress.loaded || 0)))}`}</small>
+                </div>}
+                <small className="spad-vtour-zip-box__hint">حداکثر ۸۰ مگابایت؛ فقط تصاویر ۳۶۰ درجه با نسبت ۲ به ۱ استخراج می‌شوند. پس از ذخیره آگهی، بسته بارگذاری و استخراج می‌شود؛ انتشار نهایی تور از استودیو انجام می‌گیرد.</small>
+              </div>}
 
               <FormGroup className="mb-0">
                 <Label>لینک تور مجازی (اختیاری)</Label>
