@@ -55,6 +55,13 @@ class InquiryPaymentController extends Controller
             });
 
             $this->executor->process($inquiry->fresh());
+            $processed=$inquiry->fresh(['user']);
+            if ($processed && $processed->user && $processed->payment_status==='paid') {
+                app(\App\Services\SpadSmsService::class)->notify(
+                    'inquiry_completed',(string)$processed->user->mobile,[],
+                    'inquiry-paid:'.$processed->id
+                );
+            }
             return redirect()->away($resultUrl . '&status=success');
         } catch (InvalidPaymentException $e) {
             $inquiry->update(['payment_status' => 'failed', 'failure_message' => $e->getMessage()]);
