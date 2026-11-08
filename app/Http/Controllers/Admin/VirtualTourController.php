@@ -242,7 +242,8 @@ class VirtualTourController extends Controller
     public function importZipForAdvertisement(Request $request, Advertisement $advertisement, VirtualTourPackageImporter $importer)
     {
         VirtualTourAccess::assertAdminCanManage(auth('admin')->user(), $advertisement);
-        $request->validate(['file' => 'required|file|max:81920']);
+        $maxKb = max(1024, (int) config('virtual-tour.max_package_upload_mb', 512) * 1024);
+        $request->validate(['file' => 'required|file|mimes:zip|max:' . $maxKb]);
         try {
             $result = $importer->import($advertisement, $request->file('file'), (int) auth('admin')->id());
             return response()->json($result);
