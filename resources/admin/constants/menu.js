@@ -83,6 +83,13 @@ const data = [
     ],
   },
   {
+    id: "property-acceptance",
+    icon: "iconsminds-building",
+    label: "پذیرش ملک",
+    to: `${adminRoot}/property-acceptance`,
+    roles: [UserRole.Admin],
+  },
+  {
     id: "raffles",
     icon: "iconsminds-gift-box",
     label: "menu.raffles",
