@@ -67,7 +67,29 @@ class RouteServiceProvider extends ServiceProvider
                     Limit::perMinute(60)->by('spad-acceptance-api:' . $credentialKey),
                 ];
             }
+
+            // Postal lookup precedes Sanctum's user resolution in the global
+            // API middleware. Do not share a 60/minute counter across all
+            // customers behind one gateway or NAT address.
+            if ($request->is('api/property-valuation/postal-lookup') && $request->bearerToken()) {
+                $credentialKey = hash_hmac('sha256', $request->bearerToken(), config('app.key'));
+                return [
+                    Limit::perMinute(180)->by('spad-postal-ip:' . $request->ip()),
+                    Limit::perMinute(40)->by('spad-postal-api:' . $credentialKey),
+                ];
+            }
             return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+        });
+
+        // Cached postal lookups should remain easy to access. Billable new
+        // lookups are separately budgeted inside PropertyValuationController.
+        RateLimiter::for('spad-property-postal-lookup', function (Request $request) {
+            $user = $request->user();
+            $credential = $request->bearerToken();
+            $identity = $user
+                ? 'user:' . $user->id
+                : ($credential ? 'token:' . hash_hmac('sha256', $credential, config('app.key')) : 'ip:' . $request->ip());
+            return Limit::perMinute(30)->by('spad-postal-route:' . $identity);
         });
 
         // A separate, strictly limited authenticated submit counter; retries
