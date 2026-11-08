@@ -614,6 +614,10 @@ class AdvertisementController extends Controller
                 }
                 $advertisement->properties()->saveMany($properties);
                 $this->saveDepositSettings($request, $advertisement);
+                if ($advertisement->status === Advertisement::APPROVED) {
+                    try { \App\Services\SpadCustomerSmsAutomation::enqueuePublished($advertisement); }
+                    catch (\Throwable $e) { report($e); }
+                }
                 return response()->json([
                     'status' => true,
                     'advertisement_id' => $advertisement->id,
@@ -651,6 +655,8 @@ class AdvertisementController extends Controller
         $user = $request->user();
         $ads = Advertisement::whereIn('id', $request->ads);
         $adsToReject = $ads->pluck('id')->toArray();
+        $newlyApproved=Advertisement::whereIn('id',$adsToReject)
+            ->where('status','!=',Advertisement::APPROVED)->pluck('id')->all();
         $adsToRejectLength = count($adsToReject);
         DB::table('advertisements')
             ->whereIn('id', $adsToReject)
@@ -658,6 +664,10 @@ class AdvertisementController extends Controller
                 'status' => Advertisement::APPROVED,
                 'reject_reason' => null,
             ]);
+        foreach($newlyApproved as $id) {
+            try { \App\Services\SpadCustomerSmsAutomation::enqueuePublished(Advertisement::findOrFail($id)); }
+            catch (\Throwable $e) { report($e); }
+        }
         return AdminAdvertisementsList::collection($ads->get())->additional([
             'status' => true,
             'message' => "تعداد {$adsToRejectLength} آگهی تایید شد"
@@ -830,6 +840,7 @@ class AdvertisementController extends Controller
             'property_tools.deposit_enabled' => ['nullable', 'boolean'],
             'property_tools.deposit_amount' => ['nullable', 'integer', 'min:0', 'max:999999999999'],
         ]);
+        $wasApproved=(int)$advertisement->status===Advertisement::APPROVED;
         $category = $advertisement->category;
         $user = $request->user();
         $user_role = $user->roles->first()->name;
@@ -882,6 +893,10 @@ class AdvertisementController extends Controller
             }
 
             $this->saveDepositSettings($request, $advertisement);
+            if (!$wasApproved && $status===Advertisement::APPROVED) {
+                try { \App\Services\SpadCustomerSmsAutomation::enqueuePublished($advertisement); }
+                catch (\Throwable $e) { report($e); }
+            }
             return response()->json([
                 'status' => true,
                 'message' => 'تغییرات آگهی با موفقیت ذخیره شد',

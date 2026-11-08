@@ -29,6 +29,9 @@ class Kernel extends ConsoleKernel
         $schedule->call(function () {
             \App\Services\SpadAdminHealthService::sample();
         })->name('spad-admin-public-health')->everyFiveMinutes()->withoutOverlapping();
+        $schedule->call(function() {
+            \App\Services\SpadCustomerSmsAutomation::processPending(8);
+        })->name('spad-customer-sms-outbox')->everyMinute()->withoutOverlapping();
     }
 
     /**
