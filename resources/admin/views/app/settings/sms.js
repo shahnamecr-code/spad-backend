@@ -23,6 +23,7 @@ export default function SmsSettings(){
  useEffect(()=>{load();},[]);
  const field=(name,value)=>setData(old=>({...old,[name]:value}));
  const event=(name,name2,value)=>setData(old=>({...old,events:{...old.events,[name]:{...old.events[name],[name2]:value}}}));
+ const toggleAll=(enabled)=>setData(old=>({...old,events:Object.fromEntries(Object.entries(old.events||{}).map(([name,rule])=>[name,{...rule,enabled}]))}));
  const save=async e=>{
   e.preventDefault();setBusy(true);
   try{
@@ -82,8 +83,14 @@ export default function SmsSettings(){
     </CardBody></Card></Col>
    </Row>
    <Card style={card}><CardBody>
-    <h3 style={{fontSize:16}}>تنظیمات رویدادهای پیامکی</h3>
-    <p style={hint}>هر مورد مستقل فعال یا غیرفعال می‌شود. شناسه الگو برای پیامک خدماتی است؛ صفر به معنای استفاده از متن استاندارد اسپاد با خط اختصاصی است.</p>
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+     <h3 style={{fontSize:16,margin:0}}>تنظیمات رویدادهای پیامکی</h3>
+     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+      <Button type="button" color="primary" outline size="sm" onClick={()=>toggleAll(true)}>فعال‌سازی همه رویدادها</Button>
+      <Button type="button" color="secondary" outline size="sm" onClick={()=>toggleAll(false)}>غیرفعال‌سازی همه</Button>
+     </div>
+    </div>
+    <p style={hint}>برای هر عملیات می‌توانید ارسال پیامک را جداگانه فعال کنید. با «فعال‌سازی همه» تمام رویدادها انتخاب می‌شوند؛ پیش از ذخیره، شناسه الگوهای خدماتی تأییدشده یا شماره خط فرستنده را تنظیم کنید. پیام‌های تأیید یک‌بارمصرف و هشدارهای امنیتی برای عملکرد صحیح باید فعال بمانند.</p>
     <Row style={{marginTop:15}}>
      {Object.entries(data.events||{}).map(([name,rule])=><Col md="6" xl="4" key={name} style={{marginBottom:13}}>
       <div style={{padding:14,background:rule.enabled?"#f2faff":"white",border:"1px solid #dbeaf5",borderRadius:13,height:"100%"}}>
