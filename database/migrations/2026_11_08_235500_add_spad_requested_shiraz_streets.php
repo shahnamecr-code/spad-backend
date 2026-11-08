@@ -3,7 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
-class AddSpadRequestedShirazStreets20261108 extends Migration
+class AddSpadRequestedShirazStreets extends Migration
 {
     /**
      * Add the owner's requested searchable Shiraz streets to the existing
