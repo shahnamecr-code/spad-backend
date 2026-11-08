@@ -51,13 +51,13 @@ class SpadSmsService
             $item = is_array($events[$key] ?? null) ? $events[$key] : [];
             $resolved[$key] = [
                 'enabled' => (bool) ($item['enabled'] ?? false),
-                'body_id' => max(0, (int) ($item['body_id'] ?? 0)),
+                'pattern_code' => (string) ($item['pattern_code'] ?? ''),
                 'label' => $label,
             ];
         }
         return $this->settings = [
             'enabled' => (bool) ($row->enabled ?? false),
-            'username' => (string) ($row->username ?? ''),
+            'provider' => (string) ($row->provider ?? ''),
             'sender' => (string) ($row->sender ?? ''),
             'daily_limit' => max(10, (int) ($row->daily_limit ?? 300)),
             'key_saved' => !empty($row->api_key_encrypted),
@@ -68,7 +68,7 @@ class SpadSmsService
     public function configured(): bool
     {
         $s = $this->settings();
-        return $s['enabled'] && $s['username'] !== '' && $s['key_saved'];
+        return $s['enabled'] && $s['provider'] === 'iranpayamak' && $s['key_saved'] && $s['sender'] !== '';
     }
 
     private function apiKey(): string
@@ -160,55 +160,66 @@ class SpadSmsService
             throw new RuntimeException('ثبت سوابق پیامک ممکن نیست.');
         }
 
-        $bodyId = $rule['body_id'];
-        if ($bodyId > 0) {
-            // Values must follow the variable ordering of the registered
-            // provider pattern. The common OTP pattern has only one value.
-            $values = array_values(array_map(function ($v) {
-                return mb_substr(str_replace([';', "\n", "\r"], ' ', (string) $v), 0, 120);
-            }, $params));
-            $payload = [
-                'username' => $settings['username'], 'password' => $key,
-                'text' => implode(';', $values), 'to' => $mobile, 'bodyId' => $bodyId,
-            ];
-            $endpoint = 'https://rest.payamak-panel.com/api/SendSMS/BaseServiceNumber';
-        } else {
-            if ($settings['sender'] === '') {
-                DB::table('spad_sms_delivery_logs')->where('id', $id)->update(['status'=>'failed','error_code'=>'SENDER_MISSING','updated_at'=>now()]);
-                throw new RuntimeException('خط ارسال یا کد الگوی پیامک تنظیم نشده است.');
+        $pattern = trim((string) ($rule['pattern_code'] ?? ''));
+        $otp = ['login_otp','kyc_otp','phone_change_otp','password_reset_otp','handover_otp','admin_signup_otp'];
+        if ($settings['sender'] === '' || (in_array($event, $otp, true) && $pattern === '')) {
+            DB::table('spad_sms_delivery_logs')->where('id', $id)->update([
+                'status'=>'failed','error_code'=>'CONFIG_MISSING','updated_at'=>now(),
+            ]);
+            throw new RuntimeException('خط فرستنده یا الگوی کد تأیید تنظیم نشده است.');
+        }
+        if ($pattern !== '') {
+            $attributes = [];
+            foreach ($params as $name => $value) {
+                if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,39}$/D', (string) $name)) continue;
+                $attributes[(string) $name] = mb_substr(str_replace(["\r","\n"], ' ', (string) $value),0,120);
             }
-            $body = $this->render($event, $params);
             $payload = [
-                'username' => $settings['username'], 'password' => $key,
-                'from' => $settings['sender'], 'to' => $mobile,
-                'text' => $body, 'isflash' => false,
+                'code'=>$pattern,'attributes'=>(object)$attributes,
+                'recipient'=>$mobile,'line_number'=>$settings['sender'],
+                'number_format'=>'english',
             ];
-            $endpoint = 'https://rest.payamak-panel.com/api/SendSMS/SendSMS';
+            $endpoint='https://api.iranpayamak.com/ws/v1/sms/pattern';
+        } else {
+            $payload = [
+                'text'=>$this->render($event,$params),
+                'line_number'=>$settings['sender'],'recipients'=>[$mobile],
+                'number_format'=>'english',
+            ];
+            $endpoint='https://api.iranpayamak.com/ws/v1/sms/simple';
         }
 
         try {
-            $response = Http::asForm()->timeout(9)->post($endpoint, $payload);
-            $decoded = $response->json();
-            $ok = $response->successful() && is_array($decoded) &&
-                ((int) ($decoded['RetStatus'] ?? 0) === 1 ||
-                 ((int) ($decoded['Value'] ?? 0) > 1000 && !isset($decoded['RetStatus'])));
-            $code = $response->successful() ? 'PROVIDER_REJECTED' : 'HTTP_' . $response->status();
-            $referenceId = is_array($decoded) ? (string) ($decoded['Value'] ?? '') : '';
-            if (!$ok) throw new RuntimeException($code);
-            DB::table('spad_sms_delivery_logs')->where('id', $id)->update([
-                'status'=>'sent',
-                'provider_reference'=>preg_match('/^\d{1,90}$/D', $referenceId) ? $referenceId : null,
-                'updated_at'=>now(),
-            ]);
-            return true;
+            $response = Http::withHeaders([
+                'Api-Key'=>$key,'Accept'=>'application/json',
+            ])->asJson()->timeout(9)->post($endpoint,$payload);
         } catch (\Throwable $e) {
-            DB::table('spad_sms_delivery_logs')->where('id', $id)->update([
-                // Unknown provider/network outcome: do not retry automatically.
-                'status'=>'unknown', 'error_code'=>'PROVIDER_OR_NETWORK', 'updated_at'=>now(),
+            // A network timeout can happen after provider acceptance: no automatic retry.
+            DB::table('spad_sms_delivery_logs')->where('id',$id)->update([
+                'status'=>'unknown','error_code'=>'PROVIDER_OR_NETWORK','updated_at'=>now(),
             ]);
-            if ($critical) throw new RuntimeException('ارسال کد تأیید ناموفق بود؛ لطفاً بعداً تلاش کنید.');
+            if($critical) throw new RuntimeException('ارسال کد تأیید ناموفق بود؛ لطفاً بعداً تلاش کنید.');
             return false;
         }
+        $decoded=$response->json();
+        $ok=$response->status()===201 && is_array($decoded)
+            && strtolower((string)($decoded['status']??''))==='success';
+        if(!$ok) {
+            DB::table('spad_sms_delivery_logs')->where('id',$id)->update([
+                'status'=>'failed',
+                'error_code'=>$response->successful()?'PROVIDER_REJECTED':'HTTP_'.$response->status(),
+                'updated_at'=>now(),
+            ]);
+            if($critical) throw new RuntimeException('ارسال کد تأیید پذیرفته نشد؛ لطفاً بعداً تلاش کنید.');
+            return false;
+        }
+        $providerId=is_scalar($decoded['data']??null)?(string)$decoded['data']:'';
+        DB::table('spad_sms_delivery_logs')->where('id',$id)->update([
+            'status'=>'sent',
+            'provider_reference'=>preg_match('/^[A-Za-z0-9_-]{1,90}$/D',$providerId)?$providerId:null,
+            'updated_at'=>now(),
+        ]);
+        return true;
     }
 
     private function render(string $event, array $params): string

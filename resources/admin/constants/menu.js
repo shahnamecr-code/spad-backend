@@ -376,7 +376,7 @@ const data = [
     subs: [
       {
         icon: "simple-icon-envelope-letter",
-        label: "تنظیمات پیامک ملی پیامک",
+        label: "تنظیمات پیامک ایران پیامک",
         to: `${adminRoot}/settings/sms`,
         roles: [UserRole.Admin],
       },
