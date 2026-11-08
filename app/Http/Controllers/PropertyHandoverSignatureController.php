@@ -33,12 +33,6 @@ class PropertyHandoverSignatureController extends Controller {
   return $s;
  }
  private function mask($phone) {return substr($phone,0,4).'***'.substr($phone,-4);}
- private function template() {
-  $id=config('sms.handover_template');
-  abort_unless($id&&ctype_digit((string)$id)&&(int)$id>0,503,
-   'الگوی پیامکی مخصوص امضای چک‌لیست هنوز در پنل پیامک اسپاد تنظیم نشده است.');
-  return (int)$id;
- }
  private function summary($record) {
   $signatures=DB::table('spad_handover_signatures')->where('checklist_id',$record->id)
    ->get()->keyBy('party');
@@ -115,25 +109,14 @@ class PropertyHandoverSignatureController extends Controller {
  }
  private function sendCode($signature) {
   $provider=app(\App\Services\SpadSmsService::class);
-  if (!$provider->configured()) $this->template();
   if($signature->verified_at)abort(422,'این طرف قبلاً تأیید کرده است.');
   abort_if($signature->send_count>=5,429,'سقف ارسال کد برای این پرونده تکمیل شده است.');
   if($signature->last_sent_at)abort_if(now()->diffInSeconds($signature->last_sent_at)<90,429,
     'برای درخواست کد جدید کمی بعد تلاش کنید.');
   $otp=(string)random_int(100000,999999);
   // Do not expose the OTP in responses, logs or the database.
-  $param=config('sms.handover_parameter','code');
-  if ($provider->configured()) {
-   try { $provider->sendOtp('handover_otp',(string)$signature->mobile,$otp); }
-   catch (\Throwable $e) { abort(503,'ارسال کد تحویل ملک ناموفق بود. تنظیمات پیامک را بررسی کنید.'); }
-  } else {
-   $template=$this->template();
-   $result=sms()->send('hi',function($sms)use($signature,$template,$param,$otp){
-    $sms->to([$signature->mobile]);
-    $sms->template($template,[$param=>$otp]);
-   });
-   abort_if($result===false,503,'ارسال پیامک از طرف سرویس‌دهنده تأیید نشد.');
-  }
+  try { $provider->sendOtp('handover_otp',(string)$signature->mobile,$otp); }
+  catch (\Throwable $e) { abort(503,'ارسال کد تحویل ملک ناموفق بود. تنظیمات ایران پیامک را بررسی کنید.'); }
   DB::table('spad_handover_signatures')->where('id',$signature->id)
     ->whereNull('verified_at')->update([
      'otp_hash'=>Hash::make($otp),'expires_at'=>now()->addMinutes(10),

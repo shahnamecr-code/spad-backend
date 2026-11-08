@@ -107,11 +107,7 @@ class UsersController extends Controller
         if(!User::where('mobile',$mobile)->exists())
             return response()->json(['status'=>false,'message'=>'برای ورود ابتدا ثبت‌نام کنید.'],422);
         try {
-            app(\App\Services\SpadLoginOtp::class)->send($mobile,$request,function($code)use($mobile){
-                return sms()->send('hi',function($sms)use($mobile,$code){
-                    $sms->to([$mobile]);$sms->template(config('sms.login_template'),['code'=>$code]);
-                });
-            });
+            app(\App\Services\SpadLoginOtp::class)->send($mobile,$request);
         }catch(\RuntimeException $e){
             return response()->json(['status'=>false,'message'=>$e->getMessage()],429);
         }

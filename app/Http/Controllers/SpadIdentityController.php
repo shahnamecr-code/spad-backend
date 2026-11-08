@@ -65,7 +65,7 @@ class SpadIdentityController extends Controller
     {
         $sms=app(\App\Services\SpadSmsService::class);
         return [
-            'sms_otp'=>$sms->configured() ? $sms->eventEnabled('kyc_otp') : $this->gateway()->enabled('sms_otp'),
+            'sms_otp'=>$sms->eventEnabled('kyc_otp'),
             'shahkar_pro'=>$this->gateway()->enabled('shahkar_pro'),
         ];
     }
@@ -244,8 +244,7 @@ class SpadIdentityController extends Controller
         RateLimiter::hit($ipKey,86400);
         try {
             $sms=app(\App\Services\SpadSmsService::class);
-            if ($sms->configured()) $sms->sendOtp('kyc_otp',$mobile,$code);
-            else $this->gateway()->sendOtp($mobile,$code);
+            $sms->sendOtp('kyc_otp',$mobile,$code);
         }
         catch (\Throwable $e) {
             DB::table('spad_user_verifications')->where('user_id',$uid)

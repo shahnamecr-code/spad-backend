@@ -30,12 +30,10 @@ if(!function_exists('sendMobileVerifyToken')){
         $key='user_mobile_verify_' . $admin->id;
         Cache::put($key, $token, now()->addMinutes(5));
         $sms=app(\App\Services\SpadSmsService::class);
-        if ($sms->configured()) {
-            try { $sms->sendOtp('admin_signup_otp',(string)$admin->mobile,(string)$token); }
-            catch (\Throwable $e) {
-                Cache::forget($key);
-                throw new \RuntimeException('ارسال کد تأیید اپراتور ناموفق بود.');
-            }
+        try { $sms->sendOtp('admin_signup_otp',(string)$admin->mobile,(string)$token); }
+        catch (\Throwable $e) {
+            Cache::forget($key);
+            throw new \RuntimeException('ارسال کد تأیید اپراتور ناموفق بود.');
         }
 
     }

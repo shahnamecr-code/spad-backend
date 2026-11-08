@@ -2,7 +2,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\ApiIrAccountServices;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -56,12 +55,7 @@ class AccountMobileController extends Controller
     {
         try {
             $sms=app(\App\Services\SpadSmsService::class);
-            if ($sms->configured()) $sms->sendOtp('phone_change_otp', $mobile, $code);
-            else {
-                $gateway = app(ApiIrAccountServices::class);
-                abort_unless($gateway->enabled('sms_otp'), 503, 'سرویس پیامکی حساب در دسترس نیست.');
-                $gateway->sendOtp($mobile, $code);
-            }
+            $sms->sendOtp('phone_change_otp', $mobile, $code);
         } catch (\Throwable $e) {
             report($e);
             abort(503, 'ارسال پیامک تأیید انجام نشد؛ تنظیمات سرویس پیامکی را بررسی کنید.');

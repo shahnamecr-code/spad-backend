@@ -13,7 +13,7 @@ class SpadLoginOtp
     {
         return 'spad-otp:'.$type.':'.hash('sha256', $mobile.'|'.$request->ip());
     }
-    public function send(string $mobile, Request $request, \Closure $legacySender): void
+    public function send(string $mobile, Request $request): void
     {
         if (!preg_match('/^09[0-9]{9}$/D',$mobile)) throw new RuntimeException('شماره موبایل نامعتبر است.');
         $key = $this->key('send',$mobile,$request);
@@ -29,15 +29,7 @@ class SpadLoginOtp
         $challenge = LoginRequest::updateOrCreate(['mobile'=>$mobile],['token'=>Hash::make($code)]);
         try {
             $sms = app(SpadSmsService::class);
-            if ($sms->configured()) {
-                $sms->sendOtp('login_otp', $mobile, $code);
-            } else {
-                // Controlled transition: keep existing login working until the
-                // administrator enables MeliPayamak with a valid key.
-                $gateway = app(ApiIrAccountServices::class);
-                if ($gateway->enabled('sms_otp')) $gateway->sendOtp($mobile,$code);
-                else if ($legacySender($code) === false) throw new RuntimeException('ارسال پیامک تأیید نشد.');
-            }
+            $sms->sendOtp('login_otp', $mobile, $code);
         } catch (\Throwable $e) {
             LoginRequest::whereKey($challenge->id)->where('token',$challenge->token)->delete();
             throw new RuntimeException('ارسال کد انجام نشد؛ تنظیمات پیامک را بررسی کنید.');

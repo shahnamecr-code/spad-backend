@@ -62,15 +62,6 @@ return [
             'password' => 'Your Password',
             'sender' => 'Sender name',
         ],
-        // Install: composer require melipayamak/php
-        'melipayamak' => [
-            'username' => env('MELIPAYAMAK_USERNAME', ''),
-            'password' => env('MELIPAYAMAK_PASSWORD', ''),
-            'from' => env('MELIPAYAMAK_FROM', ''),
-            'flash' => false,
-            'soap' => true,
-            'async' => false,
-        ],
         // Install: composer require kavenegar/php
         'kavenegar' => [
             'apiKey' => 'Your Api Key',
@@ -135,7 +126,6 @@ return [
         'twilio' => \Tzsk\Sms\Drivers\Twilio::class,
         'clockwork' => \Tzsk\Sms\Drivers\Clockwork::class,
         'linkmobility' => \Tzsk\Sms\Drivers\Linkmobility::class,
-        'melipayamak' => \Tzsk\Sms\Drivers\Melipayamak::class,
         'kavenegar' => \Tzsk\Sms\Drivers\Kavenegar::class,
         'smsir' => \Tzsk\Sms\Drivers\Smsir::class,
         'tsms' => \Tzsk\Sms\Drivers\Tsms::class,
