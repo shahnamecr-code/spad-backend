@@ -220,8 +220,8 @@ const PropertyToolsFields = ({ tourZip, onTourZipChange, tourZipProgress }) => {
                   <input type="file" name="spad_tour_zip_archive" accept=".zip,application/zip" hidden
                     onChange={event => {
                       const file = event.target.files?.[0] || null;
-                      if (file && (!/\.zip$/i.test(file.name) || file.size > 80 * 1024 * 1024)) {
-                        window.alert("فایل ZIP معتبر با حجم کمتر از ۸۰ مگابایت انتخاب کنید.");
+                      if (file && (!/\.zip$/i.test(file.name) || file.size > 512 * 1024 * 1024)) {
+                        window.alert("فایل ZIP معتبر با حجم حداکثر ۵۱۲ مگابایت انتخاب کنید.");
                         event.target.value = "";
                         return;
                       }
@@ -244,7 +244,7 @@ const PropertyToolsFields = ({ tourZip, onTourZipChange, tourZipProgress }) => {
                   <small>{tourZipProgress.phase === "processing" ? "در حال استخراج فایل‌های تور روی سرور؛ لطفاً این صفحه را نبندید." :
                     `آپلود شده: ${bytesLabel(tourZipProgress.loaded || 0)} • باقی‌مانده: ${bytesLabel(Math.max(0, (tourZipProgress.total || 0) - (tourZipProgress.loaded || 0)))}`}</small>
                 </div>}
-                <small className="spad-vtour-zip-box__hint">حداکثر ۸۰ مگابایت. بسته باید فایل index.html و فایل‌های همراه آن را داشته باشد. بعد از ذخیره آگهی، تور به‌صورت خودکار منتشر می‌شود؛ نیازی به استودیو نیست.</small>
+                <small className="spad-vtour-zip-box__hint">حداکثر ۵۱۲ مگابایت. بسته باید فایل index.html و فایل‌های همراه آن را داشته باشد. بعد از ذخیره آگهی، تور به‌صورت خودکار منتشر می‌شود؛ نیازی به استودیو نیست.</small>
               </div>}
 
             </div>
