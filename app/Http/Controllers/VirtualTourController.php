@@ -166,6 +166,7 @@ class VirtualTourController extends Controller
             $headers['Content-Security-Policy'] =
                 "sandbox allow-scripts; default-src 'none'; " .
                 "script-src 'self' 'unsafe-inline'; " .
+                "worker-src blob:; " .
                 "style-src 'self' 'unsafe-inline'; " .
                 "img-src 'self' data: blob:; font-src 'self' https://panel.spad.estate data:; " .
                 "media-src 'self' blob:; connect-src 'none'; " .
