@@ -13,13 +13,13 @@ export { bytesLabel };
 export const uploadTourZip = (advertisementId, file, onProgress) => {
   if (!advertisementId) return Promise.reject(new Error("کد آگهی مشخص نیست."));
   if (!file || !/\.zip$/i.test(file.name)) return Promise.reject(new Error("فایل ZIP معتبر انتخاب کنید."));
-  if (file.size > 80 * 1024 * 1024) return Promise.reject(new Error("حجم ZIP باید کمتر از ۸۰ مگابایت باشد."));
+  if (file.size > 512 * 1024 * 1024) return Promise.reject(new Error("حجم فایل ZIP نمی‌تواند بیش از ۵۱۲ مگابایت باشد."));
   const data = new FormData();
   data.append("file", file, file.name);
   if (onProgress) onProgress({ phase: "upload", percent: 0, loaded: 0, total: file.size });
   return axios.post(`${adminPathApi}/virtual-tours/property/${encodeURIComponent(advertisementId)}/zip`, data, {
     headers: { "Content-Type": "multipart/form-data" },
-    timeout: 300000,
+    timeout: 2700000,
     onUploadProgress: (event) => {
       if (!onProgress) return;
       const total = file.size;
