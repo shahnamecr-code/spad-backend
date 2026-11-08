@@ -57,7 +57,27 @@ class RouteServiceProvider extends ServiceProvider
     protected function configureRateLimiting()
     {
         RateLimiter::for('api', function (Request $request) {
+            // Sanctum resolves the user after the global API throttle on many
+            // installations. For the authenticated seller submit endpoint,
+            // never place all customers behind a shared reverse-proxy IP bucket.
+            if ($request->is('api/property-acceptance/submit') && $request->bearerToken()) {
+                $credentialKey = hash_hmac('sha256', $request->bearerToken(), config('app.key'));
+                return [
+                    Limit::perMinute(240)->by('spad-acceptance-ip:' . $request->ip()),
+                    Limit::perMinute(60)->by('spad-acceptance-api:' . $credentialKey),
+                ];
+            }
             return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+        });
+
+        // A separate, strictly limited authenticated submit counter; retries
+        // remain controlled without blocking unrelated users behind one IP.
+        RateLimiter::for('spad-property-acceptance-submit', function (Request $request) {
+            $bearer = $request->bearerToken();
+            $identity = $bearer
+                ? 'token:' . hash_hmac('sha256', $bearer, config('app.key'))
+                : 'ip:' . $request->ip();
+            return Limit::perMinute(10)->by('spad-acceptance-submit:' . $identity);
         });
 
     }
