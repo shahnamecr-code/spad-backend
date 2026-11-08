@@ -6,6 +6,7 @@ use App\Services\ApiIrClient;
 use App\Services\NemudaPropertyMarket;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -45,7 +46,25 @@ class PropertyValuationController extends Controller
         $recentKey = 'spad:valuation:recent:' . $user->id . ':' .
             hash_hmac('sha256', $postal, config('app.key'));
         $existing = Cache::get($recentKey);
-        if (is_array($existing)) return response()->json(['status' => true, 'data' => $existing]);
+        if (is_array($existing)) {
+            // No new upstream charge, so cached success must not consume
+            // the separate hourly API.ir budget.
+            return response()->json(['status' => true, 'data' => $existing])
+                ->header('Cache-Control', 'private, no-store');
+        }
+
+        // Only real, uncached API.ir calls consume the paid-provider budget.
+        // This is intentionally per authenticated user, not shared by IP.
+        $budgetKey = 'spad:valuation:paid-postal-hour:' . (int) $user->id;
+        if (RateLimiter::tooManyAttempts($budgetKey, 10)) {
+            $retry = max(1, RateLimiter::availableIn($budgetKey));
+            return response()->json([
+                'status' => false,
+                'message' => 'سقف استعلام کدپستی جدید برای حساب شما تکمیل شده است. استعلام‌های موفق اخیر همچنان قابل استفاده‌اند؛ بعداً دوباره تلاش کنید.',
+            ], 429)->header('Retry-After', (string) $retry)
+                ->header('Cache-Control', 'private, no-store');
+        }
+        RateLimiter::hit($budgetKey, 3600);
 
         try {
             $address = $api->execute('property-apiir-postal-code-pro', ['postalCode' => $postal], $user);
@@ -105,7 +124,7 @@ class PropertyValuationController extends Controller
                 'match_level' => $cityPlace ? 'city' : 'unmatched',
             ];
             Cache::put($recentKey, $reply, now()->addMinutes(15));
-            return response()->json(['status' => true, 'data' => $reply]);
+            return response()->json(['status' => true, 'data' => $reply])->header('Cache-Control', 'private, no-store');
         } catch (RuntimeException $e) {
             $status = (int) $e->getCode();
             if ($status < 400 || $status > 599) $status = 503;
