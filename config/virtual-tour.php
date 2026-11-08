@@ -3,6 +3,8 @@
 return [
     'disk' => env('VIRTUAL_TOUR_DISK', 'local'),
     'max_upload_mb' => (int) env('VIRTUAL_TOUR_MAX_UPLOAD_MB', 80),
+    // Ready-made 3DVista / SPAD HTML ZIP packages; separate from single-scene images.
+    'max_package_upload_mb' => (int) env('VIRTUAL_TOUR_MAX_PACKAGE_UPLOAD_MB', 512),
     'async_processing' => (bool) env('VIRTUAL_TOUR_ASYNC', false),
     'jpeg_quality' => (int) env('VIRTUAL_TOUR_JPEG_QUALITY', 86),
     'webp_quality' => (int) env('VIRTUAL_TOUR_WEBP_QUALITY', 84),
