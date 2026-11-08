@@ -161,6 +161,15 @@ class PropertyAcceptanceController extends Controller
             ->header('Cache-Control','private, no-store');
     }
 
+    public function operators()
+    {
+        $this->superAdmin();
+        $users = DB::table('admins')->whereNull('deleted_at')->orderBy('id')
+            ->get(['id','first_name','last_name','mobile']);
+        return response()->json(['status'=>true,'data'=>$users])
+            ->header('Cache-Control','private, no-store');
+    }
+
     public function show($id)
     {
         $this->superAdmin();
@@ -203,10 +212,13 @@ class PropertyAcceptanceController extends Controller
             if ($status === 'contacted' && $row->status !== 'contacted')
                 $fields['last_contacted_at'] = now();
             DB::table('spad_property_acceptance_requests')->where('id',$row->id)->update($fields);
-            if ($status !== $row->status || $row->assigned_admin_id != ($fields['assigned_admin_id'])) {
+            $assignmentChanged = $row->assigned_admin_id != $fields['assigned_admin_id'];
+            $notesChanged = (string)($row->admin_notes ?? '') !== (string)($fields['admin_notes'] ?? '');
+            $followupChanged = (string)($row->follow_up_at ?? '') !== (string)($fields['follow_up_at'] ?? '');
+            if ($status !== $row->status || $assignmentChanged || $notesChanged || $followupChanged) {
                 DB::table('spad_property_acceptance_activity')->insert([
                     'request_id' => $row->id,'admin_id' => $admin->id,
-                    'action' => $status !== $row->status ? 'status_changed' : 'assignment_changed',
+                    'action' => $status !== $row->status ? 'status_changed' : ($assignmentChanged ? 'assignment_changed' : ($notesChanged ? 'note_changed' : 'follow_up_changed')),
                     'from_status' => $row->status,'to_status' => $status,'created_at' => now(),
                 ]);
             }
