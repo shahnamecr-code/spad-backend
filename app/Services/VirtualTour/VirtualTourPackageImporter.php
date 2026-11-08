@@ -14,9 +14,9 @@ use ZipArchive;
 
 class VirtualTourPackageImporter
 {
-    private const MAX_FILES = 500;
-    private const MAX_UNPACKED = 300000000;
-    private const MAX_SINGLE = 55000000;
+    private const MAX_FILES = 2000;
+    private const MAX_UNPACKED = 2147483648;
+    private const MAX_SINGLE = 805306368;
     private const ALLOWED_EXTENSIONS = [
         'html', 'js', 'css', 'json', 'svg', 'png', 'jpg', 'jpeg',
         'webp', 'gif', 'ico', 'woff', 'woff2', 'ttf', 'webm', 'mp4',
@@ -30,9 +30,9 @@ class VirtualTourPackageImporter
     public function import(Advertisement $advertisement, UploadedFile $file, int $adminId): array
     {
         if (strtolower($file->getClientOriginalExtension()) !== 'zip'
-            || $file->getSize() > 80 * 1024 * 1024
+            || $file->getSize() > max(1, (int) config('virtual-tour.max_package_upload_mb', 512)) * 1024 * 1024
             || $file->getSize() < 1024) {
-            throw new RuntimeException('فایل ZIP تور مجازی باید معتبر و حداکثر ۸۰ مگابایت باشد.');
+            throw new RuntimeException('فایل ZIP تور مجازی باید معتبر و حداکثر ۵۱۲ مگابایت باشد.');
         }
         if (!class_exists(ZipArchive::class)) {
             throw new RuntimeException('افزونه ZIP روی سرور فعال نیست.');
