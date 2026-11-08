@@ -5,7 +5,7 @@ Route::prefix('settings')->group(function (){
     Route::post('sms', [\App\Http\Controllers\Admin\SpadSmsSettingsController::class, 'save']);
     Route::post('sms/test', [\App\Http\Controllers\Admin\SpadSmsSettingsController::class, 'test']);
     Route::get('sms/campaign', [\App\Http\Controllers\Admin\SpadSmsCampaignController::class, 'index']);
-    Route::post('sms/campaign', [\App\Http\Controllers\Admin\SpadSmsCampaignController::class, 'dispatch'])->middleware('throttle:3,1');
+    Route::post('sms/campaign', [\App\Http\Controllers\Admin\SpadSmsCampaignController::class, 'queueCampaign'])->middleware('throttle:3,1');
     Route::delete('default-city/unset',[\App\Http\Controllers\Admin\SettingsController::class,'unsetDefaultCity']);
     Route::post('default-city/{city}',[\App\Http\Controllers\Admin\SettingsController::class,'setDefaultCity']);
     Route::get('default-city/get',[\App\Http\Controllers\Admin\SettingsController::class,'getDefaultCity']);

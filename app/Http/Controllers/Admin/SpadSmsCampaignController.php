@@ -51,7 +51,7 @@ class SpadSmsCampaignController extends Controller
         ])->header('Cache-Control','private, no-store');
     }
 
-    public function dispatch(Request $request)
+    public function queueCampaign(Request $request)
     {
         $this->guard($request);
         $data=$request->validate([
