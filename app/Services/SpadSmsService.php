@@ -140,14 +140,33 @@ class SpadSmsService
      */
     public function notify(string $event, string $mobile, array $params = [], ?string $reference = null): bool
     {
+        $sent=false;
         try {
-            if (!$this->eventEnabled($event)) return false;
-            return $this->send($event, $mobile, $params, $reference, false);
+            if ($this->eventEnabled($event))
+                $sent=$this->send($event,$mobile,$params,$reference,false);
         } catch (\Throwable $e) {
-            // Notices are strictly best-effort and must not alter successful
-            // financial, authentication or identity transactions.
-            return false;
+            // A notification is best effort, never reverse business operations.
         }
+        $adminEvents=[
+            'inquiry_requested','inquiry_completed','mortgage_requested',
+            'contract_requested','valuation_requested','property_acceptance_submitted',
+            'property_acceptance_update'
+        ];
+        $settings=$this->settings();
+        if(in_array($event,$adminEvents,true) && !empty($settings['admin_notify_enabled'])
+            && preg_match('/^09[0-9]{9}$/D',(string)$settings['admin_mobile'])
+            && $this->eventEnabled('admin_alert') && $reference!==null) {
+            try {
+                $id=(string)($params['id']??'');
+                $id=preg_match('/^[a-zA-Z0-9_-]{1,50}$/D',$id)?$id:'—';
+                $this->send('admin_alert',(string)$settings['admin_mobile'],[
+                    'event'=>self::EVENTS[$event]??'رویداد جدید','id'=>$id
+                ],'manager:'.$event.':'.$reference,false);
+            } catch (\Throwable $e) {
+                // Admin SMS is independent of the recipient's operation.
+            }
+        }
+        return $sent;
     }
 
     private function send(string $event, string $phone, array $params, ?string $reference, bool $critical, ?string $messageOverride = null): bool
@@ -179,7 +198,7 @@ class SpadSmsService
             throw new RuntimeException('ثبت سوابق پیامک ممکن نیست.');
         }
 
-        $pattern = trim((string) ($rule['pattern_code'] ?? ''));
+        $pattern = $messageOverride === null ? trim((string) ($rule['pattern_code'] ?? '')) : '';
         $otp = ['login_otp','kyc_otp','phone_change_otp','password_reset_otp','handover_otp','admin_signup_otp'];
         if ($settings['sender'] === '' || (in_array($event, $otp, true) && $pattern === '')) {
             DB::table('spad_sms_delivery_logs')->where('id', $id)->update([
