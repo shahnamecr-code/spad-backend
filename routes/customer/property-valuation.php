@@ -11,7 +11,7 @@ Route::prefix('property-market')->group(function () {
 
 Route::prefix('property-valuation')->middleware('auth:sanctum')->group(function () {
     Route::post('postal-lookup', [\App\Http\Controllers\PropertyValuationController::class, 'postalLookup'])
-        ->middleware('throttle:5,60');
+        ->middleware('throttle:spad-property-postal-lookup');
     Route::post('estimate', [\App\Http\Controllers\PropertyValuationController::class, 'estimate'])
         ->middleware('throttle:15,1');
 });
