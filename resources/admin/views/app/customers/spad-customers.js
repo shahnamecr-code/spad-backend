@@ -76,7 +76,7 @@ export default function SpadCustomers(){
     <h2 style={{fontSize:17,margin:0}}>فهرست مشتریان <small style={{fontSize:12,color:"#6e90aa"}}>({Number(total).toLocaleString("fa-IR")} پرونده)</small></h2>
     <form onSubmit={e=>{e.preventDefault();setPage(1);setQuery(search);}} style={{display:"flex",gap:8}}>
      <input aria-label="جستجوی مشتری" value={search} onChange={e=>setSearch(e.target.value)} placeholder="نام یا شماره موبایل" style={{...fieldStyle,width:260,maxWidth:"56vw"}}/>
-     <Btn style={{background:"#007ccb",color:"#fff"}}>جستجو</Btn>
+     <button type="submit" style={{background:"#007ccb",color:"#fff",padding:"9px 14px",border:0,borderRadius:10,cursor:"pointer"}}>جستجو</button>
     </form>
    </div>
    <div style={{overflowX:"auto"}}>

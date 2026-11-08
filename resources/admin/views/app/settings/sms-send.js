@@ -67,7 +67,7 @@ export default function SmsSendCenter(){
      <textarea style={{...input,minHeight:170,resize:"vertical"}} rows={7} required minLength={10} maxLength={400} value={text} placeholder="متن پیامک را بنویسید…" onChange={e=>setText(e.target.value)}/>
      <div style={{display:"flex",justifyContent:"space-between",gap:8,alignItems:"center",marginTop:9}}>
       <small style={{fontSize:11,color:"#7292a7"}}>{text.length} از ۴۰۰ نویسه</small>
-      <button type="submit" disabled={busy||!data?.enabled||!selected.length} style={{background:"#087bc6",color:"white",border:0,borderRadius:10,padding:"11px 17px",opacity:busy||!data?.enabled?.6:1}}>
+      <button type="submit" disabled={busy||!data?.enabled||!selected.length} style={{background:"#087bc6",color:"white",border:0,borderRadius:10,padding:"11px 17px",opacity:(busy||!data?.enabled)?0.6:1}}>
        {busy?"در حال ثبت…":"تأیید و قرار دادن در صف"}
       </button>
      </div>

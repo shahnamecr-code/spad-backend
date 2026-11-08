@@ -30,7 +30,7 @@ export default function SmsSettings(){
    const events={};
    Object.keys(data.events||{}).forEach(k=>events[k]={enabled:!!data.events[k].enabled,pattern_code:String(data.events[k].pattern_code||"").trim()});
    await axios.post(api,{enabled:!!data.enabled,api_key:key||undefined,
-    sender:data.sender||"",daily_limit:Number(data.daily_limit||300),events});
+    sender:data.sender||"",daily_limit:Number(data.daily_limit||300),admin_mobile:data.admin_mobile||"",admin_notify_enabled:!!data.admin_notify_enabled,events});
    NotificationManager.success("تنظیمات پیامکی ذخیره شد.");await load();
   }catch(e){NotificationManager.error(e.response?.data?.message||"ذخیره تنظیمات ناموفق بود.");}
   finally{setBusy(false);}
@@ -70,6 +70,12 @@ export default function SmsSettings(){
       <Col md="6" style={{marginTop:15}}><Label style={label}>سقف روزانه</Label>
        <Input type="number" min={10} max={10000} value={data.daily_limit} onChange={e=>field("daily_limit",e.target.value)}/></Col>
      </Row>
+     <div style={{marginTop:14,padding:12,background:"#f5faff",borderRadius:10}}>
+      <Label style={label}>شماره همراه اطلاع‌رسانی مدیر</Label>
+      <Input dir="ltr" type="tel" maxLength={11} placeholder="09xxxxxxxxx" value={data.admin_mobile||""} onChange={e=>field("admin_mobile",e.target.value.replace(/[^0-9]/g,""))}/>
+      <label style={{display:"flex",gap:9,marginTop:9,alignItems:"center"}}><input type="checkbox" checked={!!data.admin_notify_enabled} onChange={e=>field("admin_notify_enabled",e.target.checked)}/> فعال‌سازی اعلان رویدادها برای مدیر</label>
+      <small style={hint}>اعلان‌های مدیریتی بدون کد ورود کاربران ارسال می‌شوند.</small>
+     </div>
      <p style={{...hint,marginTop:12}}>برای کدهای ورود و تأیید، الگوی ایران پیامک با متغیر %code% بسازید؛ برای رویدادهای دارای شناسه از %id% استفاده کنید. کلید API رمزگذاری و محرمانه نگهداری می‌شود.</p>
     </CardBody></Card></Col>
     <Col md="5"><Card style={card}><CardBody>

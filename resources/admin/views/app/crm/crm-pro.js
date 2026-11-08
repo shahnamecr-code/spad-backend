@@ -7,7 +7,7 @@ import {adminPathApi,adminRoot} from '../../../constants/defaultValues';
 const API=adminPathApi+'/crm-pro';
 const STAGES=[['new','سرنخ جدید'],['contacted','تماس اولیه'],['qualified','احراز نیاز'],['visit','بازدید ملک'],['negotiation','مذاکره'],['won','معامله نهایی'],['lost','مختومه']];
 const INTERESTS=[['buy','خرید ملک'],['sell','فروش ملک'],['rent','رهن و اجاره'],['invest','سرمایه‌گذاری'],['other','سایر']];
-const blank={full_name:'',mobile:'',email:'',stage:'new',interest:'buy',source:'manual',city:'',budget:'',preferred_location:'',note:'',priority:2,sms_consent:false,voice_consent:false,consent_source:''};
+const blank={full_name:'',mobile:'',email:'',stage:'new',interest:'buy',source:'manual',city:'',budget:'',budget_toman:'',preferred_location:'',note:'',priority:2,sms_consent:false,voice_consent:false,consent_source:''};
 const label=(array,key)=>array.find(x=>x[0]===key)?.[1]||key;
 const num=v=>Number(v||0).toLocaleString('fa-IR');
 const err=e=>e?.response?.data?.message||'ارتباط با سرور برقرار نشد. مجدداً بررسی کنید.';
@@ -56,7 +56,7 @@ export default function CrmPro(){
   event.preventDefault();if(!form)return;
   setSaving(true);setError('');setInfo('');
   try{
-   const payload={...form};
+   const payload={...form,budget_toman:form.budget_toman?Number(form.budget_toman):null};
    const {data}=form.id?await axios.put(API+'/contacts/'+form.id,payload):await axios.post(API+'/contacts',payload);
    setInfo(form.id?'پرونده مشتری به‌روزرسانی شد.':'مشتری جدید به CRM اضافه شد.');
    setForm(null);setSelected(data.data.id);await reload();await loadDetail(data.data.id);
@@ -93,7 +93,7 @@ export default function CrmPro(){
    <article><small>درخواست‌های ارتباط امروز</small><strong>{num(summary?.outbound_today)}</strong><i className="simple-icon-envelope"/></article>
   </div>
   <div className="spad-crm-pro__provider-strip">
-   <div><span className={summary?.providers?.sms?'ready':'waiting'}/><b>ارسال پیامک SMS.ir</b><small>{summary?.providers?.sms?'آماده ثبت درخواست':'نیازمند کلید و شماره خط در سرور'}</small></div>
+   <div><span className={summary?.providers?.sms?'ready':'waiting'}/><b>ارسال پیامک ایران پیامک</b><small>{summary?.providers?.sms?'آماده ثبت درخواست':'نیازمند کلید و شماره خط در سرور'}</small></div>
    <div><span className={summary?.providers?.voice?'ready':'waiting'}/><b>تماس صوتی متن‌به‌گفتار</b><small>{summary?.providers?.voice?'آماده ثبت درخواست':'نیازمند فعال‌سازی ارائه‌دهنده خودگو'}</small></div>
    <p>هر ارسال فقط برای یک مخاطب دارای رضایت، پس از تأیید مدیر انجام می‌شود. پذیرش درخواست توسط اپراتور به معنای تحویل یا پاسخ‌گویی نیست.</p>
   </div>
@@ -118,8 +118,8 @@ export default function CrmPro(){
    <section className="spad-crm-pro__record">
     {!detail?<div className="spad-crm-pro__placeholder"><i className="simple-icon-user-following"/><h2>پرونده مشتری</h2><p>یکی از مشتریان را انتخاب کنید یا پرونده جدیدی بسازید تا اطلاعات، پیگیری‌ها و ارتباطات اینجا نمایش داده شوند.</p></div>:
     <><div className="spad-crm-pro__profile-head"><div><span>پرونده شماره {num(detail.data.id)}</span><h2>{detail.data.full_name}</h2><p>{label(INTERESTS,detail.data.interest)} · {detail.data.city||'شهر نامشخص'} · {label(STAGES,detail.data.stage)}</p></div>
-     <button type="button" onClick={()=>setForm({...detail.data})}><i className="simple-icon-pencil"/> ویرایش پرونده</button></div>
-     <div className="spad-crm-pro__facts"><div><small>شماره همراه</small><b dir="ltr">{detail.data.mobile}</b></div><div><small>بودجه تقریبی</small><b>{detail.data.budget||'ثبت نشده'}</b></div><div><small>محدوده مدنظر</small><b>{detail.data.preferred_location||'ثبت نشده'}</b></div></div>
+     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button type="button" onClick={()=>setForm({...detail.data})}><i className="simple-icon-pencil"/> ویرایش پرونده</button><button type="button" disabled={saving} onClick={async()=>{if(!window.confirm("مشتری از فهرست فعال حذف شود؟ سوابق حفظ می‌شوند."))return;setSaving(true);try{await axios.delete(API+"/contacts/"+selected);setSelected(null);setDetail(null);setInfo("مشتری حذف شد.");await reload();}catch(e){setError(err(e));}finally{setSaving(false);}}}>حذف مشتری</button></div></div>
+     <div className="spad-crm-pro__facts"><div><small>شماره همراه</small><b dir="ltr">{detail.data.mobile}</b></div><div><small>بودجه تقریبی</small><b>{detail.data.budget_toman?num(detail.data.budget_toman)+' تومان':detail.data.budget||'ثبت نشده'}</b></div><div><small>محدوده مدنظر</small><b>{detail.data.preferred_location||'ثبت نشده'}</b></div></div>
      {detail.data.note&&<p className="spad-crm-pro__note">{detail.data.note}</p>}
      <div className="spad-crm-pro__consents"><span className={detail.data.sms_consent&&!detail.data.opted_out_at?'yes':'no'}>پیامک: {detail.data.sms_consent?'رضایت ثبت شده':'بدون رضایت'}</span><span className={detail.data.voice_consent&&!detail.data.opted_out_at?'yes':'no'}>تماس صوتی: {detail.data.voice_consent?'رضایت ثبت شده':'بدون رضایت'}</span>
       <button type="button" disabled={saving||Boolean(detail.data.opted_out_at)} onClick={()=>{if(window.confirm('عدم تمایل مشتری برای تمام ارتباطات خودکار ثبت شود؟'))post(API+'/contacts/'+selected+'/opt-out',{});}}>ثبت عدم تمایل</button></div>
@@ -158,7 +158,7 @@ export default function CrmPro(){
      <Field label="مرحله پرونده"><select value={form.stage} onChange={e=>setForm({...form,stage:e.target.value})}>{STAGES.map(([id,text])=><option key={id} value={id}>{text}</option>)}</select></Field>
      <Field label="شهر"><input maxLength={90} value={form.city||''} onChange={e=>setForm({...form,city:e.target.value})}/></Field>
      <Field label="محدوده مدنظر"><input maxLength={170} value={form.preferred_location||''} onChange={e=>setForm({...form,preferred_location:e.target.value})}/></Field>
-     <Field label="بودجه تقریبی"><input maxLength={90} value={form.budget||''} onChange={e=>setForm({...form,budget:e.target.value})}/></Field>
+     <Field label="بودجه خرید (تومان)"><input type="number" min="1000000" max="100000000000000" value={form.budget_toman||''} onChange={e=>setForm({...form,budget_toman:e.target.value?Number(e.target.value):null,budget:e.target.value?Number(e.target.value).toLocaleString('fa-IR')+' تومان':''})}/></Field>
      <Field label="اولویت"><select value={form.priority} onChange={e=>setForm({...form,priority:Number(e.target.value)})}><option value={1}>بالا</option><option value={2}>معمولی</option><option value={3}>پایین</option></select></Field>
      <Field label="پست الکترونیک"><input type="email" maxLength={190} value={form.email||''} onChange={e=>setForm({...form,email:e.target.value})}/></Field>
      <Field label="منبع آشنایی"><input maxLength={50} value={form.source||''} onChange={e=>setForm({...form,source:e.target.value})}/></Field>

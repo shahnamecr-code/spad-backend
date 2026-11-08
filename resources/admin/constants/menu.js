@@ -299,17 +299,16 @@ const data = [
   {
     id: "customers",
     icon: "iconsminds-user",
-    label: "menu.customers",
+    label: "مدیریت مشتریان اسپاد",
     to: `${adminRoot}/customers`,
     roles: [UserRole.Admin],
-    subs: [
-      {
-        icon: "simple-icon-list",
-        label: "menu.customers.list",
-        to: `${adminRoot}/customers/list`,
-        roles: [UserRole.Admin],
-      },
-    ],
+  },
+  {
+    id: "customer-sms",
+    icon: "simple-icon-envelope-letter",
+    label: "ارسال پیامک",
+    to: `${adminRoot}/settings/sms/send`,
+    roles: [UserRole.Admin],
   },
   // {
   //   id: "employ-requests",
