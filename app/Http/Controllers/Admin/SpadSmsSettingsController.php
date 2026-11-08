@@ -36,6 +36,8 @@ class SpadSmsSettingsController extends Controller
             'clear_api_key'=>'sometimes|boolean',
             'sender'=>['nullable','string','max:30','regex:/^[0-9+]*$/D'],
             'daily_limit'=>'required|integer|min:10|max:10000',
+            'admin_mobile'=>['nullable','string','regex:/^09[0-9]{9}$/D'],
+            'admin_notify_enabled'=>'required|boolean',
             'events'=>'required|array',
             'events.*.enabled'=>'required|boolean',
             'events.*.pattern_code'=>['nullable','string','max:100','regex:/^[A-Za-z0-9_-]*$/D'],
@@ -58,6 +60,7 @@ class SpadSmsSettingsController extends Controller
         if(!empty($data['clear_api_key']))$key=null;
         if(!empty($data['api_key']))$key=Crypt::encryptString($data['api_key']);
         if((bool)$data['enabled']) {
+            if(!empty($data['admin_notify_enabled']) && empty($data['admin_mobile'])) return response()->json(['message'=>'شماره همراه مدیر را ثبت کنید.'],422);
             if(!$key || empty($data['sender']))
                 return response()->json(['message'=>'کلید API و خط فرستنده ایران پیامک الزامی است.'],422);
             $hasEvents=false;
@@ -76,6 +79,8 @@ class SpadSmsSettingsController extends Controller
             'api_key_encrypted'=>$key,
             'sender'=>trim($data['sender']??''),
             'daily_limit'=>(int)$data['daily_limit'],
+            'admin_mobile'=>trim($data['admin_mobile']??''),
+            'admin_notify_enabled'=>(bool)$data['admin_notify_enabled'],
             'events_json'=>json_encode($events,JSON_UNESCAPED_UNICODE),
             'updated_at'=>now(),
         ];

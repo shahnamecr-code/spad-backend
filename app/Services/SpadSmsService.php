@@ -33,6 +33,13 @@ class SpadSmsService
         'wallet_transaction' => 'تراکنش کیف پول',
         'inquiry_completed' => 'نتیجه استعلام',
         'handover_approved' => 'تأیید تحویل و تخلیه ملک',
+        'manual_customer_sms' => 'ارسال دستی به مشتریان',
+        'property_match' => 'معرفی خودکار ملک متناسب با بودجه',
+        'admin_alert' => 'اعلان رویدادها برای مدیر',
+        'inquiry_requested' => 'ثبت درخواست استعلام',
+        'mortgage_requested' => 'درخواست وام مسکن',
+        'contract_requested' => 'درخواست قولنامه و کد رهگیری',
+        'valuation_requested' => 'نتیجه قیمت‌گذاری ملک',
     ];
 
     private $row;
@@ -59,6 +66,8 @@ class SpadSmsService
             'enabled' => (bool) ($row->enabled ?? false),
             'provider' => (string) ($row->provider ?? ''),
             'sender' => (string) ($row->sender ?? ''),
+            'admin_mobile' => (string) ($row->admin_mobile ?? ''),
+            'admin_notify_enabled' => (bool) ($row->admin_notify_enabled ?? false),
             'daily_limit' => max(10, (int) ($row->daily_limit ?? 300)),
             'key_saved' => !empty($row->api_key_encrypted),
             'events' => $resolved,
@@ -108,6 +117,16 @@ class SpadSmsService
         $this->send($event, $mobile, ['code' => $code], null, true);
     }
 
+    public function sendManual(string $mobile, string $message, ?string $reference = null): bool
+    {
+        if (!$this->eventEnabled('manual_customer_sms')) throw new RuntimeException('provider_not_configured');
+        $message=trim($message);
+        if (mb_strlen($message)<10 || mb_strlen($message)>400 ||
+            preg_match('/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F]/', $message))
+            throw new RuntimeException('sms_provider_rejected');
+        return $this->send('manual_customer_sms',$mobile,[],$reference,true,$message);
+    }
+
     public function eventEnabled(string $event): bool
     {
         $s = $this->settings();
@@ -131,7 +150,7 @@ class SpadSmsService
         }
     }
 
-    private function send(string $event, string $phone, array $params, ?string $reference, bool $critical): bool
+    private function send(string $event, string $phone, array $params, ?string $reference, bool $critical, ?string $messageOverride = null): bool
     {
         if (!isset(self::EVENTS[$event])) throw new RuntimeException('نوع پیامک پشتیبانی نمی‌شود.');
         $mobile = $this->normalizeMobile($phone);
@@ -182,7 +201,7 @@ class SpadSmsService
             $endpoint='https://api.iranpayamak.com/ws/v1/sms/pattern';
         } else {
             $payload = [
-                'text'=>$this->render($event,$params),
+                'text'=>$messageOverride !== null ? $messageOverride : $this->render($event,$params),
                 'line_number'=>$settings['sender'],'recipients'=>[$mobile],
                 'number_format'=>'english',
             ];
@@ -250,6 +269,13 @@ class SpadSmsService
             'wallet_transaction' => 'تراکنش کیف پول شما در اسپاد ثبت شد.',
             'inquiry_completed' => 'نتیجه استعلام شما در حساب اسپاد آماده است.',
             'handover_approved' => 'تأییدیه تحویل ملک شما در اسپاد ثبت شد.',
+            'property_match' => "اسپاد: ملک جدید متناسب با بودجه شما با قیمت {$data['price']} تومان، کد {$id}\nhttps://spad.estate/property/{$id}\nبرای لغو پیامک با پشتیبانی اسپاد تماس بگیرید.",
+            'admin_alert' => "اسپاد: رویداد {$data['event']} برای پرونده {$id} ثبت شد.",
+            'inquiry_requested' => "درخواست استعلام شما در اسپاد ثبت شد. شناسه {$id}",
+            'mortgage_requested' => "درخواست وام مسکن شما در اسپاد ثبت شد. شناسه {$id}",
+            'contract_requested' => "درخواست قولنامه و کد رهگیری در اسپاد ثبت شد. شناسه {$id}",
+            'valuation_requested' => "نتیجه قیمت‌گذاری ملک شما در حساب اسپاد آماده است.",
+            'manual_customer_sms' => '',
         ];
         return $templates[$event];
     }

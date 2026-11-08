@@ -35,7 +35,7 @@ class SpadCrmProController extends Controller {
   return [
    'id'=>$r->id,'full_name'=>$r->full_name,'mobile'=>$r->mobile,'email'=>$r->email,
    'stage'=>$r->stage,'interest'=>$r->interest,'source'=>$r->source,'city'=>$r->city,
-   'budget'=>$r->budget,'preferred_location'=>$r->preferred_location,
+   'budget'=>$r->budget,'budget_toman'=>isset($r->budget_toman)?(int)$r->budget_toman:null,'preferred_location'=>$r->preferred_location,
    'priority'=>$r->priority,'assigned_to'=>$r->assigned_to,'note'=>$r->note,
    'sms_consent'=>(bool)$r->sms_consent,'voice_consent'=>(bool)$r->voice_consent,
    'consent_recorded_at'=>$r->consent_recorded_at,'consent_source'=>$r->consent_source,
@@ -75,7 +75,7 @@ class SpadCrmProController extends Controller {
    'email'=>'nullable|email|max:190','stage'=>['required',Rule::in(self::STAGES)],
    'interest'=>['required',Rule::in(self::INTERESTS)],
    'source'=>'nullable|string|max:50','city'=>'nullable|string|max:90',
-   'budget'=>'nullable|string|max:90','preferred_location'=>'nullable|string|max:170',
+   'budget'=>'nullable|string|max:90','budget_toman'=>'nullable|integer|min:1000000|max:100000000000000','preferred_location'=>'nullable|string|max:170',
    'note'=>'nullable|string|max:3000','priority'=>'required|integer|min:1|max:3',
    'sms_consent'=>'required|boolean','voice_consent'=>'required|boolean',
    'consent_source'=>'nullable|string|max:120'
@@ -120,6 +120,17 @@ class SpadCrmProController extends Controller {
   DB::table(self::C)->where('id',$id)->update($data);
   $this->audit($id,$request->user()->id,'updated','اطلاعات مشتری و تنظیمات ارتباط به‌روزرسانی شد.');
   return response()->json(['data'=>$this->row(DB::table(self::C)->where('id',$id)->first())]);
+ }
+ public function destroy(Request $request,$id){
+  $this->guard($request);
+  $r=DB::table(self::C)->where('id',$id)->whereNull('deleted_at')->first();
+  abort_unless($r,404,'مشتری پیدا نشد.');
+  $this->audit($id,$request->user()->id,'deleted','مشتری از فهرست فعال کنار گذاشته شد.');
+  DB::table(self::C)->where('id',$id)->update([
+   'deleted_at'=>now(),'sms_consent'=>false,'voice_consent'=>false,
+   'opted_out_at'=>now(),'updated_at'=>now()
+  ]);
+  return response()->json(['message'=>'مشتری از فهرست فعال حذف شد؛ سوابق نگهداری می‌شود.']);
  }
  public function optOut(Request $request,$id){
   $this->guard($request);
@@ -214,13 +225,13 @@ class SpadCrmProController extends Controller {
    abort_if(DB::table('spad_crm_outbound')->whereDate('created_at',today())->count()>=30,429,'سقف سی درخواست ارتباط روزانه سامانه پر شده است.');
    return DB::table('spad_crm_outbound')->insertGetId([
     'contact_id'=>$id,'admin_id'=>$uid,'channel'=>$channel,'message'=>$v['message'],'request_id'=>$v['request_id'],
-    'status'=>'processing','provider'=>$channel==='sms'?'SMS.ir':'خودگو',
+    'status'=>'processing','provider'=>$channel==='sms'?'IranPayamak':'خودگو',
     'created_at'=>now(),'updated_at'=>now()
    ]);
   });
   try{
    $mobile=DB::table(self::C)->where('id',$id)->value('mobile');
-   $result=SpadCrmDeliveryService::send($channel,$mobile,$v['message']);
+   $result=SpadCrmDeliveryService::send($channel,$mobile,$v['message'],$v['request_id']);
    DB::table('spad_crm_outbound')->where('id',$outboundId)->update([
     'status'=>'accepted','provider_ref'=>$result['reference'],'attempted_at'=>now(),'updated_at'=>now()
    ]);

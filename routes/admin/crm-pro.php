@@ -7,6 +7,7 @@ Route::prefix('crm-pro')->middleware('throttle:60,1')->group(function(){
  Route::post('/contacts',[CRM::class,'store']);
  Route::get('/contacts/{id}',[CRM::class,'show'])->whereNumber('id');
  Route::put('/contacts/{id}',[CRM::class,'update'])->whereNumber('id');
+ Route::delete('/contacts/{id}',[CRM::class,'destroy'])->whereNumber('id');
  Route::post('/contacts/{id}/opt-out',[CRM::class,'optOut'])->whereNumber('id');
  Route::post('/contacts/{id}/notes',[CRM::class,'note'])->whereNumber('id');
  Route::post('/contacts/{id}/followups',[CRM::class,'addTask'])->whereNumber('id');
