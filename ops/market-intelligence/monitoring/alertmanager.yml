@@ -1,0 +1,9 @@
+# Safe default: routes alerts to a null receiver. Configure email, Telegram
+# bridge or a secure webhook in this file before claiming notifications work.
+route:
+  receiver: unconfigured
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+receivers:
+  - name: unconfigured
