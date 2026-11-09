@@ -78,7 +78,7 @@ export default function WhatsAppMarketAdmin(){
     params:{kind:previewKind,...(previewKind==="city"?place:{})},responseType:"blob"
    });
    if(currentPreview.current)URL.revokeObjectURL(currentPreview.current);
-   const blob=new Blob([res.data],{type:"image/svg+xml"});
+   const blob=new Blob([res.data],{type:"image/png"});
    currentPreview.current=URL.createObjectURL(blob);
    setPreview(currentPreview.current);
   }catch(_){setError("پیش‌نمایش از داده‌های معتبر در حال حاضر ممکن نیست.");}
@@ -100,7 +100,7 @@ export default function WhatsAppMarketAdmin(){
   <header className="spad-wa-hero">
    <span>دستیار تمام هوشمند ملکی اسپاد</span>
    <h1>انتشار هوشمند قیمت‌ها در واتساپ</h1>
-   <p>ساخت بنرهای اختصاصی قیمت ارز، طلا و محله‌های شهرها با داده‌های واقعی اسپاد و زمان‌بندی خودکار، همراه با پیش‌نمایش و گزارش انتشار.</p>
+   <p>استفاده از دو بنر تصویری تأییدشده اسپاد با فونت اصلی IRANSans و قیمت‌های واقعی بازار و محله‌ها؛ ثبت خودکار روز، تاریخ شمسی و ساعت تهران روی هر بنر.</p>
    <a href="https://spad.estate" target="_blank" rel="noreferrer">spad.estate</a>
   </header>
   <div className="spad-wa-warning" role="note">
