@@ -3,6 +3,9 @@ import {Link} from 'react-router-dom';
 import {useSelector} from 'react-redux';
 import axios from 'axios';
 import {adminPathApi,adminRoot} from '../../../constants/defaultValues';
+import menuItems from '../../../constants/menu';
+import IntlMessages from '../../../helpers/IntlMessages';
+import '../../../assets/css/sass/spad-admin-workspace-all-links.scss';
 const n=v=>Number(v||0).toLocaleString('fa-IR');
 const list=v=>Array.isArray(v)?v:[];
 const pct=(v,t)=>t>0?Math.min(100,Math.max(0,Number(v||0)/t*100)):0;
@@ -193,18 +196,33 @@ const DashboardDefault=()=>{
   {name:'پنل همکاران',sub:'کارگزاری و همکاران',icon:'iconsminds-handshake',url:adminRoot+'/partner-panels'},
   {name:'مدیریت تور مجازی',sub:'تورهای ملکی',icon:'simple-icon-picture',url:adminRoot+'/virtual-tours/list'}
  ];
- const actions=[
-  {title:'مدیریت ملک‌ها',sub:'فهرست و وضعیت آگهی‌ها',icon:'iconsminds-building',url:paths.ads},
-  {title:'درخواست‌ها',sub:'پیگیری CRM و متقاضیان',icon:'simple-icon-people',url:paths.crm},
-  {title:'تور مجازی',sub:'مدیریت تورهای ثبت‌شده',icon:'simple-icon-picture',url:adminRoot+'/virtual-tours/list'},
-  {title:'استعلامات',sub:'درخواست‌ها و سرویس‌ها',icon:'simple-icon-shield',url:adminRoot+'/inquiries/requests'},
-  ...(superAdmin?[
-   {title:'وب‌سرویس‌ها',sub:'درگاه API و امنیت اتصال',icon:'simple-icon-puzzle',url:paths.services},
-   {title:'مدیریت ساختمان',sub:'ساختمان‌ها و ساکنان',icon:'iconsminds-building',url:paths.property},
-   {title:'تنظیمات اصلی',sub:'پیکربندی سامانه',icon:'simple-icon-settings',url:adminRoot+'/settings/main'},
-   {title:'بازسازی آنلاین',sub:'پروژه‌ها و درخواست‌ها',icon:'simple-icon-layers',url:adminRoot+'/online-renovation'}
-  ]:[])
- ];
+ // Show every destination from the actual sidebar definition, not a manually
+ // maintained subset. Keep the same role/permission visibility as the sidebar.
+ const canSee=item=>superAdmin||(
+  (!item.roles||item.roles.some(role=>list(user?.roles).includes(role))) &&
+  (!item.permission||item.permission.some(permission=>list(user?.permissions).includes(permission)))
+ );
+ const usedWorkspaceRoutes=new Set();
+ const workspaceSections=menuItems.filter(canSee).map(section=>{
+  const links=[];
+  const collect=items=>items.forEach(item=>{
+   if(!canSee(item))return;
+   if(item.subs&&item.subs.length){collect(item.subs);return;}
+   if(!item.to||usedWorkspaceRoutes.has(item.to))return;
+   usedWorkspaceRoutes.add(item.to);
+   links.push({url:item.to,title:item.label,icon:item.icon||section.icon||'simple-icon-grid',external:Boolean(item.newWindow)});
+  });
+  collect(section.subs&&section.subs.length?section.subs:[section]);
+  return {id:section.id,label:section.label,links};
+ }).filter(section=>section.links.length);
+ // These standalone settings shortcuts are valid app routes, but some are not
+ // listed as sidebar leaf nodes. Do not duplicate a destination.
+ const extraWorkspaceLinks=superAdmin?settingsLinks.filter(item=>{
+  if(usedWorkspaceRoutes.has(item.url))return false;
+  usedWorkspaceRoutes.add(item.url);
+  return true;
+ }):[];
+ const workspaceCount=workspaceSections.reduce((total,section)=>total+section.links.length,0)+extraWorkspaceLinks.length;
  return <div className="spad-v8-dashboard" dir="rtl">
   <header className="spad-v8-dash-hero spad-v12-command-hero" aria-label="مرکز فرماندهی هوشمند اسپاد">
    <div className="spad-v12-command-hero__heading">
@@ -257,8 +275,22 @@ const DashboardDefault=()=>{
     {categories.length?<div className="spad-v8-category-bars">{categories.map((item,i)=><div key={i}><div><span>{item.name}</span><b>{n(item.value)}</b></div><div className="spad-v8-meter"><span style={{width:pct(item.value,maxCat)+'%'}}/></div></div>)}</div>:<div className="spad-v8-placeholder">هنوز داده‌ای ثبت نشده است.</div>}
    </Pane>
   </div>
-  <Pane title="میز کار مدیر اسپاد" sub="دسترسی مستقیم به خدمات کلیدی و بخش‌های مدیریتی" klass="spad-v8-workspace">
-   <div className="spad-v8-action-grid">{actions.map((action,i)=><Link to={action.url} key={action.url}><span className="spad-v8-action-icon"><i className={action.icon}/></span><div><strong>{action.title}</strong><small>{action.sub}</small></div><i className="simple-icon-arrow-left"/></Link>)}</div>
+  <Pane title="میز کار مدیر اسپاد" sub="دسترسی به تمام صفحات مجاز پنل مدیریت، بر اساس گروه‌بندی منوی اصلی" klass="spad-v8-workspace spad-workspace-all">
+   <div className="spad-workspace-all__total">{n(workspaceCount)} مسیر مدیریتی در دسترس</div>
+   {workspaceSections.map(section=><section className="spad-workspace-all__section" key={section.id}>
+    <h3><IntlMessages id={section.label}/></h3>
+    <div className="spad-v8-action-grid">
+     {section.links.map(item=>item.external?
+      <a key={item.url} href={item.url} target="_blank" rel="noopener noreferrer" className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label"><IntlMessages id={item.title}/></span><i className="simple-icon-arrow-left" aria-hidden="true"/></a>:
+      <Link key={item.url} to={item.url} className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label"><IntlMessages id={item.title}/></span><i className="simple-icon-arrow-left" aria-hidden="true"/></Link>)}
+    </div>
+   </section>)}
+   {extraWorkspaceLinks.length>0&&<section className="spad-workspace-all__section">
+    <h3>سایر تنظیمات و دسترسی‌ها</h3>
+    <div className="spad-v8-action-grid">{extraWorkspaceLinks.map(item=>
+     <Link key={item.url} to={item.url} className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label">{item.name}</span><i className="simple-icon-arrow-left" aria-hidden="true"/></Link>
+    )}</div>
+   </section>}
   </Pane>
  </div>;
 };
