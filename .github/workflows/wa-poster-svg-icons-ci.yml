@@ -1,0 +1,25 @@
+name: SPAD WhatsApp Posters - SVG Icon and Layout Verification
+on:
+  push:
+    branches: [fix/wa-poster-icons-layout-20261109]
+permissions: {contents: read}
+jobs:
+  lint-and-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify PHP syntax and icon/font independence
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          php -l app/Services/SpadWhatsAppPosterRenderer.php
+          grep -Fq 'private function marketIcon(string $key)' app/Services/SpadWhatsAppPosterRenderer.php
+          grep -Fq 'private function pinIcon(): string' app/Services/SpadWhatsAppPosterRenderer.php
+          grep -Fq 'private function trendIcon(bool $isUp)' app/Services/SpadWhatsAppPosterRenderer.php
+          grep -Fq 'wa-market-icon svg' app/Services/SpadWhatsAppPosterRenderer.php
+          grep -Fq 'wa-city-pages' app/Services/SpadWhatsAppPosterRenderer.php
+          ! grep -Fq 'wa-pin">⌖' app/Services/SpadWhatsAppPosterRenderer.php
+          ! grep -Fq "'▲'" app/Services/SpadWhatsAppPosterRenderer.php
+          echo 'WA_POSTER_VECTOR_ICONS=PASS'
