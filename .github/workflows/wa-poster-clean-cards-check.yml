@@ -1,0 +1,31 @@
+name: SPAD WhatsApp Market Cards - Anti-Overlap Validation
+on:
+  push:
+    branches: [fix/wa-poster-clean-rate-cards-20261109]
+permissions: {contents: read}
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Check renderer and guard against old text/icon artifacts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          php -l app/Services/SpadWhatsAppPosterRenderer.php
+          python3 - <<'PY'
+          from pathlib import Path
+          code=Path('app/Services/SpadWhatsAppPosterRenderer.php').read_text()
+          assert '.wa-market-grid{' in code
+          assert 'background:radial-gradient(' in code
+          assert 'grid-template-rows:repeat(8,82px)' in code
+          assert "wa-market-amount" in code
+          assert "wa-market-trend-row" in code
+          assert 'wa-market-name small' not in code
+          assert "wa-market-no-change" in code
+          assert "marketIcon($key)" in code
+          assert "pinIcon()" in code
+          print('WA_POSTER_MARKET_LAYOUT_CONTRACT=PASS')
+          PY
