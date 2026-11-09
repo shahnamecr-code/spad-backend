@@ -125,6 +125,25 @@ class SpadWhatsAppMarketPublisher
 
     public function preview(string $kind, ?string $province = null, ?string $city = null): string
     {
+        // Prefer CLI-generated fresh PNG; PHP-FPM must not need to launch Chrome
+        // or call a remote price provider just to show a Super Admin a poster.
+        $cache = app(SpadWhatsAppPreviewCache::class);
+        $png = $cache->get($kind, $province, $city);
+        if ($png !== null) return $png;
+
+        // The first request still works where the web PHP process has the
+        // necessary renderer permissions. The CLI warm job covers stricter hosts.
+        $png = $this->buildPreviewFresh($kind, $province, $city);
+        $cache->put($kind, $province, $city, $png);
+        return $png;
+    }
+
+    /**
+     * Only genuine fresh market data; a failure never produces invented prices.
+     * The scheduled CLI calls this directly to bypass any existing cached PNG.
+     */
+    public function buildPreviewFresh(string $kind, ?string $province = null, ?string $city = null): string
+    {
         $pages = $this->posterPages($kind, $province, $city);
         $poster = $pages[0];
         $poster['page'] = 1;

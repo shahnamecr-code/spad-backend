@@ -35,6 +35,10 @@ class Kernel extends ConsoleKernel
         // Separate opt-in publisher. Its own settings default to disabled.
         $schedule->command('spad:whatsapp-market')
             ->name('spad-whatsapp-market')->everyMinute()->withoutOverlapping();
+        // Render approved posters with real prices in CLI, not the PHP-FPM request.
+        // This is a read-only image refresh; no WhatsApp messages are sent.
+        $schedule->command('spad:wa-preview-warm')
+            ->name('spad-whatsapp-admin-preview')->everyFiveMinutes()->withoutOverlapping();
     }
 
     /**
