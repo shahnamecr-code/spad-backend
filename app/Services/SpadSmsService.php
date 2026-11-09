@@ -240,8 +240,10 @@ class SpadSmsService
             return false;
         }
         $decoded=$response->json();
-        $ok=$response->status()===201 && is_array($decoded)
-            && strtolower((string)($decoded['status']??''))==='success';
+        // A verified success body is required. Some HTTP gateways return
+        // 200 instead of the documented 201 after accepting a pattern SMS.
+        // Never infer delivery from HTTP 2xx alone.
+        $ok = self::providerAccepted($response->status(), $decoded);
         if(!$ok) {
             DB::table('spad_sms_delivery_logs')->where('id',$id)->update([
                 'status'=>'failed',
@@ -258,6 +260,17 @@ class SpadSmsService
             'updated_at'=>now(),
         ]);
         return true;
+    }
+
+    /**
+     * Accept only an explicit positive provider acknowledgement with an HTTP
+     * success status. No OTP is accepted merely because transport returned 200.
+     */
+    private static function providerAccepted(int $httpStatus, $body): bool
+    {
+        if ($httpStatus < 200 || $httpStatus >= 300 || !is_array($body)) return false;
+        $status = $body['status'] ?? null;
+        return is_string($status) && strtolower(trim($status)) === 'success';
     }
 
     private function render(string $event, array $params): string
