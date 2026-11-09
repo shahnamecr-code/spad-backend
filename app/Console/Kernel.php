@@ -32,6 +32,9 @@ class Kernel extends ConsoleKernel
         $schedule->call(function() {
             \App\Services\SpadCustomerSmsAutomation::processPending(8);
         })->name('spad-customer-sms-outbox')->everyMinute()->withoutOverlapping();
+        // Separate opt-in publisher. Its own settings default to disabled.
+        $schedule->command('spad:whatsapp-market')
+            ->name('spad-whatsapp-market')->everyMinute()->withoutOverlapping();
     }
 
     /**
