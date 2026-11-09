@@ -77,8 +77,8 @@ final class SpadTourTemplateV3
             || str_contains($js, 'SPAD_IOS_STABLE_RENDER_V1')) return $js;
 
         $js = str_replace('  function initGL(){',
-            "  // SPAD_IOS_STABLE_RENDER_V1: capability-specific viewport and GPU protection.\\n" .
-            "  const SPAD_IOS_SAFE=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(/Macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1);\\n" .
+            "  // SPAD_IOS_STABLE_RENDER_V1: capability-specific viewport and GPU protection.\n" .
+            "  const SPAD_IOS_SAFE=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(/Macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1);\n" .
             "  function initGL(){", $js);
         // Preserve the WebGL drawing buffer on WebKit; its asynchronous
         // compositing of WebGL canvas over touch overlays can expose black tiles.
