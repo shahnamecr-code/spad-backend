@@ -1,0 +1,37 @@
+name: SPAD WhatsApp Preview Cache Fix - PHP and Admin Build
+on:
+  push:
+    branches: [fix/wa-preview-cache-http-20261109]
+permissions: {contents: read}
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Validate preview PHP and scheduler syntax
+        run: |
+          php -l app/Services/SpadWhatsAppPreviewCache.php
+          php -l app/Services/SpadWhatsAppMarketPublisher.php
+          php -l app/Console/Commands/WarmSpadWhatsAppPreview.php
+          php -l app/Console/Kernel.php
+          php -l app/Http/Controllers/Admin/SpadWhatsAppMarketController.php
+  admin-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Compile WhatsApp Preview Admin UI
+        env: {NODE_OPTIONS: "--openssl-legacy-provider --max-old-space-size=4096"}
+        run: npm run production
+      - name: Confirm release assets
+        run: |
+          find public -path '*/js/index.js' -type f -size +100c | grep -q .
+          find public -path '*/js/*whatsapp*' -type f -size +100c | grep -q .
