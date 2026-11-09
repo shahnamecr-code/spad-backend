@@ -222,7 +222,10 @@ const DashboardDefault=()=>{
   usedWorkspaceRoutes.add(item.url);
   return true;
  }):[];
- const workspaceCount=workspaceSections.reduce((total,section)=>total+section.links.length,0)+extraWorkspaceLinks.length;
+ const workspaceLinks=workspaceSections.reduce((all,section)=>all.concat(section.links),[]).concat(
+  extraWorkspaceLinks.map(item=>({url:item.url,title:item.name,icon:item.icon,external:false,plainTitle:true}))
+ );
+ const workspaceCount=workspaceLinks.length;
  return <div className="spad-v8-dashboard" dir="rtl">
   <header className="spad-v8-dash-hero spad-v12-command-hero" aria-label="مرکز فرماندهی هوشمند اسپاد">
    <div className="spad-v12-command-hero__heading">
@@ -275,22 +278,13 @@ const DashboardDefault=()=>{
     {categories.length?<div className="spad-v8-category-bars">{categories.map((item,i)=><div key={i}><div><span>{item.name}</span><b>{n(item.value)}</b></div><div className="spad-v8-meter"><span style={{width:pct(item.value,maxCat)+'%'}}/></div></div>)}</div>:<div className="spad-v8-placeholder">هنوز داده‌ای ثبت نشده است.</div>}
    </Pane>
   </div>
-  <Pane title="میز کار مدیر اسپاد" sub="دسترسی به تمام صفحات مجاز پنل مدیریت، بر اساس گروه‌بندی منوی اصلی" klass="spad-v8-workspace spad-workspace-all">
+  <Pane title="میز کار مدیر اسپاد" sub="دسترسی مستقیم به تمام صفحات مجاز پنل مدیریت" klass="spad-v8-workspace spad-workspace-all">
    <div className="spad-workspace-all__total">{n(workspaceCount)} مسیر مدیریتی در دسترس</div>
-   {workspaceSections.map(section=><section className="spad-workspace-all__section" key={section.id}>
-    <h3><IntlMessages id={section.label}/></h3>
-    <div className="spad-v8-action-grid">
-     {section.links.map(item=>item.external?
-      <a key={item.url} href={item.url} target="_blank" rel="noopener noreferrer" className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label"><IntlMessages id={item.title}/></span><i className="simple-icon-arrow-left" aria-hidden="true"/></a>:
-      <Link key={item.url} to={item.url} className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label"><IntlMessages id={item.title}/></span><i className="simple-icon-arrow-left" aria-hidden="true"/></Link>)}
-    </div>
-   </section>)}
-   {extraWorkspaceLinks.length>0&&<section className="spad-workspace-all__section">
-    <h3>سایر تنظیمات و دسترسی‌ها</h3>
-    <div className="spad-v8-action-grid">{extraWorkspaceLinks.map(item=>
-     <Link key={item.url} to={item.url} className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label">{item.name}</span><i className="simple-icon-arrow-left" aria-hidden="true"/></Link>
-    )}</div>
-   </section>}
+   <div className="spad-v8-action-grid">
+    {workspaceLinks.map(item=>item.external?
+     <a key={item.url} href={item.url} target="_blank" rel="noopener noreferrer" className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label">{item.plainTitle?item.title:<IntlMessages id={item.title}/>}</span><i className="simple-icon-arrow-left" aria-hidden="true"/></a>:
+     <Link key={item.url} to={item.url} className="spad-workspace-all__button"><span className="spad-v8-action-icon"><i className={item.icon}/></span><span className="spad-workspace-all__label">{item.plainTitle?item.title:<IntlMessages id={item.title}/>}</span><i className="simple-icon-arrow-left" aria-hidden="true"/></Link>)}
+   </div>
   </Pane>
  </div>;
 };
