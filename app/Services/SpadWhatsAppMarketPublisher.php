@@ -31,7 +31,8 @@ class SpadWhatsAppMarketPublisher
             'groups' => $this->decode($row->groups_json ?? null, []),
             'phone_number_id' => (string) ($row->phone_number_id ?? ''),
             'token_configured' => $row && !empty($row->access_token_encrypted),
-            'render_available' => class_exists(\Imagick::class),
+            'render_available' => app(SpadWhatsAppPosterRenderer::class)->available(),
+            'poster_template' => 'approved_spad_artworks_v1',
             'transport' => 'official_meta_groups_only',
             'channel_supported' => false,
         ];
@@ -125,7 +126,10 @@ class SpadWhatsAppMarketPublisher
     public function preview(string $kind, ?string $province = null, ?string $city = null): string
     {
         $pages = $this->posterPages($kind, $province, $city);
-        return $this->svg($pages[0], 1, count($pages));
+        $poster = $pages[0];
+        $poster['page'] = 1;
+        $poster['total'] = count($pages);
+        return app(SpadWhatsAppPosterRenderer::class)->render($poster);
     }
 
     public function runNow(string $kind, ?string $province, ?string $city): array
@@ -154,8 +158,9 @@ class SpadWhatsAppMarketPublisher
             if (!$inserted) continue;
             $id = DB::table('spad_wa_market_publications')->where('slot_key', $slot)->value('id');
             try {
-                $svg = $this->svg($page, $i + 1, count($pages));
-                $png = $this->renderPng($svg);
+                $page['page'] = $i + 1;
+                $page['total'] = count($pages);
+                $png = app(SpadWhatsAppPosterRenderer::class)->render($page);
                 $path = 'whatsapp-market/' . Carbon::now(self::ZONE)->format('Y/m/d') . '/' . sha1($slot) . '.png';
                 if (!Storage::disk('public')->put($path, $png)) {
                     throw new RuntimeException('ذخیره تصویر بنر در فضای عمومی انجام نشد.');
@@ -204,26 +209,55 @@ class SpadWhatsAppMarketPublisher
     {
         if ($kind === 'market') {
             $data = app(MarketPriceService::class)->getTickerData();
-            $fresh = [];
+            // The existing SPAD feed owns the monetary units and timestamps.
+            // Never show a made-up price or reuse an old price from the artwork.
+            $quotes = [];
             foreach ($data['items'] ?? [] as $quote) {
                 $timestamp = (int) ($quote['timestamp'] ?? 0);
                 $value = (float) ($quote['value'] ?? 0);
-                if (!$timestamp || $value <= 0 || time() - $timestamp > 7200 || $timestamp > time() + 300) continue;
-                $key = $quote['key'] ?? '';
-                $coin = in_array($key, ['new_coin','old_coin','half_coin','quarter_coin'], true);
-                $ounce = $key === 'gold_ounce';
-                $fresh[] = ['name' => (string) $quote['label'],
-                    'value' => ($coin ? $value * 1000 : $value),
-                    'unit' => $ounce ? 'دلار' : 'تومان', 'timestamp' => $timestamp];
+                $key = (string) ($quote['key'] ?? '');
+                if (!$timestamp || $value <= 0 || time() - $timestamp > 7200
+                    || $timestamp > time() + 300 || $key === '') continue;
+                $factor = in_array($key, ['new_coin','old_coin','half_coin','quarter_coin'], true)
+                    ? 1000 : 1;
+                $quotes[$key] = [
+                    'key' => $key, 'name' => (string) ($quote['label'] ?? $key),
+                    'value' => $value * $factor,
+                    'change' => is_numeric($quote['change'] ?? null)
+                        ? (float) $quote['change'] * $factor : null,
+                    'unit' => $key === 'gold_ounce' ? 'دلار' : 'تومان',
+                    'timestamp' => $timestamp,
+                ];
             }
-            if (!$fresh) throw new RuntimeException('نرخ ارز و طلا تازه و معتبر نیست؛ بنر منتشر نشد.', 503);
-            $last = max(array_column($fresh, 'timestamp'));
+            if (!isset($quotes['usd']) || !isset($quotes['gold_18'])) {
+                throw new RuntimeException('داده تازه دلار و طلای ۱۸ عیار موجود نیست؛ بنر منتشر نشد.', 503);
+            }
+            $names = [
+                'usd' => 'دلار آمریکا', 'eur' => 'یورو', 'aed' => 'درهم امارات',
+                'gbp' => 'پوند انگلیس', 'try' => 'لیر ترکیه', 'usdt' => 'تتر',
+                'gold_18' => 'طلای ۱۸ عیار', 'gold_24' => 'طلای ۲۴ عیار',
+                'gold_ounce' => 'انس جهانی طلا', 'melted_gold' => 'طلای آبشده',
+                'mesghal_gold' => 'مثقال طلا', 'new_coin' => 'سکه امامی',
+                'old_coin' => 'سکه بهار آزادی', 'half_coin' => 'نیم سکه',
+                'quarter_coin' => 'ربع سکه',
+            ];
+            $rows = [];
+            foreach ($names as $key => $name) {
+                // A placeholder explicitly says unavailable, and is never sent as a rate.
+                $rows[] = isset($quotes[$key])
+                    ? array_merge($quotes[$key], ['name' => $name])
+                    : ['key' => $key, 'name' => $name, 'value' => null,
+                       'change' => null, 'unit' => $key === 'gold_ounce' ? 'دلار' : 'تومان'];
+            }
+            $last = max(array_column($quotes, 'timestamp'));
             return [[
-                'title' => 'نبض بازار ارز، طلا و سکه',
-                'caption' => 'نرخ‌های بازار ارز و طلا | دستیار تمام هوشمند ملکی اسپاد | https://spad.estate',
-                'source' => 'Iran Market Data', 'updated_at' => date('c', $last),
-                'rows' => array_slice($fresh, 0, 15),
-                'disclaimer' => 'نرخ‌ها اطلاع‌رسانی بازار هستند و ممکن است با قیمت معامله متفاوت باشند.',
+                'kind' => 'market',
+                'title' => 'گزارش کامل قیمت ارز، طلا و سکه',
+                'caption' => 'نرخ‌های معتبر بازار ارز، طلا و سکه | دستیار تمام هوشمند ملکی اسپاد | https://spad.estate',
+                'source' => 'Iran Market Data',
+                'updated_at' => date('c', $last),
+                'rows' => $rows,
+                'disclaimer' => 'نرخ‌های بازار ممکن است با نرخ نهایی معاملات متفاوت باشند.',
             ]];
         }
         if ($kind !== 'city' || !$province || !$city) {
@@ -231,25 +265,29 @@ class SpadWhatsAppMarketPublisher
         }
         $market = app(NemudaPropertyMarket::class);
         $place = $market->matchCity($province, $city);
-        if (!$place) throw new RuntimeException('شناسه معتبر برای شهر ' . $city . ' در داده نمودا پیدا نشد.', 422);
+        if (!$place) {
+            throw new RuntimeException('شناسه معتبر شهر در داده‌های نمودا پیدا نشد.', 422);
+        }
         $children = $market->children((int) $place['id']);
         $rows = [];
-        foreach (($children['places'] ?? []) as $item) {
+        foreach ($children['places'] ?? [] as $item) {
             $value = (float) ($item['price_per_m2'] ?? 0);
             if ($value <= 0 || ($item['coverage'] ?? '') === 'none') continue;
             $rows[] = [
-                'name' => trim((string) $item['name']),
-                'value' => $value, 'unit' => 'تومان / مترمربع',
-                'timestamp' => null,
+                'name' => trim((string) $item['name']), 'value' => $value,
+                'unit' => 'تومان / مترمربع', 'timestamp' => null,
             ];
         }
-        if (!$rows) throw new RuntimeException('قیمت واقعی محله‌های ' . $city . ' موجود نیست؛ بنر منتشر نشد.', 503);
+        if (!$rows) {
+            throw new RuntimeException('قیمت واقعی محله‌های شهر موجود نیست؛ بنر منتشر نشد.', 503);
+        }
         usort($rows, function ($a, $b) { return $b['value'] <=> $a['value']; });
         $pages = [];
         foreach (array_chunk($rows, 12) as $chunk) {
             $pages[] = [
-                'title' => 'گزارش قیمت محله‌های ' . $city,
-                'caption' => 'گزارش قیمت پیشنهادی هر مترمربع ملک در ' . $city .
+                'kind' => 'city', 'city' => $city, 'province' => $province,
+                'title' => 'گزارش کامل قیمت آپارتمان ' . $city,
+                'caption' => 'برآورد قیمت پیشنهادی هر مترمربع آپارتمان در محله‌های ' . $city .
                     ' | منبع: نمودا (CC BY 4.0) | دستیار تمام هوشمند ملکی اسپاد | https://spad.estate',
                 'source' => 'نمودا · nemuda.com/data · CC BY 4.0',
                 'updated_at' => $children['updated_at'] ?? null,
@@ -258,61 +296,6 @@ class SpadWhatsAppMarketPublisher
             ];
         }
         return $pages;
-    }
-
-    private function svg(array $data, int $page, int $total): string
-    {
-        $esc = function ($str) { return htmlspecialchars((string) $str, ENT_QUOTES | ENT_XML1, 'UTF-8'); };
-        $rows = '';
-        foreach ($data['rows'] as $i => $row) {
-            $y = 326 + $i * 69;
-            $shade = $i % 2 ? '#122b49' : '#173657';
-            $number = number_format(round($row['value']));
-            $rows .= '<rect x="76" y="' . ($y - 37) . '" width="928" height="61" rx="13" fill="' . $shade . '"/>' .
-                '<text x="965" y="' . $y . '" text-anchor="end" font-size="26" fill="#f5fbff" direction="rtl">' . $esc($row['name']) . '</text>' .
-                '<text x="125" y="' . $y . '" text-anchor="start" font-size="27" fill="#95d9ff">' . $esc($number) . '</text>' .
-                '<text x="365" y="' . $y . '" text-anchor="end" font-size="16" fill="#b9d4e3" direction="rtl">' . $esc($row['unit']) . '</text>';
-        }
-        $height = max(820, 445 + count($data['rows']) * 69);
-        $date = $data['updated_at'] ? $esc((string) $data['updated_at']) : 'زمان به‌روزرسانی منبع اعلام نشده';
-        $disclaimer = $esc($data['disclaimer']);
-        $title = $esc($data['title']);
-        $source = $esc($data['source']);
-        $pageText = $total > 1 ? " · صفحه $page از $total" : '';
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="' . $height . '" viewBox="0 0 1080 ' . $height . '">' .
-            '<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#071a34"/><stop offset="1" stop-color="#073a62"/></linearGradient></defs>' .
-            '<rect width="1080" height="' . $height . '" fill="url(#bg)"/>' .
-            '<rect x="30" y="30" width="1020" height="' . ($height - 60) . '" rx="32" fill="none" stroke="#337aa3" stroke-width="2"/>' .
-            '<g font-family="Vazirmatn, Noto Sans Arabic, DejaVu Sans, sans-serif">' .
-            '<text x="952" y="114" text-anchor="end" font-size="38" font-weight="bold" fill="#ffffff" direction="rtl">دستیار تمام هوشمند ملکی اسپاد</text>' .
-            '<text x="952" y="174" text-anchor="end" font-size="32" fill="#e0eff9" direction="rtl">' . $title . $esc($pageText) . '</text>' .
-            '<path d="M 80 218 H 1000" stroke="#3aa8d7" stroke-width="3"/>' .
-            '<text x="952" y="264" text-anchor="end" font-size="19" fill="#c0d9e8" direction="rtl">قیمت‌های ثبت‌شده · ' . $source . '</text>' .
-            $rows .
-            '<text x="960" y="' . ($height - 153) . '" text-anchor="end" font-size="18" fill="#bdd5e5" direction="rtl">زمان داده: ' . $date . '</text>' .
-            '<text x="960" y="' . ($height - 108) . '" text-anchor="end" font-size="18" fill="#e7cfa1" direction="rtl">' . $disclaimer . '</text>' .
-            '<rect x="73" y="' . ($height - 82) . '" width="934" height="54" rx="15" fill="#087db9"/>' .
-            '<text x="540" y="' . ($height - 46) . '" text-anchor="middle" font-size="29" fill="#fff">SPAD.ESTATE</text>' .
-            '</g></svg>';
-    }
-
-    private function renderPng(string $svg): string
-    {
-        if (!class_exists(\Imagick::class)) {
-            throw new RuntimeException('موتور ساخت PNG (Imagick/SVG) روی سرور نصب نیست؛ هیچ تصویری ارسال نشد.');
-        }
-        try {
-            $img = new \Imagick();
-            $img->setBackgroundColor('transparent');
-            $img->readImageBlob($svg);
-            $img->setImageFormat('png');
-            $blob = $img->getImagesBlob();
-            $img->clear();
-            if (strlen($blob) < 3000) throw new RuntimeException('PNG خروجی غیرمعتبر یا ناقص است.');
-            return $blob;
-        } catch (Throwable $e) {
-            throw new RuntimeException('رندر بنر فارسی به PNG انجام نشد؛ ارسال متوقف شد.');
-        }
     }
 
     private function sendGroup(string $groupId, string $url, string $caption, array $settings): string
