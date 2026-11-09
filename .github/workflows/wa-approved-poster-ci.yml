@@ -1,0 +1,27 @@
+name: SPAD Approved WhatsApp Poster Sources - PHP and Node Checks
+on:
+  push:
+    branches: [feature/wa-approved-poster-20261109]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: PHP and browser poster renderer syntax
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          php -l app/Services/SpadWhatsAppPosterRenderer.php
+          php -l app/Services/SpadWhatsAppMarketPublisher.php
+          php -l app/Http/Controllers/Admin/SpadWhatsAppMarketController.php
+          node --check resources/wa-posters/render-wa-poster.cjs
+          test "$(file -b --mime-type resources/wa-posters/approved-market.jpg)" = "image/jpeg"
+          test "$(file -b --mime-type resources/wa-posters/approved-city.jpg)" = "image/jpeg"
+          grep -q 'image/png' app/Http/Controllers/Admin/SpadWhatsAppMarketController.php
+          grep -q 'SpadWhatsAppPosterRenderer::class' app/Services/SpadWhatsAppMarketPublisher.php
+          echo SPAD_APPROVED_POSTER_STATIC_TEST=PASS
