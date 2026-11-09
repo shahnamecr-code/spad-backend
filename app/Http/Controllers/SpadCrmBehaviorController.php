@@ -98,8 +98,13 @@ class SpadCrmBehaviorController extends Controller
         if ($path !== null) {
             abort_unless((bool) preg_match('~^/[a-zA-Z0-9_/%.-]{0,219}$~D', $path), 422,
                 'مسیر صفحه معتبر نیست.');
-            abort_if((bool) preg_match('~^/(?:profile|login|register|auth|account|checkout|payment|wallet|admin|crm|property-acceptance)(?:/|$)~i', $path),
-                422, 'ثبت رفتار این صفحه مجاز نیست.');
+            // Whitelist known public routes; an authenticated client cannot submit
+            // private request IDs or arbitrary personal URLs as page telemetry.
+            $publicPath = (bool) preg_match(
+                '~^/(?:|property/[0-9]+|ads/[0-9]+|virtual-tour/[A-Za-z0-9_%.-]+|search/?|news(?:/[A-Za-z0-9_%.-]+){0,2}|gold-currency/?|materials-prices/?|construction-tools/?|live-property-price/?|top-builders/?|property-auctions/?|online-renovation/?|about-us/?|contact-us/?|realtors/?|rules/?)$~D',
+                $path
+            );
+            abort_unless($publicPath, 422, 'ثبت رفتار این صفحه مجاز نیست.');
         }
 
         $type = $data['event_type'];
