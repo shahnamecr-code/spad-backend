@@ -114,3 +114,4 @@ require_once __DIR__ . '/identity.php';
 require_once __DIR__ . '/property-valuation.php';
 
 require_once __DIR__ . '/property-assets.php';
+require_once __DIR__ . '/seo-public.php';
