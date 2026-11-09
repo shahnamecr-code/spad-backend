@@ -57,6 +57,20 @@ class RouteServiceProvider extends ServiceProvider
     protected function configureRateLimiting()
     {
         RateLimiter::for('api', function (Request $request) {
+            // The approved WhatsApp poster preview is a READ-ONLY and already
+            // authenticated Super Admin endpoint. It must not consume the
+            // shared 60/minute IP bucket of every other SPAD admin API call.
+            // The route has its own per-admin limiter after authentication.
+            if ($request->is('api/admin/whatsapp-market/preview')) {
+                $token = $request->bearerToken();
+                $identity = $token
+                    ? 'token:' . hash_hmac('sha256', $token, (string) config('app.key'))
+                    : 'ip:' . $request->ip();
+                return [
+                    Limit::perMinute(240)->by('spad-wa-preview-global-ip:' . $request->ip()),
+                    Limit::perMinute(120)->by('spad-wa-preview-global-client:' . $identity),
+                ];
+            }
             // Sanctum resolves the user after the global API throttle on many
             // installations. For the authenticated seller submit endpoint,
             // never place all customers behind a shared reverse-proxy IP bucket.
@@ -79,6 +93,22 @@ class RouteServiceProvider extends ServiceProvider
                 ];
             }
             return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+        });
+
+        // Separate preview quota: keyed by the authenticated Super Admin
+        // rather than by a shared office/mobile-carrier IP. Other admin actions
+        // retain their own tighter route limits.
+        RateLimiter::for('spad-wa-preview', function (Request $request) {
+            $user = $request->user() ?: auth('admin')->user();
+            $identity = $user
+                ? 'admin:' . $user->getAuthIdentifier()
+                : ($request->bearerToken()
+                    ? 'token:' . hash_hmac('sha256', $request->bearerToken(), (string) config('app.key'))
+                    : 'ip:' . $request->ip());
+            return [
+                Limit::perMinute(180)->by('spad-wa-preview-route-ip:' . $request->ip()),
+                Limit::perMinute(45)->by('spad-wa-preview-route-user:' . $identity),
+            ];
         });
 
         // Cached postal lookups should remain easy to access. Billable new
