@@ -4,8 +4,8 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-content: start;
-    gap: 9px;
-    padding: 10px 12px 18px;
+    gap: 6px;
+    padding: 7px 9px 12px;
     direction: rtl;
   }
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group {
@@ -15,19 +15,19 @@
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link,
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group > .spad-admin-nav-link {
     min-width: 0;
-    min-height: 78px;
+    min-height: 56px;
     width: 100%;
     margin: 0;
-    padding: 11px 6px;
-    border: 1px solid #d5e6f1;
-    border-radius: 13px;
-    background: #f6fbff;
+    padding: 8px 5px;
+    border: 1px solid #9cbdd1;
+    border-radius: 10px;
+    background: #e5f2fb;
     box-shadow: 0 3px 10px rgba(13, 77, 116, .045);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 7px;
+    gap: 4px;
     text-align: center;
     line-height: 1.55;
     white-space: normal;
@@ -38,18 +38,19 @@
     margin: 0;
     width: auto;
     height: auto;
-    font-size: 19px;
+    font-size: 16px;
     line-height: 1;
-    color: #1678ac;
+    color: #075780;
   }
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link .spad-admin-nav-link__label,
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group > .spad-admin-nav-link .spad-admin-nav-link__label {
     display: block;
     width: 100%;
     min-width: 0;
-    font-size: 11px;
-    line-height: 1.6;
-    font-weight: 600;
+    font-size: 10.5px;
+    line-height: 1.5;
+    font-weight: 400;
+    font-family: inherit;
     overflow-wrap: anywhere;
     text-align: center;
   }
@@ -67,8 +68,8 @@
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group > .spad-admin-nav-link:hover,
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link:focus-visible,
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group > .spad-admin-nav-link:focus-visible {
-    background: #e9f6ff;
-    border-color: #55a9d5;
+    background: #c8e9fb;
+    border-color: #1785bc;
     box-shadow: 0 5px 16px rgba(16, 103, 153, .13);
     transform: translateY(-1px);
     outline-offset: 2px;
@@ -76,8 +77,8 @@
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link.active,
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group.open > .spad-admin-nav-link {
     color: #fff;
-    background: #087ab5;
-    border-color: #087ab5;
+    background: #086b9e;
+    border-color: #086b9e;
   }
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link.active .spad-admin-nav-link__icon,
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group.open > .spad-admin-nav-link .spad-admin-nav-link__icon {
@@ -87,29 +88,29 @@
     grid-column: 1 / -1;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 7px;
-    border: 1px solid #e0edf5;
+    gap: 5px;
+    border: 1px solid #b4d0e1;
     background: #f9fcff;
     border-radius: 12px;
     margin: -2px 0 4px;
-    padding: 10px;
+    padding: 7px;
     min-width: 0;
   }
   .spad-admin-sidebar .spad-admin-nav-children .spad-admin-nav-link {
     min-width: 0;
     width: 100%;
-    padding: 10px 6px;
+    padding: 7px 4px;
     margin: 0;
-    border: 1px solid #dcebf4;
-    background: #fff;
-    border-radius: 10px;
+    border: 1px solid #b8d5e7;
+    background: #eaf6fd;
+    border-radius: 8px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     text-align: center;
-    gap: 5px;
-    min-height: 60px;
+    gap: 4px;
+    min-height: 48px;
     white-space: normal;
   }
   .spad-admin-sidebar .spad-admin-nav-children .spad-admin-nav-link__icon {
@@ -119,7 +120,9 @@
     min-width: 0;
     width: 100%;
     overflow-wrap: anywhere;
-    font-size: 10.5px;
+    font-size: 10px;
+    font-weight: 400;
+    font-family: inherit;
     line-height: 1.5;
     text-align: center;
   }
@@ -137,6 +140,11 @@
     gap: 6px;
     padding: 7px 0 0;
   }
+  .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link { font-family: inherit; font-weight: 400; }
+  .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link__label,
+  .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link__label strong { font-family: inherit; font-weight: 400; }
+  .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link,
+  .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group > .spad-admin-nav-link { color: #113f5b; }
   .spad-admin-sidebar .spad-admin-nav-empty {
     grid-column: 1 / -1;
   }
