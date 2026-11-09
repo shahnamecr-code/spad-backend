@@ -47,6 +47,7 @@ class SpadWhatsAppMarketController extends Controller
             'schedule.markets.*' => ['required','string','regex:/^(?:[01]\d|2[0-3]):[0-5]\d$/D'],
             'schedule.cities' => ['required','array','min:1','max:6'],
             'schedule.cities.*' => ['required','string','regex:/^(?:[01]\d|2[0-3]):[0-5]\d$/D'],
+            'schedule.hourly_markets' => ['required','boolean'],
             'cities' => ['required','array','min:1','max:30'],
             'cities.*.province' => ['required','string','min:2','max:80'],
             'cities.*.city' => ['required','string','min:2','max:80'],
