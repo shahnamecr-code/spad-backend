@@ -1,0 +1,43 @@
+name: SPAD WhatsApp Preview 429 - Isolated Rate Limiter and Admin Build Tests
+on:
+  push:
+    branches: [fix/wa-preview-429-limits-20261109]
+permissions: {contents: read}
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Verify isolated read-only preview throttling and strict send quotas
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          php -l app/Providers/RouteServiceProvider.php
+          php -l routes/admin/whatsapp-market.php
+          grep -Fq "RateLimiter::for('spad-wa-preview'" app/Providers/RouteServiceProvider.php
+          grep -Fq "request->is('api/admin/whatsapp-market/preview')" app/Providers/RouteServiceProvider.php
+          grep -Fq "middleware('throttle:spad-wa-preview')" routes/admin/whatsapp-market.php
+          grep -Fq "middleware('throttle:2,1')" routes/admin/whatsapp-market.php
+          ! grep -Fq "middleware('throttle:5,1')" routes/admin/whatsapp-market.php
+          echo "WA_429_SERVER_CONFIG=PASS"
+  admin-ui:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Compile admin with improved retry and duplicate-click protection
+        env: {NODE_OPTIONS: "--openssl-legacy-provider --max-old-space-size=4096"}
+        run: npm run production
+      - name: Verify WhatsApp admin bundle
+        run: |
+          find public -path '*/js/index.js' -type f -size +100c | grep -q .
+          find public -path '*/js/*whatsapp*' -type f -size +100c | grep -q .
+          echo "WA_429_ADMIN_BUILD=PASS"
