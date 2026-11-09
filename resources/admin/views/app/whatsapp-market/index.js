@@ -104,7 +104,7 @@ export default function WhatsAppMarketAdmin(){
    <a href="https://spad.estate" target="_blank" rel="noreferrer">spad.estate</a>
   </header>
   <div className="spad-wa-warning" role="note">
-   **محدودیت سرویس رسمی:** اتصال خودکار فقط برای گروه‌های کوچکِ واجد شرایط Meta Groups API قابل پیکربندی است (حساب تجاری رسمی و حداکثر ۸ عضو).
+   محدودیت سرویس رسمی: اتصال خودکار فقط برای گروه‌های کوچکِ واجد شرایط Meta Groups API قابل پیکربندی است (حساب تجاری رسمی و حداکثر ۸ عضو).
    API رسمی عمومی برای انتشار خودکار در کانال واتساپ وجود ندارد. فعال‌سازی این قسمت بدون مجوز و مقصد معتبر ممکن نیست.
   </div>
   {error?<div className="spad-wa-alert" role="alert">{error}</div>:null}
