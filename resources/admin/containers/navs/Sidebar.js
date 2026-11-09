@@ -8,6 +8,7 @@ import {injectIntl} from 'react-intl';
 
 import IntlMessages from '../../helpers/IntlMessages';
 import menuItems from '../../constants/menu';
+import '../../assets/css/sass/spad-admin-desktop-button-menu.scss';
 
 class Sidebar extends Component {
   constructor(props) {
