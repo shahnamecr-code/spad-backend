@@ -2,6 +2,7 @@ import React, { Suspense } from "react";
 import { Redirect, Route, Switch } from "react-router-dom";
 
 const CrmPro = React.lazy(() => import("./crm-pro"));
+const BehaviorInsights = React.lazy(() => import("./behavior-insights"));
 const AddCustomer = React.lazy(() =>
   import(/* webpackChunkName: "add-customer" */ "./add-customer")
 );
@@ -26,6 +27,7 @@ const Crm = ({ match }) => {
     <Suspense fallback={<div className="loading" />}>
       <Switch>
         <Route exact path={`${match.url}/pro`} render={(props) => <CrmPro {...props} />} />
+        <Route exact path={`${match.url}/behavior`} render={(props) => <BehaviorInsights {...props} />} />
         <Route
           path={`${match.url}/add-customer`}
           render={(props) => <AddCustomer {...props} />}

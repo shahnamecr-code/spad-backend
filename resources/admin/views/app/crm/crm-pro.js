@@ -21,7 +21,7 @@ export default function CrmPro(){
  const superAdmin=Boolean(user&&Array.isArray(user.roles)&&user.roles.includes('Super Admin'));
  const [summary,setSummary]=useState(null),[contacts,setContacts]=useState([]),[total,setTotal]=useState(0);
  const [page,setPage]=useState(1),[stage,setStage]=useState(''),[search,setSearch]=useState(''),[query,setQuery]=useState('');
- const [selected,setSelected]=useState(null),[detail,setDetail]=useState(null);
+ const [selected,setSelected]=useState(()=>Number(new URLSearchParams(window.location.search).get("contact"))||null),[detail,setDetail]=useState(null);
  const [form,setForm]=useState(null),[note,setNote]=useState(''),[noteType,setNoteType]=useState('note');
  const [task,setTask]=useState({title:'',kind:'call',due_at:'',description:''});
  const [outbound,setOutbound]=useState({channel:'sms',message:''});
@@ -118,7 +118,7 @@ export default function CrmPro(){
    <section className="spad-crm-pro__record">
     {!detail?<div className="spad-crm-pro__placeholder"><i className="simple-icon-user-following"/><h2>پرونده مشتری</h2><p>یکی از مشتریان را انتخاب کنید یا پرونده جدیدی بسازید تا اطلاعات، پیگیری‌ها و ارتباطات اینجا نمایش داده شوند.</p></div>:
     <><div className="spad-crm-pro__profile-head"><div><span>پرونده شماره {num(detail.data.id)}</span><h2>{detail.data.full_name}</h2><p>{label(INTERESTS,detail.data.interest)} · {detail.data.city||'شهر نامشخص'} · {label(STAGES,detail.data.stage)}</p></div>
-     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button type="button" onClick={()=>setForm({...detail.data})}><i className="simple-icon-pencil"/> ویرایش پرونده</button><button type="button" disabled={saving} onClick={async()=>{if(!window.confirm("مشتری از فهرست فعال حذف شود؟ سوابق حفظ می‌شوند."))return;setSaving(true);try{await axios.delete(API+"/contacts/"+selected);setSelected(null);setDetail(null);setInfo("مشتری حذف شد.");await reload();}catch(e){setError(err(e));}finally{setSaving(false);}}}>حذف مشتری</button></div></div>
+     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{detail.data.site_user_id&&<Link to={adminRoot+"/crm/behavior?user="+detail.data.site_user_id}>تحلیل بازدیدهای مشتری</Link>}<button type="button" onClick={()=>setForm({...detail.data})}><i className="simple-icon-pencil"/> ویرایش پرونده</button><button type="button" disabled={saving} onClick={async()=>{if(!window.confirm("مشتری از فهرست فعال حذف شود؟ سوابق حفظ می‌شوند."))return;setSaving(true);try{await axios.delete(API+"/contacts/"+selected);setSelected(null);setDetail(null);setInfo("مشتری حذف شد.");await reload();}catch(e){setError(err(e));}finally{setSaving(false);}}}>حذف مشتری</button></div></div>
      <div className="spad-crm-pro__facts"><div><small>شماره همراه</small><b dir="ltr">{detail.data.mobile}</b></div><div><small>بودجه تقریبی</small><b>{detail.data.budget_toman?num(detail.data.budget_toman)+' تومان':detail.data.budget||'ثبت نشده'}</b></div><div><small>محدوده مدنظر</small><b>{detail.data.preferred_location||'ثبت نشده'}</b></div></div>
      {detail.data.note&&<p className="spad-crm-pro__note">{detail.data.note}</p>}
      <div className="spad-crm-pro__consents"><span className={detail.data.sms_consent&&!detail.data.opted_out_at?'yes':'no'}>پیامک: {detail.data.sms_consent?'رضایت ثبت شده':'بدون رضایت'}</span><span className={detail.data.voice_consent&&!detail.data.opted_out_at?'yes':'no'}>تماس صوتی: {detail.data.voice_consent?'رضایت ثبت شده':'بدون رضایت'}</span>

@@ -33,7 +33,7 @@ class SpadCrmProController extends Controller {
  }
  private function row($r){
   return [
-   'id'=>$r->id,'full_name'=>$r->full_name,'mobile'=>$r->mobile,'email'=>$r->email,
+   'id'=>$r->id,'site_user_id'=>$r->site_user_id,'full_name'=>$r->full_name,'mobile'=>$r->mobile,'email'=>$r->email,
    'stage'=>$r->stage,'interest'=>$r->interest,'source'=>$r->source,'city'=>$r->city,
    'budget'=>$r->budget,'budget_toman'=>isset($r->budget_toman)?(int)$r->budget_toman:null,'preferred_location'=>$r->preferred_location,
    'priority'=>$r->priority,'assigned_to'=>$r->assigned_to,'note'=>$r->note,

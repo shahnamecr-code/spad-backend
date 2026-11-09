@@ -147,6 +147,12 @@ const data = [
         roles: [UserRole.Admin],
       },
       {
+        icon: "simple-icon-chart",
+        label: "تحلیل رفتار مشتریان",
+        to: `${adminRoot}/crm/behavior`,
+        roles: [UserRole.Admin],
+      },
+      {
         icon: "simple-icon-user-follow",
         label: "menu.crm.add-customer",
         to: `${adminRoot}/crm/add-customer`,

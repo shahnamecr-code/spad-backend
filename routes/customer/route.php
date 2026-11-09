@@ -105,6 +105,7 @@ require_once __DIR__ . '/handover.php';
 include_once 'partner-panel.php';
 
 include_once 'virtual-tour.php';
+require_once __DIR__ . '/crm-behavior.php';
 
 require_once __DIR__ . '/mortgage.php';
 require_once __DIR__ . '/community.php';
