@@ -10,7 +10,7 @@ No credentials are committed. Configure through the Super Admin screen after mer
 
 ## Scheduling
 Uses the Laravel schedule:run host cron (every minute) and Asia/Tehran time.
-Gold/FX slots: configurable HH:MM, default 10:00 and 18:00.
+Gold/FX slots: configurable HH:MM, default 10:00 and 18:00. Optional hourly mode sends at HH:00 each hour (unless the exact daily slot also matches; no duplicates).
 City slots: default 11:00 daily, one or more selected cities.
 Job uniqueness is date + schedule + city + page. A database unique slot_key prevents duplicates across concurrent workers. Production requires an operational database, Laravel cron, and a renderer.
 
