@@ -145,6 +145,8 @@
   .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link__label strong { font-family: inherit; font-weight: 400; }
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link,
   .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group > .spad-admin-nav-link { color: #113f5b; }
+  .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-link.active,
+  .spad-admin-sidebar .spad-admin-nav > .spad-admin-nav-group.open > .spad-admin-nav-link { color: #fff; }
   .spad-admin-sidebar .spad-admin-nav-empty {
     grid-column: 1 / -1;
   }
