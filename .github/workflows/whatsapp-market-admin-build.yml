@@ -1,0 +1,36 @@
+name: SPAD WhatsApp Market - Admin React Build Verification
+on:
+  push:
+    branches: [feature/whatsapp-market-publisher-20261109]
+    paths:
+      - '.github/workflows/whatsapp-market-admin-build.yml'
+      - 'resources/admin/views/app/whatsapp-market/**'
+      - 'resources/admin/views/app/index.js'
+      - 'resources/admin/constants/menu.js'
+permissions:
+  contents: read
+jobs:
+  admin-react-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install matching Laravel admin frontend dependencies
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Build React admin panel with WhatsApp module
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider --max-old-space-size=4096
+        run: npm run production
+      - name: Verify bundled admin and WhatsApp lazy chunk exist
+        shell: bash
+        run: |
+          set -euo pipefail
+          find public -path '*/js/index.js' -type f -size +100c | grep -q .
+          find public -path '*/js/*whatsapp*' -type f -size +100c | grep -q .
+          echo "WA_MARKET_ADMIN_BUILD=PASS"

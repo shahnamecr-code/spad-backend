@@ -115,6 +115,10 @@ const data = [
     id: "material-prices", icon: "iconsminds-coins",
     label: "menu.material-prices", to: `${adminRoot}/material-prices`, roles: [UserRole.Admin]
   },
+  {
+    id: "whatsapp-market", icon: "simple-icon-picture",
+    label: "انتشار قیمت‌ها در واتساپ", to: `${adminRoot}/whatsapp-market`, roles: [UserRole.Admin]
+  },
   {id:"building-management",icon:"iconsminds-building",label:"menu.building-management",to:`${adminRoot}/building-management`,roles:[UserRole.Admin]},
   {id:"top-builders",icon:"iconsminds-business-man",label:"menu.top-builders",to:`${adminRoot}/top-builders`,roles:[UserRole.Admin]},
   {id:"property-auctions",icon:"iconsminds-gavel",label:"menu.property-auctions",to:`${adminRoot}/property-auctions`,roles:[UserRole.Admin]},
