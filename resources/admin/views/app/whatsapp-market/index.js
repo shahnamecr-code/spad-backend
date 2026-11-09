@@ -23,6 +23,13 @@ const formatDate = value => {
 };
 const decodePreviewError = async error => {
  const status=error?.response?.status;
+ if(status===429){
+  const seconds=Number(error?.response?.headers?.["retry-after"]||0);
+  const retry=Number.isFinite(seconds)&&seconds>0&&seconds<=3600
+   ? " حدود "+Math.ceil(seconds)+" ثانیه دیگر"
+   : " چند لحظه دیگر";
+  return "برای جلوگیری از درخواست‌های بیش از حد، پیش‌نمایش موقتاً محدود شده است؛"+retry+" دوباره امتحان کنید.";
+ }
  if(status===401||status===403)return "نشست مدیریت معتبر نیست یا مجوز مشاهده بنر را ندارید. دوباره وارد پنل مدیر اصلی شوید.";
  const payload=error?.response?.data;
  if(payload instanceof Blob){
@@ -49,6 +56,7 @@ export default function WhatsAppMarketAdmin(){
  const [error,setError]=useState(""),[success,setSuccess]=useState("");
  const [preview,setPreview]=useState(""),[previewKind,setPreviewKind]=useState("market"),[previewCity,setPreviewCity]=useState(0);
  const currentPreview=useRef("");
+ const previewInFlight=useRef(false);
  const set=(key,value)=>setForm(p=>({...p,[key]:value}));
  const load=useCallback(async()=>{
   setError("");
@@ -85,9 +93,11 @@ export default function WhatsAppMarketAdmin(){
   }finally{setBusy(false);}
  };
  const showPreview=async()=>{
+  if(previewInFlight.current)return;
+  previewInFlight.current=true;
   setPreviewBusy(true);setError("");setSuccess("");
   const place=cities[previewCity]||cities[0];
-  if(previewKind==="city"&&!place){setPreviewBusy(false);setError("ابتدا یک شهر اضافه کنید.");return;}
+  if(previewKind==="city"&&!place){previewInFlight.current=false;setPreviewBusy(false);setError("ابتدا یک شهر اضافه کنید.");return;}
   try{
    const res=await axios.get(endpoint+"/preview",{
     params:{kind:previewKind,...(previewKind==="city"?place:{})},responseType:"blob"
@@ -102,7 +112,7 @@ export default function WhatsAppMarketAdmin(){
    currentPreview.current=URL.createObjectURL(blob);
    setPreview(currentPreview.current);
   }catch(e){setError(e?.message && !e.response ? e.message : await decodePreviewError(e));}
-  finally{setPreviewBusy(false);}
+  finally{previewInFlight.current=false;setPreviewBusy(false);}
  };
  const sendNow=async()=>{
   if(!window.confirm("این اقدام واقعاً بنر را به همه گروه‌های فعال Meta ارسال می‌کند. ادامه می‌دهید؟"))return;
