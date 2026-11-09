@@ -21,6 +21,21 @@ const formatDate = value => {
  try {return new Date(value).toLocaleString("fa-IR",{timeZone:"Asia/Tehran"});}
  catch(_){return value;}
 };
+const decodePreviewError = async error => {
+ const status=error?.response?.status;
+ if(status===401||status===403)return "نشست مدیریت معتبر نیست یا مجوز مشاهده بنر را ندارید. دوباره وارد پنل مدیر اصلی شوید.";
+ const payload=error?.response?.data;
+ if(payload instanceof Blob){
+  try {
+   const text=await payload.text();
+   const data=JSON.parse(text);
+   if(data?.message)return data.message;
+  }catch(_){}
+ }
+ if(payload?.message)return payload.message;
+ if(!error?.response)return "اتصال با سرور پیش‌نمایش برقرار نشد. دسترسی شبکه را بررسی کنید.";
+ return "پیش‌نمایش در پاسخ سرور خطا دارد (کد "+status+"). گزارش علت برای بررسی ثبت شد.";
+};
 const Box = ({title,children})=><section className="spad-wa-card"><h2>{title}</h2>{children}</section>;
 
 export default function WhatsAppMarketAdmin(){
@@ -77,11 +92,16 @@ export default function WhatsAppMarketAdmin(){
    const res=await axios.get(endpoint+"/preview",{
     params:{kind:previewKind,...(previewKind==="city"?place:{})},responseType:"blob"
    });
+   const mime=String(res.headers?.["content-type"]||res.data?.type||"").toLowerCase();
+   if(!mime.includes("image/png")||!(res.data instanceof Blob)||res.data.size<40000){
+    if(mime.includes("text/html"))throw new Error("نشست مدیریت منقضی شده است؛ لطفاً دوباره وارد پنل شوید.");
+    throw new Error("پاسخ سرور تصویر معتبر نیست. کد وضعیت: "+res.status);
+   }
    if(currentPreview.current)URL.revokeObjectURL(currentPreview.current);
    const blob=new Blob([res.data],{type:"image/png"});
    currentPreview.current=URL.createObjectURL(blob);
    setPreview(currentPreview.current);
-  }catch(_){setError("پیش‌نمایش از داده‌های معتبر در حال حاضر ممکن نیست.");}
+  }catch(e){setError(e?.message && !e.response ? e.message : await decodePreviewError(e));}
   finally{setPreviewBusy(false);}
  };
  const sendNow=async()=>{
@@ -160,7 +180,7 @@ export default function WhatsAppMarketAdmin(){
       <button type="button" className="spad-wa-secondary" onClick={sendNow} disabled={!form.enabled||busy}>ارسال واقعی به گروه‌های تنظیم‌شده</button>
      </div>
      {preview?<img className="spad-wa-preview" src={preview} alt="پیش‌نمایش بنر اختصاصی قیمت‌ها برای اسپاد"/>:<p>برای بررسی بنر قبل از انتشار، پیش‌نمایش را اجرا کنید.</p>}
-     <p>خروجی واقعی نیاز به تبدیل PNG در سرور دارد. وضعیت موتور تصویر: {form.render_available?"افزونه تصویر نصب شده":"نیازمند نصب Imagick و پشتیبانی SVG"}</p>
+     <p>خروجی واقعی نیاز به تبدیل PNG در سرور دارد. وضعیت موتور تصویر: {form.render_available?"موتور ساخت تصاویر اسپاد آماده است":"موتور ساخت تصویر نیازمند بررسی سرور است"}</p>
     </Box>
    </div>
    <div className="spad-wa-footer"><button type="submit" disabled={busy}>{busy?"در حال ثبت...":"ذخیره تنظیمات انتشار"}</button>
