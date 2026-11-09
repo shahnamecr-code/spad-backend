@@ -15,7 +15,7 @@ use Throwable;
 class SpadWhatsAppMarketPublisher
 {
     const ZONE = 'Asia/Tehran';
-    const DEFAULT_SCHEDULE = ['markets' => ['10:00', '18:00'], 'cities' => ['11:00']];
+    const DEFAULT_SCHEDULE = ['markets' => ['10:00', '18:00'], 'cities' => ['11:00'], 'hourly_markets' => false];
     const DEFAULT_CITIES = [
         ['province' => 'تهران', 'city' => 'تهران'],
         ['province' => 'فارس', 'city' => 'شیراز'],
@@ -93,7 +93,8 @@ class SpadWhatsAppMarketPublisher
         $minute = Carbon::now(self::ZONE)->format('H:i');
         $day = Carbon::now(self::ZONE)->format('Y-m-d');
         $jobs = [];
-        if (in_array($minute, $settings['schedule']['markets'] ?? [], true)) {
+        if (in_array($minute, $settings['schedule']['markets'] ?? [], true)
+            || (!empty($settings['schedule']['hourly_markets']) && substr($minute, 3, 2) === '00')) {
             $jobs[] = ['key' => $day . ':market:' . $minute, 'kind' => 'market',
                 'province' => null, 'city' => null, 'time' => $minute];
         }
