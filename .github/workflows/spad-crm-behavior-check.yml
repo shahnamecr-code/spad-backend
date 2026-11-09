@@ -1,0 +1,37 @@
+name: SPAD CRM Behavior - Isolated PHP Validation
+on:
+  pull_request:
+    paths:
+      - 'app/Http/Controllers/SpadCrmBehaviorController.php'
+      - 'app/Http/Controllers/Admin/SpadCrmBehaviorInsightsController.php'
+      - 'app/Http/Controllers/Admin/SpadCrmProController.php'
+      - 'database/migrations/2026_11_09_140000_create_spad_crm_behavior_tables.php'
+      - 'routes/customer/crm-behavior.php'
+      - 'routes/admin/crm-behavior.php'
+      - 'routes/customer/route.php'
+      - 'routes/admin/route.php'
+      - 'app/Console/Kernel.php'
+      - '.github/workflows/spad-crm-behavior-check.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  php-syntax:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Lint CRM-specific PHP without application bootstrap
+        run: |
+          set -eu
+          php -l app/Http/Controllers/SpadCrmBehaviorController.php
+          php -l app/Http/Controllers/Admin/SpadCrmBehaviorInsightsController.php
+          php -l app/Http/Controllers/Admin/SpadCrmProController.php
+          php -l database/migrations/2026_11_09_140000_create_spad_crm_behavior_tables.php
+          php -l routes/customer/crm-behavior.php
+          php -l routes/admin/crm-behavior.php
+          php -l routes/customer/route.php
+          php -l routes/admin/route.php
+          php -l app/Console/Kernel.php

@@ -32,6 +32,17 @@ class Kernel extends ConsoleKernel
         $schedule->call(function() {
             \App\Services\SpadCustomerSmsAutomation::processPending(8);
         })->name('spad-customer-sms-outbox')->everyMinute()->withoutOverlapping();
+        // Short-retention, privacy-first CRM behavioral telemetry (90 days).
+        $schedule->call(function () {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('spad_crm_behavior_events')) return;
+            for ($i = 0; $i < 20; $i++) {
+                $ids = \Illuminate\Support\Facades\DB::table('spad_crm_behavior_events')
+                    ->where('created_at', '<', now()->subDays(90))
+                    ->orderBy('id')->limit(500)->pluck('id')->all();
+                if (!$ids) break;
+                \Illuminate\Support\Facades\DB::table('spad_crm_behavior_events')->whereIn('id', $ids)->delete();
+            }
+        })->name('spad-crm-behavior-retention')->dailyAt('03:15')->withoutOverlapping();
     }
 
     /**
