@@ -16,7 +16,11 @@ final class SpadTourTemplateV3
             return preg_replace('/\bmaxFov\s*:\s*\d+(?:\.\d+)?/', 'maxFov: 120', $source, 1) ?: $source;
         }
 
-        if ($asset === 'app.js' && str_contains($source, 'const config=window.SPAD_TOUR;')) {
+        if ($asset === 'app.js' && (
+            str_contains($source, 'const config=window.SPAD_TOUR;')
+            || (str_contains($source, 'SPAD 360 reusable, independent and offline-ready engine')
+                && str_contains($source, 'function uploadGpuTiles(im){'))
+        )) {
             return self::patchPlayer($source);
         }
 
