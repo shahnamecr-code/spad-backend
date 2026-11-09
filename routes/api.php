@@ -40,6 +40,7 @@ Route::group(['prefix' => 'admin'], function () {
         Route::post('logout', [\App\Http\Controllers\Admin\Auth\LoginController::class, 'logout']);
         require __DIR__ . "/admin-route.php";
         require __DIR__ . "/admin/route.php";
+        require __DIR__ . "/admin/whatsapp-market.php";
 
 //        Route::post('file', [\App\Http\Controllers\Admin\FilesController::class, 'get']);
 //        Route::post('file/create', [\App\Http\Controllers\Admin\FilesController::class, 'create']);
