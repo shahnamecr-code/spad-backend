@@ -151,3 +151,58 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Contrast regression fix: legacy V7 rules use !important on menu text and
+   icon colors. Scope all overrides to the desktop sidebar, preserving mobile. */
+@media (min-width: 992px) {
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link {
+    color: #123e59 !important;
+    background: #e2f1fa !important;
+    border: 1px solid #78aaca !important;
+    box-shadow: inset 0 0 0 1px rgba(10, 85, 140, .08), 0 2px 6px rgba(0, 36, 70, .09);
+    opacity: 1 !important;
+    font-weight: 400 !important;
+    font-family: inherit !important;
+  }
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link__label {
+    color: inherit !important;
+    opacity: 1 !important;
+    font-weight: 400 !important;
+    font-family: inherit !important;
+    text-shadow: none !important;
+  }
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link__icon {
+    color: #075b8c !important;
+    background: #c9e5f7 !important;
+    border: 1px solid #a0c9e2 !important;
+    border-radius: 7px;
+    opacity: 1 !important;
+  }
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link__chevron {
+    color: #28658a !important;
+    opacity: 1 !important;
+  }
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link:hover,
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link:focus-visible {
+    color: #063650 !important;
+    background: #b9e2f8 !important;
+    border-color: #167cae !important;
+  }
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link.active,
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-group.open > .spad-admin-nav-link--root {
+    color: #fff !important;
+    background: #086dab !important;
+    border-color: #338cca !important;
+    opacity: 1 !important;
+  }
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link.active .spad-admin-nav-link__icon,
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-group.open > .spad-admin-nav-link--root .spad-admin-nav-link__icon {
+    color: #fff !important;
+    background: rgba(255,255,255,.16) !important;
+    border-color: rgba(255,255,255,.3) !important;
+  }
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-link.active .spad-admin-nav-link__chevron,
+  .spad-admin-shell .spad-admin-sidebar .spad-admin-nav .spad-admin-nav-group.open > .spad-admin-nav-link--root .spad-admin-nav-link__chevron {
+    color: #fff !important;
+  }
+}
