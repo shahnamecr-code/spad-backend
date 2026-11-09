@@ -61,6 +61,100 @@ final class SpadTourTemplateV3
                 $js = str_replace($before, $after, $js);
             }
         }
+        return self::patchIosStability($js);
+    }
+
+    /**
+     * This patch is applied only while serving recognized SPAD packages.
+     * The uploaded ZIP is never modified; original image pixels stay on disk.
+     * iPhone WebKit cannot fullscreen a div, and its GPU can reject very large
+     * multi-texture panoramas with persistent black tiles.
+     */
+    private static function patchIosStability(string $js): string
+    {
+        if (!str_contains($js, 'function uploadGpuTiles(im){')
+            || !str_contains($js, "document.documentElement.requestFullscreen()")
+            || str_contains($js, 'SPAD_IOS_STABLE_RENDER_V1')) return $js;
+
+        $js = str_replace('  function initGL(){',
+            "  // SPAD_IOS_STABLE_RENDER_V1: capability-specific viewport and GPU protection.\\n" .
+            "  const SPAD_IOS_SAFE=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(/Macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1);\\n" .
+            "  function initGL(){", $js);
+        // Preserve the WebGL drawing buffer on WebKit; its asynchronous
+        // compositing of WebGL canvas over touch overlays can expose black tiles.
+        $js = str_replace('preserveDrawingBuffer:false,depth:false',
+            'preserveDrawingBuffer:SPAD_IOS_SAFE,depth:false', $js);
+        $js = str_replace("powerPreference:'high-performance',desynchronized:true",
+            "powerPreference:SPAD_IOS_SAFE?'default':'high-performance',desynchronized:!SPAD_IOS_SAFE", $js);
+        $js = str_replace('const maxPixels=coarse?4400000:8500000;',
+            'const maxPixels=coarse?(SPAD_IOS_SAFE?3000000:4400000):8500000;', $js);
+
+        $iosGpu = <<<'JS'
+  function uploadGpuTiles(im){
+    // On iOS, one hardware-safe RGB texture prevents intermittent black
+    // tiles from 8-sampler panoramas. Original JPEG remains unchanged.
+    // The 7-megapixel GPU working set is still larger than the visible
+    // Retina viewport; this caps transient GPU allocation, not stored photos.
+    if(SPAD_IOS_SAFE&&gl){
+      const maxEdge=Math.min(4096,Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)||2048));
+      const w=im.naturalWidth,h=im.naturalHeight;
+      const scale=Math.min(1,maxEdge/w,maxEdge/h,Math.sqrt(7000000/(w*h)));
+      const gpuCanvas=document.createElement('canvas');
+      gpuCanvas.width=Math.max(2,Math.round(w*scale));
+      gpuCanvas.height=Math.max(2,Math.round(h*scale));
+      try{
+        const c=gpuCanvas.getContext('2d',{alpha:false});
+        if(!c)throw Error('No panorama conversion context');
+        c.drawImage(im,0,0,gpuCanvas.width,gpuCanvas.height);
+        releaseGpuTiles();
+        const tex=gl.createTexture();
+        if(!tex)throw Error('No GPU texture');
+        glTiles.push(tex);gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,tex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL,false);
+        gl.pixelStorei(gl.UNPACK_ALIGNMENT,1);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,gpuCanvas);
+        if(gl.getError()!==gl.NO_ERROR)throw Error('iOS texture upload failed');
+        // Every sampler unit is complete even when the GLSL compiler
+        // does not fold away branches for the single texture.
+        const maxUnits=Math.min(8,Number(gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)||8));
+        for(let n=1;n<maxUnits;n++){gl.activeTexture(gl.TEXTURE0+n);gl.bindTexture(gl.TEXTURE_2D,tex);}
+        gl.activeTexture(gl.TEXTURE0);
+        glTileGrid=[1,1];glReady=true;dirty=true;
+        return true;
+      }catch(e){
+        console.warn('SPAD iOS GPU fallback',e);
+        releaseGpuTiles();
+        return false;
+      }finally{
+        gpuCanvas.width=1;gpuCanvas.height=1;
+      }
+    }
+JS;
+        $js = str_replace('  function uploadGpuTiles(im){', $iosGpu, $js);
+        $oldFullscreen = "async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen()}catch(_){toast('تمام‌صفحه در این مرورگر فعال نشد')}}";
+        $newFullscreen = <<<'JS'
+async function fullscreen(){
+    if(window.parent!==window&&(SPAD_IOS_SAFE||!document.fullscreenEnabled)){
+      // Parent route verifies event.source, then sends fixed event to
+      // first-party property viewer. Do not request fullscreen of gallery.
+      window.parent.postMessage({type:'SPAD_TOUR_REQUEST_IMMERSIVE'},'*');
+      return;
+    }
+    try{
+      if(document.fullscreenElement)await document.exitFullscreen();
+      else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();
+      else if(SPAD_IOS_SAFE)document.documentElement.classList.toggle('spad-ios-tour-viewport');
+    }catch(_){
+      if(SPAD_IOS_SAFE)document.documentElement.classList.toggle('spad-ios-tour-viewport');
+      else toast('تمام‌صفحه در این مرورگر فعال نشد');
+    }
+  }
+JS;
+        $js = str_replace($oldFullscreen, $newFullscreen, $js);
         return $js;
     }
 
