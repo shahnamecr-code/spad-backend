@@ -5,7 +5,7 @@ import "./whatsapp-market.scss";
 
 const endpoint = adminPathApi + "/whatsapp-market";
 const defaults = {
-  enabled:false, schedule:{markets:["10:00","18:00"],cities:["11:00"]},
+  enabled:false, schedule:{markets:["10:00","18:00"],cities:["11:00"],hourly_markets:false},
   cities:[{province:"تهران",city:"تهران"},{province:"فارس",city:"شیراز"}],
   groups:[], phone_number_id:"", access_token:"", token_configured:false,
   official_groups_acknowledged:false,render_available:false
@@ -51,7 +51,7 @@ export default function WhatsAppMarketAdmin(){
  const cities=readCities(citiesText);
  const save=async e=>{
   e.preventDefault();setError("");setSuccess("");
-  const schedule={markets:normalizeTimes(marketTimes),cities:normalizeTimes(cityTimes)};
+  const schedule={markets:normalizeTimes(marketTimes),cities:normalizeTimes(cityTimes),hourly_markets:!!form.schedule?.hourly_markets};
   const groups=[...new Set(groupsText.split(/\n+/).map(x=>x.trim()).filter(Boolean))];
   if(!schedule.markets.length||!schedule.cities.length||!cities.length){setError("ساعت‌ها و حداقل یک شهر باید تنظیم شوند.");return;}
   setBusy(true);
@@ -120,6 +120,7 @@ export default function WhatsAppMarketAdmin(){
      <label>ساعت‌های روزانه بنرهای ملکی
       <input dir="ltr" value={cityTimes} onChange={e=>setCityTimes(e.target.value)} placeholder="11:00"/>
      </label>
+     <label className="spad-wa-toggle"><input type="checkbox" checked={!!form.schedule?.hourly_markets} onChange={e=>set("schedule",{...form.schedule,hourly_markets:e.target.checked})}/> انتشار خودکار نرخ ارز، طلا و دلار در ابتدای هر ساعت</label>
      <p>برای چند ساعت، زمان‌ها را با ویرگول جدا کنید. قالب ۲۴ساعته است.</p>
     </Box>
     <Box title="شهرها و محله‌های منتشرشونده">
