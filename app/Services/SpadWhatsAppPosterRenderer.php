@@ -229,45 +229,54 @@ class SpadWhatsAppPosterRenderer
             : '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 11 1 2h10z" fill="currentColor"/></svg>';
     }
 
+    /**
+     * The original approved artwork contains illustrative rate cards. They are
+     * fully hidden behind one opaque stage (see .wa-market-grid CSS), and every
+     * displayed card here is redrawn from fresh provider data. Never overlay
+     * transparent cards on the baked-in sample numbers or symbols.
+     */
     private function marketCards(array $rows): string
     {
-        $codes = [
-            'usd'=>'USD', 'eur'=>'EUR', 'gbp'=>'GBP', 'aed'=>'AED', 'try'=>'TRY',
-            'usdt'=>'USDT', 'gold_18'=>'GOLD', 'gold_24'=>'GOLD',
-            'gold_ounce'=>'XAU', 'melted_gold'=>'GOLD', 'mesghal_gold'=>'GOLD',
-            'new_coin'=>'سکه', 'old_coin'=>'سکه', 'half_coin'=>'سکه', 'quarter_coin'=>'سکه',
-        ];
         $html = '';
         foreach (array_slice($rows, 0, 15) as $index => $row) {
             $value = $row['value'] ?? null;
             $unit = (string) ($row['unit'] ?? 'تومان');
             $key = (string) ($row['key'] ?? '');
-            $icon = $this->marketIcon($key);
-            $code = $codes[$key] ?? '';
-            $name = $this->e($row['name'] ?? '');
-            $number = $this->e($this->price($value, $unit));
-            $unitText = $value === null ? 'نرخ موجود نیست' : $this->e($unit);
-            $change = $row['change'] ?? null;
+            $name = trim((string) ($row['name'] ?? ''));
+            if ($name === '') continue;
+
+            $available = is_numeric($value) && (float) $value > 0;
+            $number = $available
+                ? $this->e($this->price($value, $unit)) : '—';
+            $unitText = $available ? $this->e($unit) : 'نرخ موجود نیست';
             $indicator = '';
-            if (is_numeric($change) && is_numeric($value) && $value > 0 && abs((float)$change) > 0) {
-                $previous = (float)$value - (float)$change;
+            $change = $row['change'] ?? null;
+            if ($available && is_numeric($change) && abs((float) $change) > 0) {
+                $previous = (float) $value - (float) $change;
                 if ($previous > 0) {
-                    $percent = abs((float)$change / $previous * 100);
+                    $percent = abs((float) $change / $previous * 100);
                     if ($percent <= 100) {
-                        $direction = $change > 0 ? 'up' : 'down';
-                        $glyph = $this->trendIcon($change > 0);
-                        $indicator = '<span class="indicator ' . $direction . '">'
-                            . $glyph . '<span>' . $this->e($this->fa(number_format($percent, 2))) . '٪</span></span>';
+                        $up = (float) $change > 0;
+                        $indicator = '<span class="wa-market-trend ' . ($up ? 'up' : 'down') . '">'
+                            . $this->trendIcon($up)
+                            . '<span dir="ltr">' . $this->e($this->fa(number_format($percent, 2))) . '٪</span></span>';
                     }
                 }
             }
+            if ($indicator === '') {
+                $indicator = '<span class="wa-market-no-change">—</span>';
+            }
+
             $last = $index === 14 ? ' last-card' : '';
             $html .= '<article class="wa-market-card' . $last . '">'
-                . '<div class="wa-market-icon">' . $icon . '</div>'
-                . '<div class="wa-market-name"><strong>' . $name . '</strong><small>' . $this->e($code) . '</small></div>'
-                . '<i class="wa-market-sep"></i>'
-                . '<div class="wa-market-value"><b>' . $number . '</b><small>' . $unitText . '</small>'
-                . $indicator . '</div></article>';
+                . '<div class="wa-market-icon">' . $this->marketIcon($key) . '</div>'
+                . '<div class="wa-market-name">' . $this->e($name) . '</div>'
+                . '<span class="wa-market-sep" aria-hidden="true"></span>'
+                . '<div class="wa-market-value">'
+                . '<div class="wa-market-amount"><b dir="ltr">' . $number . '</b>'
+                . '<small>' . $unitText . '</small></div>'
+                . '<div class="wa-market-trend-row">' . $indicator . '</div>'
+                . '</div></article>';
         }
         return $html;
     }
@@ -315,22 +324,56 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#071b39;b
 .wa-time{position:absolute;z-index:5;display:flex;align-items:center;justify-content:center;white-space:nowrap;font-weight:500;color:white;font-size:26px;letter-spacing:0;border-radius:42px;background:linear-gradient(160deg,#0d649d 0%,#052c59 48%,#08213f 100%);border:2px solid #e4bb68;box-shadow:0 2px 14px rgba(255,214,133,.55),inset 0 1px 5px rgba(255,255,255,.22)}
 .wa-time-market{top:292px;left:326px;width:454px;height:59px}
 .wa-time-city{top:324px;left:359px;width:521px;height:61px}
-.wa-market-grid{position:absolute;top:363px;left:54px;width:1016px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:84px;gap:7px 14px;direction:rtl}
-.wa-market-card{position:relative;width:100%;height:84px;display:flex;align-items:center;padding:8px 13px;gap:10px;border-radius:20px;border:1.5px solid rgba(255,255,255,.98);background:linear-gradient(140deg,#f6fbff,#dcecf9 70%,#cee3f3);box-shadow:0 4px 9px rgba(2,31,65,.19),inset 0 1px 4px #fff;overflow:hidden}
-.wa-market-card.last-card{grid-column:1/-1;width:501px;height:77px;justify-self:center;box-shadow:0 6px 13px rgba(2,31,65,.23),inset 0 1px 4px #fff}
-.wa-market-icon{flex:0 0 54px;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;box-shadow:0 2px 4px rgba(5,37,84,.24);background:#fff}
-.wa-market-icon svg{width:54px;height:54px;display:block;flex:none}
-.wa-market-name{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:right}
-.wa-market-name strong{font-size:18px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;line-height:1.5;color:#0a2241}
-.wa-market-name small{font:15px Arial,Helvetica,sans-serif;color:#54738d;direction:ltr;align-self:flex-start;letter-spacing:.3px}
-.wa-market-sep{height:56%;width:1px;background:#7c9db9;flex:0 0 1px}
-.wa-market-value{flex:0 0 42%;min-width:0;display:flex;flex-wrap:wrap;column-gap:5px;align-content:center;align-items:baseline;justify-content:flex-start;direction:rtl}
-.wa-market-value b{font-size:22px;font-weight:700;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;direction:ltr;color:#071e39}
-.wa-market-value small{font-size:12px;font-weight:500;white-space:nowrap;color:#314e67}
-.wa-market-value .indicator{display:inline-flex;align-items:center;justify-content:center;gap:4px;flex-basis:auto;min-width:80px;max-width:140px;margin-top:2px;padding:0 8px;text-align:center;border-radius:22px;font-size:12px;line-height:23px;font-weight:500;direction:ltr}
-.wa-market-value .indicator svg{display:block;flex:none}
-.wa-market-value .indicator.up{color:#167c39;background:#c9eed1}
-.wa-market-value .indicator.down{color:#ac252a;background:#f8d2d5}
+.wa-market-grid{
+ position:absolute;top:357px;left:47px;width:1028px;height:731px;
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(8,82px);
+ gap:7px 12px;padding:10px;direction:rtl;overflow:hidden;
+ border:1px solid rgba(255,211,132,.36);border-radius:26px;
+ background:radial-gradient(ellipse 80% 58% at 50% 0%,#11508d 0%,#0a407c 43%,#062d60 100%);
+ box-shadow:0 12px 30px rgba(0,22,60,.34),inset 0 1px 9px rgba(127,201,255,.16);
+}
+.wa-market-card{
+ position:relative;z-index:1;min-width:0;min-height:0;width:100%;height:82px;
+ display:flex;align-items:center;gap:9px;padding:8px 12px;
+ border-radius:19px;border:1.5px solid #fff;
+ background:linear-gradient(144deg,#f7fbff,#e2f0fb 62%,#cfdfef);
+ box-shadow:0 3px 6px rgba(1,21,58,.19),inset 0 1px 3px #fff;
+ overflow:hidden;
+}
+.wa-market-card.last-card{grid-column:1/-1;width:calc((100% - 12px)/2);height:82px;justify-self:center}
+.wa-market-icon{
+ flex:0 0 52px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;
+ border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(3,43,86,.24);overflow:hidden
+}
+.wa-market-icon svg{display:block;flex:0 0 52px;width:52px;height:52px}
+.wa-market-name{
+ flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+ text-align:right;direction:rtl;font-size:17px;font-weight:500;line-height:1.55;color:#0b2848;
+}
+.wa-market-sep{flex:0 0 1px;width:1px;height:50px;background:#9ab3c9}
+.wa-market-value{
+ flex:0 0 45%;min-width:0;height:100%;display:flex;flex-direction:column;
+ align-items:center;justify-content:center;gap:1px;direction:rtl;
+}
+.wa-market-amount{
+ display:flex;align-items:baseline;justify-content:center;gap:5px;
+ width:100%;white-space:nowrap;min-width:0;
+}
+.wa-market-amount b{
+ font-size:21px;font-weight:700;line-height:1.3;font-variant-numeric:tabular-nums;
+ letter-spacing:-.5px;color:#082542;white-space:nowrap;
+}
+.wa-market-amount small{font-size:11px;font-weight:500;line-height:1.3;color:#31516e;white-space:nowrap}
+.wa-market-trend-row{width:100%;height:22px;display:flex;align-items:center;justify-content:center}
+.wa-market-trend{
+ display:inline-flex;align-items:center;justify-content:center;gap:5px;
+ min-width:84px;padding:1px 11px;border-radius:18px;
+ font-size:12px;font-weight:500;line-height:20px;direction:ltr;white-space:nowrap;
+}
+.wa-market-trend svg{display:block;flex:0 0 11px;width:11px;height:11px}
+.wa-market-trend.up{color:#147a37;background:#c7edd0}
+.wa-market-trend.down{color:#ad2429;background:#f9d1d6}
+.wa-market-no-change{font-size:13px;line-height:20px;color:#889bad}
 .wa-city-panel{position:absolute;top:395px;left:264px;width:811px;height:804px;border-radius:38px;border:2px solid #f4fbff;box-shadow:0 4px 15px rgba(3,29,75,.25),inset 0 2px 8px #fff;background:linear-gradient(155deg,#f4faff,#d3e9f9);padding:15px 17px;overflow:hidden}
 .wa-city-grid{width:100%;height:100%;display:flex;flex-direction:column;gap:5px}
 .wa-city-card{flex:1 1 0;min-height:0;display:flex;align-items:center;gap:11px;padding:5px 10px;border-radius:20px;border:1.4px solid #fff;background:linear-gradient(115deg,#f2f9ff,#cee7f9);box-shadow:0 2px 5px rgba(28,90,148,.14);overflow:hidden}
