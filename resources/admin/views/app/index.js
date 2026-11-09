@@ -81,6 +81,7 @@ const RenovationAdmin = React.lazy(() => import("./renovation"));
 const WebServicesAdmin = React.lazy(() => import("./web-services"));
 const AiAssistantAdmin = React.lazy(() => import("./ai-assistant/AssistantSettings"));
 const PropertyAcceptanceAdmin = React.lazy(() => import(/* webpackChunkName: "spad-property-acceptance" */ "./property-acceptance"));
+const WhatsAppMarketAdmin = React.lazy(() => import(/* webpackChunkName: "spad-whatsapp-market" */ "./whatsapp-market"));
 class CommunityPageErrorBoundary extends React.Component {
  constructor(props){super(props);this.state={hasError:false};}
  static getDerivedStateFromError(){return {hasError:true};}
@@ -140,6 +141,7 @@ const App = ({ match, step, location }) => {
                   render={(props) => <Blogs {...props}/>}
                 />
                 <Route exact path={`${match.url}/property-acceptance`} render={props => <PropertyAcceptanceAdmin {...props} />} />
+                <Route exact path={`${match.url}/whatsapp-market`} render={props => <WhatsAppMarketAdmin {...props} />} />
                 <Route
                   path={`${match.url}/advertisements`}
                   render={(props) => <Advertisements {...props} />}
