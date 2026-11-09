@@ -81,9 +81,8 @@ class SpadWhatsAppMarketController extends Controller
             'city' => ['required_if:kind,city','nullable','string','max:80'],
         ]);
         try {
-            $svg = $publisher->preview($data['kind'], $data['province'] ?? null, $data['city'] ?? null);
-            return response($svg, 200)->header('Content-Type', 'image/svg+xml; charset=utf-8')
-                ->header('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+            $png = $publisher->preview($data['kind'], $data['province'] ?? null, $data['city'] ?? null);
+            return response($png, 200)->header('Content-Type', 'image/png')
                 ->header('Cache-Control', 'private, no-store');
         } catch (\Throwable $e) {
             return response()->json(['message' => 'بنر با اطلاعات واقعی فعلاً قابل ساخت نیست؛ صحت منبع و نام شهر را بررسی کنید.'], 503);
