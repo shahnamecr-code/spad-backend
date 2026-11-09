@@ -203,7 +203,7 @@ class Sidebar extends Component {
             />
           </div>
           <div className="spad-admin-sidebar__scroll">
-            <PerfectScrollbar options={{suppressScrollX: true, wheelPropagation: false}}>
+            <PerfectScrollbar options={{suppressScrollX: true, wheelPropagation: false, wheelSpeed: 2.5, useBothWheelAxes: false}}>
               <nav className="spad-admin-nav">
                 {visibleItems.length === 0 && <div className="spad-admin-nav-empty">بخشی با این عنوان پیدا نشد</div>}
                 {visibleItems.map((item) => {
