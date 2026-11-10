@@ -18,6 +18,8 @@ class CreateSpadWhatsAppPersonalDelivery extends Migration
             $table->string('slot_key', 190)->unique();
             $table->string('kind', 20);
             $table->string('subject', 160);
+            $table->string('province', 80)->nullable();
+            $table->string('city', 80)->nullable();
             $table->string('status', 24)->default('pending');
             $table->string('message_id', 180)->nullable();
             $table->string('error_code', 90)->nullable();
