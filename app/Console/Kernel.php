@@ -39,6 +39,9 @@ class Kernel extends ConsoleKernel
         // This is a read-only image refresh; no WhatsApp messages are sent.
         $schedule->command('spad:wa-preview-warm')
             ->name('spad-whatsapp-admin-preview')->everyFiveMinutes()->withoutOverlapping();
+        // On-demand cache misses are built only by CLI, on existing server cron.
+        $schedule->command('spad:wa-preview-process')
+            ->name('spad-whatsapp-preview-requests')->everyMinute()->withoutOverlapping();
         // Independent opt-in self-chat only, disabled before user QR pairing.
         $schedule->command('spad:wa-personal-dispatch')
             ->name('spad-whatsapp-personal-self')->everyMinute()->withoutOverlapping();
