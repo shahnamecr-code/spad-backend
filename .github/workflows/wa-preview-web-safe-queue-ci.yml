@@ -1,0 +1,42 @@
+name: SPAD WhatsApp Preview - Web-Safe Queue and Admin Build
+on:
+  push:
+    branches: [fix/wa-preview-web-safe-queue-20261110]
+permissions: {contents: read}
+jobs:
+  php-queue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: PHP syntax, no web Chromium and scheduler
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          php -l database/migrations/2026_11_10_161800_create_spad_wa_preview_build_queue.php
+          php -l app/Services/SpadWhatsAppPreviewBuilder.php
+          php -l app/Console/Commands/ProcessSpadWhatsAppPreviewQueue.php
+          php -l app/Http/Controllers/Admin/SpadWhatsAppMarketController.php
+          php -l app/Console/Kernel.php
+          ! sed -n '/public function preview(/,/public function runNow(/p' app/Http/Controllers/Admin/SpadWhatsAppMarketController.php | grep -q 'buildPreviewFresh'
+          grep -q "spad:wa-preview-process" app/Console/Kernel.php
+          grep -q "202" app/Http/Controllers/Admin/SpadWhatsAppMarketController.php
+          echo "WA_WEB_SAFE_SOURCE_LINT=PASS"
+  admin-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: npm}
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Compile actual WhatsApp admin
+        env: {NODE_OPTIONS: "--openssl-legacy-provider --max-old-space-size=4096"}
+        run: npm run production
+      - name: Check admin bundle
+        run: |
+          find public -path '*/js/index.js' -type f -size +100c | grep -q .
+          find public -path '*/js/*whatsapp*' -type f -size +100c | grep -q .
+          echo "WA_WEB_SAFE_ADMIN_BUILD=PASS"
