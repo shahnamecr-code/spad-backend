@@ -15,7 +15,15 @@ const path = require('path');
 const {execFile} = require('child_process');
 
 const ROOT = '/home/spadesta/react-amlak';
-const PHP = process.env.SPAD_WA_PREVIEW_PHP || '/opt/alt/php81/usr/bin/php';
+// cPanel's PM2 daemon does not inherit the account's PHP Selector modules.
+// Force the production PHP 8.1 binary and a private copy of the chosen
+// alt_php.ini (PDO/pdo_mysql etc.), verified through a real PM2 process.
+const PHP = '/opt/alt/php81/usr/bin/php';
+const PHP_ENV = {
+  ...process.env,
+  PHPRC: '/opt/alt/php81/etc',
+  PHP_INI_SCAN_DIR: '/home/spadesta/spad-staging/wa-preview-refresh/php-conf',
+};
 const BASE = path.join(ROOT, 'storage', 'app', 'whatsapp-market', 'admin-preview');
 const QUEUE = path.join(BASE, 'requests');
 const HEARTBEAT = path.join(BASE, 'worker-heartbeat.json');
@@ -53,6 +61,7 @@ function invoke(kind, province = '', city = '') {
   return new Promise(resolve => {
     execFile(PHP, args, {
       cwd: ROOT,
+      env: PHP_ENV,
       timeout: 150000,
       maxBuffer: 256000,
       encoding: 'utf8',
