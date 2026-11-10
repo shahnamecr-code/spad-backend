@@ -26,3 +26,31 @@
 .spad-wa-table-wrap th,.spad-wa-table-wrap td{text-align:right;padding:13px 10px;border-bottom:1px solid #ebf1f5;vertical-align:top;font-size:12px}
 .spad-wa-table-wrap small{display:block;color:#b34141;margin-top:8px;max-width:250px}
 @media(max-width:900px){.spad-wa-grid{grid-template-columns:1fr}.spad-wa-hero{padding:24px}.spad-wa-hero h1{font-size:22px}}
+
+
+/* Opt-in private QR pairing panel; inherits the exact SPAD admin typography. */
+.spad-wa-personal-warning{
+  padding:12px 14px;border-radius:12px;
+  border:1px solid rgba(180,122,22,.35);
+  background:#fff7e8;color:#704a18;line-height:1.9;
+}
+.spad-wa-personal-status{
+  padding:11px 14px;border-radius:12px;background:#e9f5ff;
+  border:1px solid #b3d8f5;color:#163758;
+  strong{font-weight:500;color:#065ba3;}
+}
+.spad-wa-personal-qr{
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+  max-width:380px;margin:14px auto;padding:15px;
+  border:1px solid #c4daec;border-radius:18px;background:#fff;
+  box-shadow:0 8px 24px rgba(5,52,99,.11);
+  img{display:block;max-width:100%;width:300px;height:auto;image-rendering:auto;}
+  small{color:#516b84;text-align:center;font-size:12px;}
+}
+.spad-wa-personal-error{font-size:13px;color:#9b2828;background:#fff0f0;border-radius:10px;padding:10px 12px}
+.spad-wa-personal-ok{font-size:13px;color:#17643a;background:#ecfff2;border-radius:10px;padding:10px 12px}
+.spad-wa-personal-jobs{
+  padding:12px;background:#f4f8fc;border-radius:12px;
+  font-size:13px;line-height:1.85;
+  div{border-top:1px solid #d6e4f0;padding-top:5px;margin-top:5px;}
+}
