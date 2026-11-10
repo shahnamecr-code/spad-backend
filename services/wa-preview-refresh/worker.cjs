@@ -3,7 +3,7 @@
 /**
  * PM2-owned CLI-only refresh worker for approved SPAD PNG previews.
  *
- * The hosting account has a */5 crontab entry but its cron daemon was not
+ * The hosting account has an every-five-minutes crontab entry but its cron daemon was not
  * active during diagnostics. A persistent PM2 job is independent of crond,
  * regenerates real-price market/city PNGs and services private on-demand
  * requests without running Chromium inside PHP-FPM.
