@@ -80,30 +80,40 @@ class SpadWhatsAppMarketController extends Controller
             'province' => ['required_if:kind,city','nullable','string','max:80'],
             'city' => ['required_if:kind,city','nullable','string','max:80'],
         ]);
+        $kind = $data['kind'];
+        $province = $data['province'] ?? null;
+        $city = $data['city'] ?? null;
         try {
-            $png = $publisher->preview($data['kind'], $data['province'] ?? null, $data['city'] ?? null);
-            return response($png, 200)
-                ->header('Content-Type', 'image/png')
-                ->header('X-Content-Type-Options', 'nosniff')
-                ->header('Cache-Control', 'private, no-store');
-        } catch (\Throwable $e) {
-            $message = (string) $e->getMessage();
-            $code = 'WA_PREVIEW_RENDER_ERROR';
-            $friendly = 'موتور نمایش تصویر در محیط وب در دسترس نیست. پیش‌نمایش از نسخه آماده‌شده در سرور بازیابی می‌شود.';
-            if (str_contains($message, 'داده تازه') || str_contains($message, 'نرخ')
-                || str_contains($message, 'قیمت واقعی') || str_contains($message, 'سرویس بازار')) {
-                $code = 'WA_PREVIEW_PRICE_DATA_UNAVAILABLE';
-                $friendly = 'نرخ معتبر و تازه از منبع قیمت دریافت نشده است. تا دریافت قیمت واقعی، بنر منتشر نمی‌شود.';
-            } elseif (str_contains($message, 'شهر') || str_contains($message, 'نمودا')) {
-                $code = 'WA_PREVIEW_CITY_UNAVAILABLE';
-                $friendly = 'داده محله‌های این شهر فعلاً در دسترس نیست. نام استان و شهر را بررسی کنید.';
+            // Never launch Node/Chromium from PHP-FPM. CLI has the renderer
+            // privileges; website PHP workers only access authenticated cache.
+            $png = app(\App\Services\SpadWhatsAppPreviewCache::class)
+                ->get($kind, $province, $city);
+            if ($png !== null) {
+                return response($png, 200)
+                    ->header('Content-Type', 'image/png')
+                    ->header('X-Content-Type-Options', 'nosniff')
+                    ->header('Cache-Control', 'private, no-store');
             }
-            \Illuminate\Support\Facades\Log::warning('SPAD WhatsApp admin preview failed', [
-                'error_code' => $code, 'exception_type' => get_class($e),
-                'kind' => $data['kind'],
+
+            $queue = app(\App\Services\SpadWhatsAppPreviewBuilder::class)
+                ->enqueue($kind, $province, $city);
+            return response()->json([
+                'status' => $queue['status'],
+                'message' => $queue['status'] === 'temporarily_unavailable'
+                    ? 'منبع داده یا موتور تصویر موقتاً آماده نیست؛ بعداً دوباره بررسی کن.'
+                    : 'درخواست ساخت تصویر با قیمت واقعی ثبت شد؛ پیش‌نمایش پس از آماده‌شدن نمایش داده می‌شود.',
+                'retry_after' => $queue['retry_after'],
+            ], 202)->header('Cache-Control', 'private, no-store')
+                ->header('Retry-After', (string) $queue['retry_after']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('SPAD WhatsApp web preview cache/queue failed', [
+                'kind' => $kind,
+                'exception_type' => get_class($e),
             ]);
-            return response()->json(['message' => $friendly, 'code' => $code], 503)
-                ->header('Cache-Control', 'no-store');
+            return response()->json([
+                'code' => 'WA_PREVIEW_CACHE_OR_QUEUE_UNAVAILABLE',
+                'message' => 'پیش‌نمایش فعلاً آماده نیست. وضعیت حافظه و صف ساخت تصویر در سرور باید بررسی شود.',
+            ], 503)->header('Cache-Control', 'no-store');
         }
     }
 
