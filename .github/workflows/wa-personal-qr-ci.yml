@@ -1,0 +1,47 @@
+name: SPAD Personal WhatsApp QR - PHP, Node and Admin Verification
+on:
+  push:
+    branches: [feature/wa-personal-qr-self-delivery-20261110]
+permissions: {contents: read}
+jobs:
+  php-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Lint personal delivery PHP and Node
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          php -l app/Services/SpadWhatsAppPersonalBridge.php
+          php -l app/Services/SpadWhatsAppPersonalDelivery.php
+          php -l app/Console/Commands/DispatchSpadPersonalWhatsApp.php
+          php -l app/Http/Controllers/Admin/SpadWhatsAppPersonalController.php
+          php -l app/Console/Kernel.php
+          php -l routes/admin/whatsapp-market.php
+          php -l database/migrations/2026_11_10_120000_create_spad_whatsapp_personal_delivery.php
+          node --check services/wa-personal/server.cjs
+          test "$(node -p "require('./services/wa-personal/package.json').name")" = "spad-whatsapp-personal-self-bridge"
+          ! grep -q "'/send-group'" services/wa-personal/server.cjs
+          ! grep -q "'/send-contact'" services/wa-personal/server.cjs
+          grep -q "client.sendMessage(linkedSelfId" services/wa-personal/server.cjs
+          grep -q "host.*127.0.0.1" services/wa-personal/server.cjs || grep -Fq "const HOST = '127.0.0.1'" services/wa-personal/server.cjs
+          echo "WA_PERSONAL_SOURCE_GUARDS=PASS"
+  admin-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: npm}
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Compile admin React including personal QR card
+        env: {NODE_OPTIONS: "--openssl-legacy-provider --max-old-space-size=4096"}
+        run: npm run production
+      - name: Verify WhatsApp chunk
+        run: |
+          find public -path '*/js/index.js' -type f -size +100c | grep -q .
+          find public -path '*/js/*whatsapp*' -type f -size +100c | grep -q .
+          echo "WA_PERSONAL_ADMIN_BUILD=PASS"
