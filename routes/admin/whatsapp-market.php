@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\SpadWhatsAppMarketController as WA;
+use App\Http\Controllers\Admin\SpadWhatsAppPersonalController as PersonalWA;
 
 // These routes are already protected by auth:sanctum,admin in routes/api.php.
 // Keep the write/send quotas strict, but do not stack low shared-IP counters
@@ -10,4 +11,10 @@ Route::prefix('whatsapp-market')->group(function () {
     Route::post('/', [WA::class, 'save'])->middleware('throttle:10,1');
     Route::get('/preview', [WA::class, 'preview'])->middleware('throttle:spad-wa-preview');
     Route::post('/run', [WA::class, 'runNow'])->middleware('throttle:2,1');
+    // All routes inherit auth:sanctum,admin; PersonalWA additionally checks
+    // the Super Admin role. The QR and self-send never expose a group target.
+    Route::get('/personal/status', [PersonalWA::class, 'status'])->middleware('throttle:30,1');
+    Route::get('/personal/qr', [PersonalWA::class, 'pairingQr'])->middleware('throttle:5,1');
+    Route::post('/personal/settings', [PersonalWA::class, 'preferences'])->middleware('throttle:5,1');
+    Route::post('/personal/send', [PersonalWA::class, 'sendNow'])->middleware('throttle:2,1');
 });

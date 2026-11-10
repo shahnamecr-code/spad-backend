@@ -1,0 +1,13 @@
+{
+  "name": "spad-whatsapp-personal-self-bridge",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Opt-in localhost-only WhatsApp Web companion for sending SPAD posters exclusively to the linked account's own chat",
+  "main": "server.cjs",
+  "engines": {"node": ">=20"},
+  "scripts": {"start": "node server.cjs", "check": "node --check server.cjs"},
+  "dependencies": {
+    "qrcode": "1.5.4",
+    "whatsapp-web.js": "1.34.7"
+  }
+}
