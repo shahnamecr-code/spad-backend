@@ -131,11 +131,11 @@ class SpadWhatsAppMarketPublisher
         $png = $cache->get($kind, $province, $city);
         if ($png !== null) return $png;
 
-        // The first request still works where the web PHP process has the
-        // necessary renderer permissions. The CLI warm job covers stricter hosts.
-        $png = $this->buildPreviewFresh($kind, $province, $city);
-        $cache->put($kind, $province, $city, $png);
-        return $png;
+        // Never start Chromium from PHP-FPM; PHP web workers can have a
+        // restricted process environment even when CLI rendering succeeds.
+        // A dedicated PM2 job prepares the exact approved PNG asynchronously.
+        $cache->requestRefresh($kind, $province, $city);
+        throw new RuntimeException('بنر با قیمت معتبر در صف بازسازی است؛ چند ثانیه دیگر دوباره بررسی کن.', 202);
     }
 
     /**

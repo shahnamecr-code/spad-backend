@@ -10,7 +10,7 @@ use Throwable;
 
 class WarmSpadWhatsAppPreview extends Command
 {
-    protected $signature = 'spad:wa-preview-warm {--kind=all : market, city or all}';
+    protected $signature = 'spad:wa-preview-warm {--kind=all : market, city or all} {--province= : Exact province for one city} {--city= : Exact city for one preview}';
     protected $description = 'Cache actual approved WhatsApp posters for responsive, authenticated admin preview; never send any message.';
 
     public function handle(SpadWhatsAppMarketPublisher $publisher, SpadWhatsAppPreviewCache $cache)
@@ -34,10 +34,22 @@ class WarmSpadWhatsAppPreview extends Command
             }
         }
         if ($kind !== 'market') {
-            $settings = $publisher->settings();
-            $cities = $settings['cities'] ?? [];
-            if (!is_array($cities)) $cities = [];
-            $cities = array_merge(SpadWhatsAppMarketPublisher::DEFAULT_CITIES, $cities);
+            $provinceOption = trim((string) $this->option('province'));
+            $cityOption = trim((string) $this->option('city'));
+            if (($provinceOption !== '' || $cityOption !== '') &&
+                ($kind !== 'city' || $provinceOption === '' || $cityOption === '' ||
+                 mb_strlen($provinceOption) > 80 || mb_strlen($cityOption) > 80)) {
+                $this->error('For a single city preview supply --kind=city, --province and --city.');
+                return 2;
+            }
+            if ($provinceOption !== '') {
+                $cities = [['province' => $provinceOption, 'city' => $cityOption]];
+            } else {
+                $settings = $publisher->settings();
+                $cities = $settings['cities'] ?? [];
+                if (!is_array($cities)) $cities = [];
+                $cities = array_merge(SpadWhatsAppMarketPublisher::DEFAULT_CITIES, $cities);
+            }
             $seen = [];
             foreach (array_slice($cities, 0, 35) as $place) {
                 $province = trim((string) ($place['province'] ?? ''));

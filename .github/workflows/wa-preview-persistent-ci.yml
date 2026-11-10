@@ -1,0 +1,44 @@
+name: SPAD WhatsApp Preview - Persistent Worker and PHP-FPM Safe Cache
+on:
+  push:
+    branches: [fix/wa-preview-persistent-worker-20261110]
+permissions: {contents: read}
+jobs:
+  php-node:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Lint backend and independent worker
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          php -l app/Services/SpadWhatsAppPreviewCache.php
+          php -l app/Services/SpadWhatsAppMarketPublisher.php
+          php -l app/Http/Controllers/Admin/SpadWhatsAppMarketController.php
+          php -l app/Console/Commands/WarmSpadWhatsAppPreview.php
+          node --check services/wa-preview-refresh/worker.cjs
+          grep -Fq "throw new RuntimeException('بنر با قیمت معتبر در صف بازسازی است" app/Services/SpadWhatsAppMarketPublisher.php
+          grep -Fq "requestRefresh(" app/Services/SpadWhatsAppPreviewCache.php
+          grep -Fq "'--kind=' + kind" services/wa-preview-refresh/worker.cjs
+          ! grep -Fq "client.sendMessage" services/wa-preview-refresh/worker.cjs
+          ! grep -Fq "schedule:run" services/wa-preview-refresh/worker.cjs
+          echo "WA_PERSISTENT_RENDER_SOURCE=PASS"
+  admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '20', cache: npm}
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Compile robust 202 preview polling in React panel
+        env: {NODE_OPTIONS: "--openssl-legacy-provider --max-old-space-size=4096"}
+        run: npm run production
+      - name: Verify admin bundle
+        run: |
+          find public -path '*/js/index.js' -type f -size +100c | grep -q .
+          find public -path '*/js/*whatsapp*' -type f -size +100c | grep -q .
+          echo "WA_PERSISTENT_RENDER_ADMIN_BUILD=PASS"

@@ -160,22 +160,40 @@ export default function WhatsAppMarketAdmin(){
   previewInFlight.current=true;
   setPreviewBusy(true);setError("");setSuccess("");
   const place=cities[previewCity]||cities[0];
-  if(previewKind==="city"&&!place){previewInFlight.current=false;setPreviewBusy(false);setError("ابتدا یک شهر اضافه کنید.");return;}
+  if(previewKind==="city"&&!place){
+   previewInFlight.current=false;setPreviewBusy(false);
+   setError("ابتدا یک شهر اضافه کنید.");return;
+  }
   try{
-   const res=await axios.get(endpoint+"/preview",{
-    params:{kind:previewKind,...(previewKind==="city"?place:{})},responseType:"blob"
-   });
-   const mime=String(res.headers?.["content-type"]||res.data?.type||"").toLowerCase();
-   if(!mime.includes("image/png")||!(res.data instanceof Blob)||res.data.size<40000){
-    if(mime.includes("text/html"))throw new Error("نشست مدیریت منقضی شده است؛ لطفاً دوباره وارد پنل شوید.");
-    throw new Error("پاسخ سرور تصویر معتبر نیست. کد وضعیت: "+res.status);
+   const params={kind:previewKind,...(previewKind==="city"?place:{})};
+   // PHP-FPM never needs to run Chromium. A persistent CLI worker refreshes
+   // prices and creates the same approved PNG into private cache. HTTP 202
+   // signals that a missing or expired poster is being generated.
+   for(let attempt=0;attempt<11;attempt++){
+    const res=await axios.get(endpoint+"/preview",{
+     params,responseType:"blob",timeout:18000
+    });
+    if(res.status===202){
+     if(attempt===10)throw new Error("ساخت پیش‌نمایش هنوز کامل نشده است. اطلاعات معتبر در حال آماده‌سازی است؛ کمی بعد دوباره امتحان کنید.");
+     await new Promise(resolve=>setTimeout(resolve,2800));
+     continue;
+    }
+    const mime=String(res.headers?.["content-type"]||res.data?.type||"").toLowerCase();
+    if(!mime.includes("image/png")||!(res.data instanceof Blob)||res.data.size<40000){
+     if(mime.includes("text/html"))throw new Error("نشست مدیریت منقضی شده است؛ لطفاً دوباره وارد پنل شوید.");
+     throw new Error("پاسخ سرور تصویر معتبر نیست. کد وضعیت: "+res.status);
+    }
+    if(currentPreview.current)URL.revokeObjectURL(currentPreview.current);
+    currentPreview.current=URL.createObjectURL(res.data);
+    setPreview(currentPreview.current);
+    return;
    }
-   if(currentPreview.current)URL.revokeObjectURL(currentPreview.current);
-   const blob=new Blob([res.data],{type:"image/png"});
-   currentPreview.current=URL.createObjectURL(blob);
-   setPreview(currentPreview.current);
-  }catch(e){setError(e?.message && !e.response ? e.message : await decodePreviewError(e));}
-  finally{previewInFlight.current=false;setPreviewBusy(false);}
+  }catch(e){
+   setError(e?.message && !e.response ? e.message : await decodePreviewError(e));
+  }finally{
+   previewInFlight.current=false;
+   setPreviewBusy(false);
+  }
  };
  const sendNow=async()=>{
   if(!window.confirm("این اقدام واقعاً بنر را به همه گروه‌های فعال Meta ارسال می‌کند. ادامه می‌دهید؟"))return;
