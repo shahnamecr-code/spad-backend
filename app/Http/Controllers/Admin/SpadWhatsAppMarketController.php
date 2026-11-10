@@ -87,9 +87,15 @@ class SpadWhatsAppMarketController extends Controller
                 ->header('X-Content-Type-Options', 'nosniff')
                 ->header('Cache-Control', 'private, no-store');
         } catch (\Throwable $e) {
+            if ($e instanceof RuntimeException && $e->getCode() === 202) {
+                return response()->json([
+                    'code' => 'WA_PREVIEW_BUILDING',
+                    'message' => 'پیش‌نمایش در حال ساخت با قیمت معتبر است.',
+                ], 202)->header('Cache-Control', 'private, no-store');
+            }
             $message = (string) $e->getMessage();
-            $code = 'WA_PREVIEW_RENDER_ERROR';
-            $friendly = 'موتور نمایش تصویر در محیط وب در دسترس نیست. پیش‌نمایش از نسخه آماده‌شده در سرور بازیابی می‌شود.';
+            $code = 'WA_PREVIEW_CACHE_UNAVAILABLE';
+            $friendly = 'آماده‌سازی بنر در سرور با مشکل مواجه شد. پس از بررسی سرویس ساخت تصویر دوباره تلاش کن.';
             if (str_contains($message, 'داده تازه') || str_contains($message, 'نرخ')
                 || str_contains($message, 'قیمت واقعی') || str_contains($message, 'سرویس بازار')) {
                 $code = 'WA_PREVIEW_PRICE_DATA_UNAVAILABLE';
