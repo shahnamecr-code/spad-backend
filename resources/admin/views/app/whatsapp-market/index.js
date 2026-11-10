@@ -10,6 +10,11 @@ const defaults = {
   groups:[], phone_number_id:"", access_token:"", token_configured:false,
   official_groups_acknowledged:false,render_available:false
 };
+const emptyPersonal={
+ connection:{state:"loading",ready:false,service_online:false,number_masked:"",pairing_available:false},
+ preferences:{enabled:false,schema_ready:false,uses_market_schedule:true,max_messages_per_day:12},
+ jobs:[]
+};
 const rowsToText = a => (a || []).map(x => x.province+"|"+x.city).join("\n");
 const readCities = s => s.split(/\n+/).map(x => x.trim()).filter(Boolean).map(x => {
  const [province, ...rest] = x.split("|");
@@ -55,6 +60,11 @@ export default function WhatsAppMarketAdmin(){
  const [loaded,setLoaded]=useState(false),[busy,setBusy]=useState(false),[previewBusy,setPreviewBusy]=useState(false);
  const [error,setError]=useState(""),[success,setSuccess]=useState("");
  const [preview,setPreview]=useState(""),[previewKind,setPreviewKind]=useState("market"),[previewCity,setPreviewCity]=useState(0);
+ const [personal,setPersonal]=useState(emptyPersonal);
+ const [personalBusy,setPersonalBusy]=useState(false);
+ const [personalQr,setPersonalQr]=useState("");
+ const [personalError,setPersonalError]=useState("");
+ const [personalMessage,setPersonalMessage]=useState("");
  const currentPreview=useRef("");
  const previewInFlight=useRef(false);
  const set=(key,value)=>setForm(p=>({...p,[key]:value}));
@@ -71,6 +81,59 @@ export default function WhatsAppMarketAdmin(){
   finally{setLoaded(true);}
  },[]);
  useEffect(()=>{load();return()=>{if(currentPreview.current)URL.revokeObjectURL(currentPreview.current);};},[load]);
+ const refreshPersonal=useCallback(async()=>{
+  try{
+   const {data}=await axios.get(endpoint+"/personal/status");
+   setPersonal(data||emptyPersonal);
+   return data;
+  }catch(e){
+   setPersonal(emptyPersonal);
+   setPersonalError(e?.response?.data?.message||"ارتباط با بخش واتساپ شخصی برقرار نشد.");
+   return null;
+  }
+ },[]);
+ useEffect(()=>{refreshPersonal();},[refreshPersonal]);
+ const showPairingQr=async()=>{
+  setPersonalBusy(true);setPersonalError("");setPersonalMessage("");
+  try{
+   const {data}=await axios.get(endpoint+"/personal/qr");
+   if(data?.image?.startsWith("data:image/png;base64,")){
+    setPersonalQr(data.image);
+    setPersonalMessage("کد QR را با واتساپ خودت از بخش دستگاه‌های متصل اسکن کن.");
+   }else{
+    setPersonalQr("");
+    setPersonalMessage(data?.state==="ready"?"حساب شخصی قبلاً متصل است.":"کد QR هنوز آماده نیست؛ چند لحظه دیگر دوباره تلاش کن.");
+   }
+  }catch(e){
+   setPersonalError(e?.response?.data?.message||"دریافت QR فعلاً ممکن نیست.");
+  }finally{setPersonalBusy(false);}
+ };
+ const togglePersonalSchedule=async()=>{
+  const enabled=!personal.preferences?.enabled;
+  if(enabled&&!window.confirm("پس از فعال‌سازی، بنرها در زمان‌های انتخابی فقط به گفت‌وگوی شخصی خودت ارسال می‌شوند؛ این اتصال از روش غیررسمی واتساپ وب استفاده می‌کند و ریسک محدودیت حساب دارد. تأیید می‌کنی؟"))return;
+  setPersonalBusy(true);setPersonalError("");setPersonalMessage("");
+  try{
+   await axios.post(endpoint+"/personal/settings",{enabled});
+   await refreshPersonal();
+   setPersonalMessage(enabled?"ارسال زمان‌بندی‌شده به گفت‌وگوی شخصی فعال شد.":"ارسال زمان‌بندی‌شده به گفت‌وگوی شخصی خاموش شد.");
+  }catch(e){setPersonalError(e?.response?.data?.message||"ثبت تنظیمات واتساپ شخصی انجام نشد.");}
+  finally{setPersonalBusy(false);}
+ };
+ const sendPersonalTest=async()=>{
+  if(!personal.connection?.ready)return;
+  if(!window.confirm("فقط یک بنر به گفت‌وگوی «پیام به خودم» در واتساپ متصل‌شده ارسال شود؟"))return;
+  setPersonalBusy(true);setPersonalError("");setPersonalMessage("");
+  const place=cities[previewCity]||cities[0];
+  try{
+   const {data}=await axios.post(endpoint+"/personal/send",{
+    kind:previewKind,...(previewKind==="city"?place:{}),confirmed:true
+   });
+   setPersonalMessage(data?.message||"درخواست ارسال آزمایشی پذیرفته شد.");
+   await refreshPersonal();
+  }catch(e){setPersonalError(e?.response?.data?.message||"ارسال آزمایشی انجام نشد. وضعیت اتصال را بررسی کن.");}
+  finally{setPersonalBusy(false);}
+ };
+
  const cities=readCities(citiesText);
  const save=async e=>{
   e.preventDefault();setError("");setSuccess("");
@@ -157,6 +220,27 @@ export default function WhatsAppMarketAdmin(){
      <p>هر سطر: نام استان | نام شهر. همه محله‌های دارای قیمت معتبر شهر در بنرهای چندصفحه‌ای قرار می‌گیرند.</p>
      <textarea dir="rtl" rows={6} value={citiesText} onChange={e=>{setCitiesText(e.target.value);setPreviewCity(0);}} placeholder={"فارس|شیراز\nتهران|تهران"}/>
      <p>اطلاعات از موتور بازار نمودا در اسپاد دریافت می‌شود؛ محله‌های بدون قیمت منتشر نمی‌شوند. شهر دلخواه را می‌توان افزود.</p>
+    </Box>
+    <Box title="اتصال واتساپ شخصی من">
+     <p>با اسکن QR، واتساپ شخصی خودت به یک دستگاه متصل‌شده اضافه می‌شود. بنرها فقط به گفت‌وگوی «پیام به خودم» ارسال می‌شوند و انتشار در گروه‌ها دستی باقی می‌ماند.</p>
+     <p className="spad-wa-personal-warning">این اتصال از روش غیررسمی واتساپ وب استفاده می‌کند؛ ممکن است با تغییرات واتساپ قطع شود یا برای حساب محدودیت ایجاد کند. فقط با آگاهی از این ریسک متصل شو.</p>
+     <p className="spad-wa-personal-status">وضعیت اتصال: <strong>{personal.connection?.ready?"متصل به "+(personal.connection.number_masked||"واتساپ شخصی"):personal.connection?.service_online?"آماده اتصال، هنوز متصل نیست":"سرویس اتصال روی سرور در دسترس نیست"}</strong></p>
+     <p>اتصال با QR: در گوشی وارد واتساپ ← دستگاه‌های متصل ← اتصال دستگاه شو، سپس کد را از پنل روی رایانه اسکن کن.</p>
+     <div className="spad-wa-actions">
+      <button type="button" disabled={personalBusy||personal.connection?.ready} onClick={showPairingQr}>نمایش QR اتصال شخصی</button>
+      <button type="button" className="spad-wa-secondary" disabled={personalBusy} onClick={async()=>{setPersonalQr("");await refreshPersonal();}}>بررسی وضعیت اتصال</button>
+     </div>
+     {personalQr&&!personal.connection?.ready?<div className="spad-wa-personal-qr"><img src={personalQr} alt="QR اتصال واتساپ شخصی؛ فقط مدیر اصلی باید آن را اسکن کند"/><small>کد اتصال محرمانه است؛ از آن اسکرین‌شات عمومی منتشر نکن.</small></div>:null}
+     <label className="spad-wa-toggle"><input type="checkbox" checked={!!personal.preferences?.enabled}
+      disabled={personalBusy||!personal.connection?.ready}
+      onChange={togglePersonalSchedule}/> ارسال خودکار به پیام‌های خودم طبق زمان‌بندی بالای صفحه</label>
+     <p>ارسال با قالب‌های تأییدشده اسپاد؛ برای جلوگیری از ارسال زیاد، حداکثر ۱۲ تصویر در روز و یک صفحه از هر شهر در هر نوبت.</p>
+     <button type="button" className="spad-wa-secondary" onClick={sendPersonalTest} disabled={!personal.connection?.ready||personalBusy}>ارسال آزمایشی همین بنر به واتساپ خودم</button>
+     {personalError?<p className="spad-wa-personal-error" role="alert">{personalError}</p>:null}
+     {personalMessage?<p className="spad-wa-personal-ok" role="status">{personalMessage}</p>:null}
+     {(personal.jobs||[]).length?<div className="spad-wa-personal-jobs"><strong>آخرین تلاش‌های ارسال شخصی</strong>
+      {personal.jobs.slice(0,5).map(j=><div key={j.id}>{j.subject}: {j.status==="accepted_local"?"پذیرش توسط اتصال":j.status==="failed"?"ناموفق":"در انتظار"}</div>)}
+     </div>:null}
     </Box>
     <Box title="اتصال رسمی گروه‌های واتساپ">
      <label>شناسه شماره تجاری متا
