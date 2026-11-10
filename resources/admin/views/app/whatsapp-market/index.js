@@ -161,21 +161,44 @@ export default function WhatsAppMarketAdmin(){
   setPreviewBusy(true);setError("");setSuccess("");
   const place=cities[previewCity]||cities[0];
   if(previewKind==="city"&&!place){previewInFlight.current=false;setPreviewBusy(false);setError("ابتدا یک شهر اضافه کنید.");return;}
-  try{
-   const res=await axios.get(endpoint+"/preview",{
-    params:{kind:previewKind,...(previewKind==="city"?place:{})},responseType:"blob"
-   });
-   const mime=String(res.headers?.["content-type"]||res.data?.type||"").toLowerCase();
-   if(!mime.includes("image/png")||!(res.data instanceof Blob)||res.data.size<40000){
-    if(mime.includes("text/html"))throw new Error("نشست مدیریت منقضی شده است؛ لطفاً دوباره وارد پنل شوید.");
-    throw new Error("پاسخ سرور تصویر معتبر نیست. کد وضعیت: "+res.status);
+  const params={kind:previewKind,...(previewKind==="city"?place:{})};
+  try {
+   let loaded=false;
+   for(let attempt=0;attempt<24;attempt++){
+    const res=await axios.get(endpoint+"/preview",{
+     params,responseType:"blob",timeout:18000
+    });
+    const mime=String(res.headers?.["content-type"]||res.data?.type||"").toLowerCase();
+    if(res.status===202 && mime.includes("application/json")){
+     let body={};
+     try{body=JSON.parse(await res.data.text());}catch(_){}
+     if(body.status==="temporarily_unavailable"){
+      throw new Error(body.message||"ساخت تصویر موقتاً ناموفق بوده است؛ چند دقیقه دیگر امتحان کنید.");
+     }
+     setSuccess("تصویر با نرخ واقعی در صف آماده‌سازی سرور است؛ پس از ساخته‌شدن نمایش داده می‌شود.");
+     const next=Number(body.retry_after||5);
+     await new Promise(resolve=>setTimeout(resolve,Math.max(3000,Math.min(10000,next*1000))));
+     continue;
+    }
+    if(mime.includes("text/html")){
+     throw new Error("نشست مدیریت منقضی شده است؛ لطفاً دوباره وارد پنل شوید.");
+    }
+    if(!mime.includes("image/png")||!(res.data instanceof Blob)||res.data.size<40000){
+     throw new Error("پاسخ سرور تصویر PNG معتبر نیست. کد وضعیت: "+res.status);
+    }
+    if(currentPreview.current)URL.revokeObjectURL(currentPreview.current);
+    const blob=new Blob([res.data],{type:"image/png"});
+    currentPreview.current=URL.createObjectURL(blob);
+    setPreview(currentPreview.current);
+    setSuccess("");
+    loaded=true;
+    break;
    }
-   if(currentPreview.current)URL.revokeObjectURL(currentPreview.current);
-   const blob=new Blob([res.data],{type:"image/png"});
-   currentPreview.current=URL.createObjectURL(blob);
-   setPreview(currentPreview.current);
-  }catch(e){setError(e?.message && !e.response ? e.message : await decodePreviewError(e));}
-  finally{previewInFlight.current=false;setPreviewBusy(false);}
+   if(!loaded)throw new Error("ساخت تصویر در صف سرور طولانی شده است؛ کمی بعد دوباره پیش‌نمایش را باز کنید.");
+  }catch(e){
+   setSuccess("");
+   setError(e?.message&&!e.response?e.message:await decodePreviewError(e));
+  }finally{previewInFlight.current=false;setPreviewBusy(false);}
  };
  const sendNow=async()=>{
   if(!window.confirm("این اقدام واقعاً بنر را به همه گروه‌های فعال Meta ارسال می‌کند. ادامه می‌دهید؟"))return;
