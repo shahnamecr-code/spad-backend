@@ -47,6 +47,50 @@ class SpadWhatsAppPreviewCache
         }
     }
 
+    /**
+     * Request creation of a fresh banner by the CLI-only PM2 worker, never
+     * by launching Chromium from PHP-FPM.
+     *
+     * Only Super Admin's guarded preview route calls this; filenames contain
+     * hashes, not place names, and the queue stays on the private local disk.
+     */
+    public function requestRefresh(string $kind, ?string $province, ?string $city): void
+    {
+        $this->path($kind, $province, $city); // Validate type.
+        $province = trim((string) $province);
+        $city = trim((string) $city);
+        if ($kind === 'city' &&
+            ($province === '' || $city === '' || mb_strlen($province) > 80 ||
+             mb_strlen($city) > 80 ||
+             preg_match('/[\x00-\x1F\x7F]/u', $province . $city))) {
+            throw new RuntimeException('نام شهر برای ساخت پیش‌نمایش معتبر نیست.', 422);
+        }
+
+        $disk = Storage::disk('local');
+        $identifier = hash('sha256', $kind === 'market'
+            ? 'market' : $province . '|' . $city);
+        $path = 'whatsapp-market/admin-preview/requests/' . $identifier . '.json';
+
+        try {
+            // One file per poster. Repeated button presses don't create work
+            // storms or continually reset the same pending request.
+            if ($disk->exists($path) && time() - (int) $disk->lastModified($path) < 180) {
+                return;
+            }
+            $payload = json_encode([
+                'kind' => $kind,
+                'province' => $kind === 'city' ? $province : null,
+                'city' => $kind === 'city' ? $city : null,
+                'requested_at' => time(),
+            ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            if (!$payload || !$disk->put($path, $payload)) {
+                throw new RuntimeException('ثبت درخواست نوسازی پیش‌نمایش انجام نشد.');
+            }
+        } catch (Throwable $e) {
+            throw new RuntimeException('صف ساخت امن پیش‌نمایش روی سرور در دسترس نیست.', 503, $e);
+        }
+    }
+
     public function put(string $kind, ?string $province, ?string $city, string $png): void
     {
         if (strlen($png) <= 40000 || substr($png, 0, 8) !== "\x89PNG\r\n\x1a\n") {
