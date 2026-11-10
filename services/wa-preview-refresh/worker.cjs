@@ -26,11 +26,13 @@ const MAX_REQUEST_AGE = 15 * 60 * 1000;
 const ATTEMPT_BACKOFF = 60 * 1000;
 let busy = false;
 let nextMarket = 0;
-let nextCities = 0;
+let nextCities = Date.now() + 90_000;
 let heartbeat = {
   started_at: new Date().toISOString(),
   market_success_at: null,
+  market_last_result: 'not_attempted',
   cities_success_at: null,
+  cities_last_result: 'not_attempted',
   queue_success_at: null,
   last_check_at: null,
   state: 'starting'
@@ -58,8 +60,10 @@ function invoke(kind, province = '', city = '') {
     }, (err, stdout) => {
       // Partial success is reported by the existing Artisan command with exit 0.
       // Never print provider responses or personal admin data.
-      const result = !err && stdout.includes('WA_PREVIEW_CACHE_RESULT=');
-      resolve(result);
+      const success = !err && stdout.includes('WA_PREVIEW_CACHE_RESULT=');
+      const reason = success ? 'ok'
+        : (err ? (typeof err.code === 'number' ? 'exit_' + err.code : 'spawn_error') : 'missing_result');
+      resolve({success,reason});
     });
   });
 }
@@ -97,8 +101,8 @@ async function serviceQueue() {
       const data = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (!validRequest(data)) {fs.unlinkSync(file);continue;}
       // Never follow file-replaced paths outside queue; no shell execution.
-      const success = await invoke(data.kind, data.province || '', data.city || '');
-      if (success) {
+      const result = await invoke(data.kind, data.province || '', data.city || '');
+      if (result.success) {
         fs.unlinkSync(file);
         retryAfter.delete(filename);
         heartbeat.queue_success_at = new Date().toISOString();
@@ -119,15 +123,22 @@ async function tick() {
     const now = Date.now();
     if (now >= nextMarket) {
       nextMarket = now + MARKET_INTERVAL;
-      const success = await invoke('market');
-      if (success) heartbeat.market_success_at = new Date().toISOString();
+      const result = await invoke('market');
+      heartbeat.market_last_result = result.reason;
+      if (result.success) heartbeat.market_success_at = new Date().toISOString();
+      else nextMarket = Date.now() + 30_000;
+      saveHeartbeat();
     }
+    // Prioritize on-demand previews over a potentially long bulk-city refresh.
+    await serviceQueue();
     if (Date.now() >= nextCities) {
       nextCities = Date.now() + CITIES_INTERVAL;
-      const success = await invoke('city');
-      if (success) heartbeat.cities_success_at = new Date().toISOString();
+      const result = await invoke('city');
+      heartbeat.cities_last_result = result.reason;
+      if (result.success) heartbeat.cities_success_at = new Date().toISOString();
+      else nextCities = Date.now() + 60_000;
+      saveHeartbeat();
     }
-    await serviceQueue();
     heartbeat.state = 'running';
   } catch (_) {
     heartbeat.state = 'degraded';
@@ -137,6 +148,7 @@ async function tick() {
   }
 }
 fs.mkdirSync(BASE, {recursive:true, mode:0o750});
+try { saveHeartbeat(); } catch (_) {}
 setTimeout(() => void tick(), 1000);
 setInterval(() => void tick(), TICK_INTERVAL);
 console.log('SPAD preview-only PM2 renderer worker running; no WhatsApp messages');
