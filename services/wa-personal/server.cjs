@@ -13,31 +13,47 @@ const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
-// whatsapp-web.js 1.34.7 + WhatsApp Web 2.3000.104x (since Sep 2026): every
-// media send fails with "Data passed to getter must include an id property
-// (it's how we memoize) but got undefined", because the spread MediaData
-// model carries a MobX __x_id into the outgoing message. No released fix yet
-// (upstream PRs #201922/#201923/#201938); apply the community fix to the
-// installed package before it is loaded. Idempotent; survives reinstalls.
-function ensureMediaSendFix() {
+// whatsapp-web.js 1.34.7 vs current WhatsApp Web (2.3000.104x, since Sep 2026)
+// has two send bugs with no released fix yet; patch the installed package
+// before it is loaded (idempotent, logged, survives npm reinstalls):
+//  1. media: the spread MediaData model carries a MobX __x_id into the
+//     outgoing message -> "Data passed to getter must include an id property
+//     (it's how we memoize)". Fix: delete message.__x_id (upstream #201923).
+//  2. result: WAWebMsgKey now keeps its serialized id in `$1`, so
+//     Msg.get(newMsgKey._serialized) returns nothing and the sent message has
+//     no id. Fix: fall back to $1 / toString() (upstream #201832).
+function ensureLibraryFixes() {
+  const out = [];
   try {
     const file = path.join(path.dirname(require.resolve('whatsapp-web.js')), 'src', 'util', 'Injected', 'Utils.js');
-    const src = fs.readFileSync(file, 'utf8');
-    if (src.includes('delete message.__x_id')) return 'present';
-    const anchor = /\n([ \t]*)\/\/ Bot's won't reply if canonicalUrl is set \(linking\)/;
-    if (!anchor.test(src)) return 'anchor_missing';
-    const patched = src.replace(anchor, (m, indent) =>
-      '\n' + indent + '// SPAD fix: drop MobX id carried in from MediaData (media send memoize error)\n' +
-      indent + 'delete message.__x_id;\n' + m);
-    fs.writeFileSync(file + '.spad-tmp', patched);
-    fs.renameSync(file + '.spad-tmp', file);
-    return 'applied';
+    let src = fs.readFileSync(file, 'utf8');
+    const before = src;
+    if (src.includes('delete message.__x_id')) out.push('media:present');
+    else {
+      const anchor = /\n([ \t]*)\/\/ Bot's won't reply if canonicalUrl is set \(linking\)/;
+      if (anchor.test(src)) {
+        src = src.replace(anchor, (m, indent) =>
+          '\n' + indent + '// SPAD fix: drop MobX id carried in from MediaData (media send memoize error)\n' +
+          indent + 'delete message.__x_id;\n' + m);
+        out.push('media:applied');
+      } else out.push('media:anchor_missing');
+    }
+    if (src.includes('newMsgKey._serialized || newMsgKey.$1')) out.push('msgkey:present');
+    else if (src.includes('.Msg.get(newMsgKey._serialized);')) {
+      src = src.replace('.Msg.get(newMsgKey._serialized);',
+        '.Msg.get(newMsgKey._serialized || newMsgKey.$1 || String(newMsgKey)); // SPAD fix: MsgKey id now in $1');
+      out.push('msgkey:applied');
+    } else out.push('msgkey:anchor_missing');
+    if (src !== before) {
+      fs.writeFileSync(file + '.spad-tmp', src);
+      fs.renameSync(file + '.spad-tmp', file);
+    }
   } catch (err) {
-    return 'failed: ' + String(err && err.message || err).slice(0, 120);
+    out.push('failed: ' + String(err && err.message || err).slice(0, 120));
   }
+  return out.join(', ');
 }
-const mediaFix = ensureMediaSendFix();
-console.log('SPAD personal bridge: media send fix ' + mediaFix);
+console.log('SPAD personal bridge: library fixes ' + ensureLibraryFixes());
 const {Client, LocalAuth, MessageMedia} = require('whatsapp-web.js');
 
 process.umask(0o077);
@@ -241,8 +257,14 @@ async function sendSelf(body) {
   try {
     const media = new MessageMedia('image/png', png.toString('base64'), 'spad-market.png');
     const message = await client.sendMessage(linkedSelfId, media, {caption: body.caption});
-    if (!message || !message.id) throw new Error('WhatsApp did not confirm the self-chat send');
+    // sendMessage resolving means WhatsApp Web added the message to the chat
+    // and queued it (it throws on failure). The returned model can lack an id
+    // on newer WhatsApp Web builds; that is not a failed send.
     lastSendAt = Date.now();
+    if (!message || !message.id) {
+      console.log('SPAD personal bridge: image queued in self chat (no message id returned)');
+      return {accepted: true, message_id: ''};
+    }
     return {
       accepted: true,
       // Id only, never expose contact list or WhatsApp chat content.
