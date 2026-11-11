@@ -92,6 +92,16 @@ class RouteServiceProvider extends ServiceProvider
                     Limit::perMinute(40)->by('spad-postal-api:' . $credentialKey),
                 ];
             }
+            // A virtual tour fetches 20-40 small public files (player, room
+            // thumbnails, fonts, panoramas) when it opens and more on every
+            // room change. They must not exhaust, or be blocked by, the shared
+            // 60/minute bucket that mobile-carrier NAT addresses share.
+            if ($request->isMethod('GET') && (
+                $request->is('api/virtual-tours/packages/*')
+                || $request->is('api/virtual-tours/fonts/*')
+            )) {
+                return Limit::perMinute(600)->by('spad-tour-assets-ip:' . $request->ip());
+            }
             return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
         });
 

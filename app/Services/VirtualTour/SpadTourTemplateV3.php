@@ -71,17 +71,23 @@ final class SpadTourTemplateV3
     /**
      * This patch is applied only while serving recognized SPAD packages.
      * The uploaded ZIP is never modified; original image pixels stay on disk.
-     * iPhone WebKit cannot fullscreen a div, and its GPU can reject very large
-     * multi-texture panoramas with persistent black tiles.
+     *
+     * Phones load the package's own mobile panorama (4096x2048 or 3072x1536
+     * WebP, a few hundred KB) instead of the 6000x3000 HQ JPEG (7-10 MB),
+     * falling back to the HQ file if it is missing. iPhone WebKit cannot
+     * hold a canvas above 16.7 megapixels: an 18 MP HQ panorama copied
+     * through one canvas became uninitialised GPU memory (dark streaks), so
+     * iOS uploads one texture of at most 4096 px, straight from the image
+     * when it fits. iPhone WebKit also cannot fullscreen a div.
      */
     private static function patchIosStability(string $js): string
     {
         if (!str_contains($js, 'function uploadGpuTiles(im){')
             || !str_contains($js, "document.documentElement.requestFullscreen()")
-            || str_contains($js, 'SPAD_IOS_STABLE_RENDER_V1')) return $js;
+            || str_contains($js, 'SPAD_IOS_STABLE_RENDER_V2')) return $js;
 
         $js = str_replace('  function initGL(){',
-            "  // SPAD_IOS_STABLE_RENDER_V1: capability-specific viewport and GPU protection.\n" .
+            "  // SPAD_IOS_STABLE_RENDER_V2: capability-specific viewport and GPU protection.\n" .
             "  const SPAD_IOS_SAFE=/iPhone|iPad|iPod/i.test(navigator.userAgent)||(/Macintosh/i.test(navigator.userAgent)&&navigator.maxTouchPoints>1);\n" .
             "  function initGL(){", $js);
         // Preserve the WebGL drawing buffer on WebKit; its asynchronous
@@ -93,23 +99,35 @@ final class SpadTourTemplateV3
         $js = str_replace('const maxPixels=coarse?4400000:8500000;',
             'const maxPixels=coarse?(SPAD_IOS_SAFE?3000000:4400000):8500000;', $js);
 
+        $fetchBefore = "  async function fetchSceneImage(s,mobile){\n    const preferred=s.src;";
+        $fetchAfter = "  async function fetchSceneImage(s,mobile){\n" .
+            "    if((mobile||SPAD_IOS_SAFE)&&s.mobileSrc&&s.mobileSrc!==s.src&&location.protocol!=='file:'&&!window.SPAD360_FORCE_EMBEDDED){\n" .
+            "      try{return await getImage(s.mobileSrc)}catch(e){console.warn('SPAD 360 mobile panorama failed, using full size',e)}\n" .
+            "    }\n" .
+            "    const preferred=s.src;";
+        $js = str_replace($fetchBefore, $fetchAfter, $js);
+
         $iosGpu = <<<'JS'
   function uploadGpuTiles(im){
-    // On iOS, one hardware-safe RGB texture prevents intermittent black
-    // tiles from 8-sampler panoramas. Original JPEG remains unchanged.
-    // The 7-megapixel GPU working set is still larger than the visible
-    // Retina viewport; this caps transient GPU allocation, not stored photos.
+    // iOS: one RGB texture of at most 4096 px. Uploaded straight from the
+    // decoded image when it fits; otherwise scaled once through a canvas
+    // that stays far below WebKit's 16.7 MP canvas limit.
     if(SPAD_IOS_SAFE&&gl){
       const maxEdge=Math.min(4096,Number(gl.getParameter(gl.MAX_TEXTURE_SIZE)||2048));
       const w=im.naturalWidth,h=im.naturalHeight;
-      const scale=Math.min(1,maxEdge/w,maxEdge/h,Math.sqrt(7000000/(w*h)));
-      const gpuCanvas=document.createElement('canvas');
-      gpuCanvas.width=Math.max(2,Math.round(w*scale));
-      gpuCanvas.height=Math.max(2,Math.round(h*scale));
+      const scale=Math.min(1,maxEdge/w,maxEdge/h);
+      let gpuCanvas=null,source=im;
       try{
-        const c=gpuCanvas.getContext('2d',{alpha:false});
-        if(!c)throw Error('No panorama conversion context');
-        c.drawImage(im,0,0,gpuCanvas.width,gpuCanvas.height);
+        if(scale<1){
+          gpuCanvas=document.createElement('canvas');
+          gpuCanvas.width=Math.max(2,Math.round(w*scale));
+          gpuCanvas.height=Math.max(2,Math.round(h*scale));
+          const c=gpuCanvas.getContext('2d',{alpha:false});
+          if(!c)throw Error('No panorama conversion context');
+          c.imageSmoothingQuality='high';
+          c.drawImage(im,0,0,gpuCanvas.width,gpuCanvas.height);
+          source=gpuCanvas;
+        }
         releaseGpuTiles();
         const tex=gl.createTexture();
         if(!tex)throw Error('No GPU texture');
@@ -120,7 +138,7 @@ final class SpadTourTemplateV3
         gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
-        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,gpuCanvas);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGB,gl.RGB,gl.UNSIGNED_BYTE,source);
         if(gl.getError()!==gl.NO_ERROR)throw Error('iOS texture upload failed');
         // Every sampler unit is complete even when the GLSL compiler
         // does not fold away branches for the single texture.
@@ -134,7 +152,7 @@ final class SpadTourTemplateV3
         releaseGpuTiles();
         return false;
       }finally{
-        gpuCanvas.width=1;gpuCanvas.height=1;
+        if(gpuCanvas){gpuCanvas.width=1;gpuCanvas.height=1;}
       }
     }
 JS;
