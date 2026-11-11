@@ -302,8 +302,8 @@ class SpadWhatsAppPosterRenderer
             $width = round(max(6, 100 * $row['value'] / $max), 1);
             $list .= '<li><span class="rank">' . $this->fa($first + $i + 1) . '</span>'
                 . '<span class="hood">' . $this->e($row['name']) . '</span>'
-                . '<span class="bar"><i style="width:' . $width . '%"></i></span>'
-                . '<span class="ppm"><b>' . $this->e($this->price($row['value'], 'تومان / مترمربع')) . '</b></span></li>';
+                . '<span class="bar"><i style="width:' . $width . '%"><b>'
+                . $this->e($this->price($row['value'], 'تومان / مترمربع')) . '</b></i></span></li>';
         }
         return '<div class="city-head"><p>میانگین قیمت هر متر مربع آپارتمان در گران‌ترین محله‌ها</p>'
             . '<span class="unit">ارقام به میلیون تومان</span></div><ol class="ranking">' . $list . '</ol>';
@@ -404,16 +404,26 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
 .city-head p{font-size:25px;font-weight:700;color:#0669b7}
 .unit{font-size:19px;font-weight:500;color:#41566e;padding:6px 16px;border-radius:999px;background:#fff;border:1.8px solid #b9cbe0}
 .ranking{list-style:none;flex:1;display:flex;flex-direction:column;gap:9px;padding-bottom:18px;min-height:0}
-.ranking li{flex:1;display:grid;grid-template-columns:52px 260px 1fr 140px;align-items:center;column-gap:18px;
- background:linear-gradient(160deg,#ffffff 0%,#f3f7fc 100%);border-radius:18px;border:1.8px solid #b9cbe0;padding:0 20px;box-shadow:0 6px 14px rgba(10,34,64,.06)}
+.ranking li{flex:1;display:grid;grid-template-columns:52px 250px 1fr;align-items:center;column-gap:18px;
+ background:linear-gradient(160deg,#ffffff 0%,#f3f7fc 100%);border-radius:18px;border:1.8px solid #b9cbe0;padding:0 18px 0 16px;box-shadow:0 6px 14px rgba(10,34,64,.06)}
 .rank{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
  background:#0874c7;color:#fff;font-size:21px;font-weight:700}
-.ranking li:nth-child(-n+3) .rank{background:linear-gradient(150deg,#e9cf8c,#b28a35);color:#2b1d02}
+.ranking li:nth-child(-n+3) .rank{background:linear-gradient(150deg,#f3dc97,#c7962f);color:#2b1d02}
 .hood{font-size:25px;font-weight:700;color:#0a2240;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.bar{height:16px;border-radius:999px;background:#edf1f6;overflow:hidden;direction:rtl}
-.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(270deg,#17aef3,#0669b7)}
-.ppm{text-align:left;direction:ltr}
-.ppm b{font-size:34px;font-weight:900;color:#071c3a;font-variant-numeric:tabular-nums}
+/* Bar: length proportional to price per m2; the value rides in a pill at its end. */
+.bar{position:relative;height:34px;border-radius:999px;background:#e4edf7;direction:rtl;
+ box-shadow:inset 0 2px 4px rgba(10,34,64,.10)}
+.bar i{position:relative;display:block;height:100%;min-width:120px;border-radius:999px;font-style:normal;
+ background:linear-gradient(270deg,#2fc0f7 0%,#0984e3 55%,#0669b7 100%);
+ box-shadow:0 5px 12px rgba(9,132,227,.32)}
+.bar i::before{content:"";position:absolute;left:10px;right:10px;top:3px;height:42%;border-radius:999px;
+ background:linear-gradient(180deg,rgba(255,255,255,.45),rgba(255,255,255,0))}
+.ranking li:nth-child(-n+3) .bar i{background:linear-gradient(270deg,#f6df9c 0%,#d9ab45 55%,#b5852a 100%);
+ box-shadow:0 5px 12px rgba(181,133,42,.35)}
+.bar i b{position:absolute;left:4px;top:50%;transform:translateY(-50%);height:26px;min-width:84px;padding:0 12px;
+ border-radius:999px;background:#fff;color:#0669b7;font-size:23px;font-weight:700;font-style:normal;line-height:26px;text-align:center;
+ font-variant-numeric:tabular-nums;box-shadow:0 1px 3px rgba(10,34,64,.18);direction:ltr}
+.ranking li:nth-child(-n+3) .bar i b{color:#7a5512}
 /* footer */
 .ft{padding:0 44px 0}
 .note{font-size:17px;line-height:1.75;color:#5b6f86;padding:0 4px 16px}
