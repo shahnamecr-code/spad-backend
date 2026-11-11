@@ -33,6 +33,14 @@ let qrCreatedAt = 0;
 let linkedSelfId = null;
 let inFlight = false;
 let lastSendAt = 0;
+const startedAt = Date.now();
+// WhatsApp rotates pairing codes every ~20s and, after a few minutes with
+// nobody scanning, stops issuing new ones. Only serve a recent code, and
+// when it has gone stale, restart this process (PM2 brings it back) so the
+// next request gets a fresh code instead of "not ready" forever.
+const QR_MAX_AGE_MS = 40_000;
+const RESTART_MIN_UPTIME_MS = 90_000;
+let restartScheduled = false;
 
 const authStrategy = new LocalAuth({clientId: 'spad-self', dataPath: AUTH_DIR});
 const executablePath = process.env.SPAD_WA_CHROME || undefined;
@@ -80,6 +88,23 @@ client.on('disconnected', () => {
   state = 'disconnected'; qrDataUri = null; linkedSelfId = null; lastError = 'Disconnected';
 });
 
+function qrFresh() {
+  return !!qrDataUri && Date.now() - qrCreatedAt <= QR_MAX_AGE_MS;
+}
+function requestFreshPairing() {
+  if (restartScheduled) return true;
+  // Never interrupt a linked or mid-login session, or one that just started.
+  if (state === 'ready' || state === 'authenticating') return false;
+  if (Date.now() - startedAt < RESTART_MIN_UPTIME_MS) return false;
+  restartScheduled = true;
+  console.log('SPAD personal bridge: pairing code expired; restarting for a fresh QR');
+  setTimeout(async () => {
+    try { server.close(); } catch (_) {}
+    try { await Promise.race([client.destroy(), new Promise(r => setTimeout(r, 8000))]); } catch (_) {}
+    process.exit(0); // PM2 autorestart starts a new browser session.
+  }, 250);
+  return true;
+}
 function authorized(req) {
   const submitted = req.headers['x-spad-self-key'];
   if (typeof submitted !== 'string' || submitted.length > 256) return false;
@@ -155,17 +180,22 @@ const server = http.createServer(async (req, res) => {
         state,
         ready: state === 'ready',
         linked_number_masked: maskedPhone(),
-        pairing_available: state === 'pairing' && !!qrDataUri,
+        pairing_available: state === 'pairing' && qrFresh(),
         // Avoid echoing raw browser/WhatsApp errors.
         error: lastError,
       });
     }
     if (req.method === 'GET' && pathname === '/qr') {
       if (state === 'ready') return reply(res, 409, {error: 'already_connected'});
-      if (!qrDataUri || Date.now() - qrCreatedAt > 75_000) {
-        return reply(res, 202, {state, image: null, message: 'waiting_for_new_qr'});
+      if (state === 'authenticating') {
+        return reply(res, 202, {state, image: null, message: 'authenticating'});
       }
-      return reply(res, 200, {state: 'pairing', image: qrDataUri, expires_in: Math.max(0, 75 - Math.floor((Date.now() - qrCreatedAt) / 1000))});
+      if (!qrFresh()) {
+        const restarting = requestFreshPairing();
+        return reply(res, 202, {state: restarting ? 'restarting' : state, image: null, message: 'waiting_for_new_qr'});
+      }
+      return reply(res, 200, {state: 'pairing', image: qrDataUri,
+        expires_in: Math.max(0, Math.floor((QR_MAX_AGE_MS - (Date.now() - qrCreatedAt)) / 1000))});
     }
     if (req.method === 'POST' && pathname === '/send-self') {
       const body = await bodyJson(req);

@@ -98,20 +98,54 @@ export default function WhatsAppMarketAdmin(){
   }
  },[]);
  useEffect(()=>{refreshPersonal();},[refreshPersonal]);
+ // WhatsApp pairing codes expire after ~20s, so keep fetching the current
+ // code while it is on screen, and stop as soon as the phone is linked.
+ const qrRun=useRef(0);
+ useEffect(()=>()=>{qrRun.current++;},[]);
  const showPairingQr=async()=>{
-  setPersonalBusy(true);setPersonalError("");setPersonalMessage("");
+  const run=++qrRun.current;
+  const alive=()=>qrRun.current===run;
+  const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  setPersonalBusy(true);setPersonalError("");setPersonalQr("");
+  setPersonalMessage("در حال آماده‌سازی کد QR تازه؛ ممکن است تا یک دقیقه طول بکشد...");
+  const deadline=Date.now()+4*60*1000;
+  let shown=false;
   try{
-   const {data}=await axios.get(endpoint+"/personal/qr");
-   if(data?.image?.startsWith("data:image/png;base64,")){
-    setPersonalQr(data.image);
-    setPersonalMessage("کد QR را با واتساپ خودت از بخش دستگاه‌های متصل اسکن کن.");
-   }else{
+   while(alive()&&Date.now()<deadline){
+    let data=null;
+    try{({data}=await axios.get(endpoint+"/personal/qr"));}
+    catch(e){
+     const s=e?.response?.status;
+     if(s!==429&&s!==503)throw e; // transient: bridge restarting or brief limit
+    }
+    if(!alive())return;
+    if(data?.state==="ready"){
+     setPersonalQr("");setPersonalMessage("حساب شخصی قبلاً متصل است.");await refreshPersonal();return;
+    }
+    if(data?.image?.startsWith("data:image/png;base64,")){
+     setPersonalQr(data.image);shown=true;setPersonalBusy(false);
+     setPersonalMessage("کد QR را همین حالا اسکن کن: واتساپ گوشی ← دستگاه‌های متصل ← اتصال دستگاه. کد هر چند ثانیه خودکار تازه می‌شود.");
+    }else if(data?.state==="authenticating"){
+     setPersonalQr("");setPersonalMessage("کد اسکن شد؛ در حال تکمیل اتصال...");
+    }else if(!shown){
+     setPersonalMessage("در حال ساخت کد QR تازه روی سرور؛ چند ثانیه صبر کن...");
+    }
+    await wait(data?.image?5000:3000);
+    if(!alive())return;
+    const st=await refreshPersonal();
+    if(st?.connection?.ready){
+     setPersonalQr("");
+     setPersonalMessage("واتساپ شخصی متصل شد. حالا تیک «ارسال خودکار به پیام‌های خودم» را بزن.");
+     return;
+    }
+   }
+   if(alive()){
     setPersonalQr("");
-    setPersonalMessage(data?.state==="ready"?"حساب شخصی قبلاً متصل است.":"کد QR هنوز آماده نیست؛ چند لحظه دیگر دوباره تلاش کن.");
+    setPersonalMessage("زمان نمایش کد تمام شد؛ برای کد تازه دوباره «نمایش QR اتصال شخصی» را بزن.");
    }
   }catch(e){
-   setPersonalError(e?.response?.data?.message||"دریافت QR فعلاً ممکن نیست.");
-  }finally{setPersonalBusy(false);}
+   if(alive())setPersonalError(e?.response?.data?.message||"دریافت QR فعلاً ممکن نیست.");
+  }finally{if(alive())setPersonalBusy(false);}
  };
  const togglePersonalSchedule=async()=>{
   const enabled=!personal.preferences?.enabled;
@@ -267,7 +301,7 @@ export default function WhatsAppMarketAdmin(){
      <p>اتصال با QR: در گوشی وارد واتساپ ← دستگاه‌های متصل ← اتصال دستگاه شو، سپس کد را از پنل روی رایانه اسکن کن.</p>
      <div className="spad-wa-actions">
       <button type="button" disabled={personalBusy||personal.connection?.ready} onClick={showPairingQr}>نمایش QR اتصال شخصی</button>
-      <button type="button" className="spad-wa-secondary" disabled={personalBusy} onClick={async()=>{setPersonalQr("");await refreshPersonal();}}>بررسی وضعیت اتصال</button>
+      <button type="button" className="spad-wa-secondary" disabled={personalBusy} onClick={async()=>{qrRun.current++;setPersonalQr("");setPersonalBusy(false);await refreshPersonal();}}>بررسی وضعیت اتصال</button>
      </div>
      {personalQr&&!personal.connection?.ready?<div className="spad-wa-personal-qr"><img src={personalQr} alt="QR اتصال واتساپ شخصی؛ فقط مدیر اصلی باید آن را اسکن کند"/><small>کد اتصال محرمانه است؛ از آن اسکرین‌شات عمومی منتشر نکن.</small></div>:null}
      <label className="spad-wa-toggle"><input type="checkbox" checked={!!personal.preferences?.enabled}
