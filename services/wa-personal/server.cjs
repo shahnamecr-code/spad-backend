@@ -41,6 +41,19 @@ const startedAt = Date.now();
 const QR_MAX_AGE_MS = 40_000;
 const RESTART_MIN_UPTIME_MS = 90_000;
 let restartScheduled = false;
+// Set when the phone scan was accepted and WhatsApp is syncing. While set
+// (up to LINKING_GRACE_MS) the bridge must never restart: interrupting the
+// first sync makes WhatsApp log the new device out.
+const LINKING_GRACE_MS = 10 * 60_000;
+let linkingSince = 0;
+function markLinking(reason) {
+  if (state === 'ready') return;
+  if (!linkingSince) console.log('SPAD personal bridge: linking in progress (' + reason + ')');
+  linkingSince = linkingSince || Date.now();
+  state = 'authenticating';
+  qrDataUri = null;
+  qrCreatedAt = 0;
+}
 
 const authStrategy = new LocalAuth({clientId: 'spad-self', dataPath: AUTH_DIR});
 const executablePath = process.env.SPAD_WA_CHROME || undefined;
@@ -57,6 +70,7 @@ client.on('qr', async (raw) => {
   try {
     qrDataUri = await QRCode.toDataURL(raw, {errorCorrectionLevel: 'M', margin: 2, width: 360});
     qrCreatedAt = Date.now();
+    linkingSince = 0; // a new code means no scan is being completed
     state = 'pairing';
     lastError = null;
   } catch (err) {
@@ -66,6 +80,7 @@ client.on('qr', async (raw) => {
   }
 });
 client.on('authenticated', () => {
+  linkingSince = linkingSince || Date.now();
   state = 'authenticating';
   qrDataUri = null;
   qrCreatedAt = 0;
@@ -83,18 +98,60 @@ client.on('ready', () => {
 });
 client.on('auth_failure', () => {
   state = 'auth_failed'; qrDataUri = null; linkedSelfId = null; lastError = 'Authentication failed';
+  linkingSince = 0;
+  restartSoon('authentication failed; starting a clean session for a new QR');
 });
 client.on('disconnected', () => {
   state = 'disconnected'; qrDataUri = null; linkedSelfId = null; lastError = 'Disconnected';
+  linkingSince = 0;
+  restartSoon('logged out; starting a clean session for a new QR');
 });
+
+// Pairing diagnostics for the PM2 log: what WhatsApp Web itself shows while
+// linking (e.g. a passkey/security step or a link error). Never logs the QR
+// payload, phone numbers or chat content; long digit runs are masked.
+let qrCount = 0;
+let lastPageText = '';
+const note = msg => console.log('SPAD personal bridge: ' + msg);
+client.on('qr', () => { qrCount++; if (qrCount === 1 || qrCount % 5 === 0) note('pairing code #' + qrCount); });
+client.on('loading_screen', (pct, msg) => { note('loading ' + pct + '% ' + String(msg || '').slice(0, 60)); markLinking('loading screen'); });
+client.on('change_state', s => note('wa state ' + String(s).slice(0, 40)));
+client.on('authenticated', () => note('phone scan accepted (authenticated)'));
+client.on('auth_failure', m => note('auth_failure ' + String(m || '').slice(0, 120)));
+client.on('disconnected', r => note('disconnected ' + String(r || '').slice(0, 80)));
+client.on('ready', () => note('ready (linked)'));
+setInterval(async () => {
+  if (state === 'ready' || !client.pupPage) return;
+  try {
+    const text = await client.pupPage.evaluate(() =>
+      ((document.body && document.body.innerText) || '').replace(/\s+/g, ' ').slice(0, 400));
+    const clean = text.replace(/\d{5,}/g, '<n>');
+    if (clean && clean !== lastPageText) { lastPageText = clean; note('page: ' + clean); }
+    if (/Loading your chats|messages are downloading|Logging in/i.test(clean)) markLinking('page shows sync');
+  } catch (_) {}
+}, 4000).unref();
 
 function qrFresh() {
   return !!qrDataUri && Date.now() - qrCreatedAt <= QR_MAX_AGE_MS;
 }
+function linkingActive() {
+  return !!linkingSince && Date.now() - linkingSince < LINKING_GRACE_MS;
+}
+function restartSoon(reason) {
+  if (restartScheduled) return;
+  restartScheduled = true;
+  console.log('SPAD personal bridge: ' + reason);
+  setTimeout(async () => {
+    try { server.close(); } catch (_) {}
+    try { await Promise.race([client.destroy(), new Promise(r => setTimeout(r, 8000))]); } catch (_) {}
+    process.exit(0); // PM2 autorestart starts a new browser session.
+  }, 3000);
+}
 function requestFreshPairing() {
   if (restartScheduled) return true;
-  // Never interrupt a linked or mid-login session, or one that just started.
-  if (state === 'ready' || state === 'authenticating') return false;
+  // Never interrupt a linked session, a scan being completed (first sync),
+  // or a session that just started.
+  if (state === 'ready' || linkingActive()) return false;
   if (Date.now() - startedAt < RESTART_MIN_UPTIME_MS) return false;
   restartScheduled = true;
   console.log('SPAD personal bridge: pairing code expired; restarting for a fresh QR');
@@ -187,7 +244,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (req.method === 'GET' && pathname === '/qr') {
       if (state === 'ready') return reply(res, 409, {error: 'already_connected'});
-      if (state === 'authenticating') {
+      if (state === 'authenticating' || linkingActive()) {
         return reply(res, 202, {state, image: null, message: 'authenticating'});
       }
       if (!qrFresh()) {
@@ -210,12 +267,36 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// A previous bridge's Chrome can outlive its Node process for a few seconds
+// (PM2 restart) and keep the profile locked, so the new browser fails to
+// start. Stop only Chrome processes using THIS bridge's private profile.
+function stopLeftoverBrowsers() {
+  const marker = Buffer.from(path.resolve(AUTH_DIR));
+  let stopped = 0;
+  for (const pid of fs.readdirSync('/proc')) {
+    if (!/^\d+$/.test(pid) || Number(pid) === process.pid) continue;
+    try {
+      const cmd = fs.readFileSync('/proc/' + pid + '/cmdline');
+      if (cmd.includes(marker) && cmd.includes(Buffer.from('chrom'))) {
+        process.kill(Number(pid), 'SIGKILL'); stopped++;
+      }
+    } catch (_) {}
+  }
+  if (stopped) console.log('SPAD personal bridge: stopped ' + stopped + ' leftover browser process(es)');
+  return stopped;
+}
+
 server.listen(PORT, HOST, () => {
   console.log('SPAD personal WhatsApp loopback bridge listening; QR/manual approval required');
-  client.initialize().catch(() => {
-    state = 'error';
-    lastError = 'WhatsApp browser failed to initialize';
-  });
+  const waitMs = stopLeftoverBrowsers() ? 1500 : 0;
+  setTimeout(() => {
+    client.initialize().catch(() => {
+      state = 'error';
+      lastError = 'WhatsApp browser failed to initialize';
+      // Retry in a fresh process instead of staying broken.
+      setTimeout(() => restartSoon('browser failed to start; retrying'), 10_000);
+    });
+  }, waitMs);
 });
 process.on('SIGTERM', async () => {
   server.close();

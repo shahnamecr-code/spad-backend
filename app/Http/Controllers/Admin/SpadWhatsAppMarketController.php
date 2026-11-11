@@ -54,7 +54,9 @@ class SpadWhatsAppMarketController extends Controller
             'cities' => ['required','array','min:1','max:30'],
             'cities.*.province' => ['required','string','min:2','max:80'],
             'cities.*.city' => ['required','string','min:2','max:80'],
-            'groups' => ['required','array','max:20'],
+            // Meta groups are optional (personal self-chat needs none); an empty list
+            // must not fail 'required'. Enabling Meta publishing still demands them.
+            'groups' => ['present','array','max:20'],
             'groups.*' => ['required','string','min:3','max:250','regex:/^[A-Za-z0-9_:.\-=]+$/D'],
             'phone_number_id' => ['nullable','string','regex:/^[0-9]{5,40}$/D'],
             'access_token' => ['nullable','string','min:12','max:2048'],
