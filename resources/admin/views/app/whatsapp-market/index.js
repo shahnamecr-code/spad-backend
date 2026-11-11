@@ -5,7 +5,7 @@ import "./whatsapp-market.scss";
 
 const endpoint = adminPathApi + "/whatsapp-market";
 const defaults = {
-  enabled:false, schedule:{markets:["10:00","18:00"],cities:["11:00"],hourly_markets:false},
+  enabled:false, schedule:{markets:["10:00","18:00"],cities:["11:00"],hourly_markets:false,hourly_cities:false,hourly_from:7,hourly_to:23},
   cities:[{province:"تهران",city:"تهران"},{province:"فارس",city:"شیراز"}],
   groups:[], phone_number_id:"", access_token:"", token_configured:false,
   official_groups_acknowledged:false,render_available:false
@@ -21,6 +21,10 @@ const readCities = s => s.split(/\n+/).map(x => x.trim()).filter(Boolean).map(x 
  return {province:(province||"").trim(),city:rest.join("|").trim()};
 }).filter(x=>x.province&&x.city);
 const normalizeTimes = s => [...new Set(s.split(/[,،\n]+/).map(t=>t.trim()).filter(Boolean))];
+const HOURS = Array.from({length:24},(_,h)=>h);
+const faHour = h => String(h).padStart(2,"0").replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d])+":۰۰";
+const faNumber = n => String(n).replace(/\d/g,d=>"۰۱۲۳۴۵۶۷۸۹"[d]);
+const hourOr = (v,fallback) => Number.isInteger(Number(v))&&Number(v)>=0&&Number(v)<=23 ? Number(v) : fallback;
 const formatDate = value => {
  if(!value)return "—";
  try {return new Date(value).toLocaleString("fa-IR",{timeZone:"Asia/Tehran"});}
@@ -73,6 +77,7 @@ export default function WhatsAppMarketAdmin(){
   try {
    const res=await axios.get(endpoint);
    const data={...defaults,...res.data.data,access_token:"",official_groups_acknowledged:false};
+   data.schedule={...defaults.schedule,...(data.schedule||{})};
    setForm(data);setLogs(res.data.logs||[]);
    setMarketTimes((data.schedule?.markets||[]).join(", "));
    setCityTimes((data.schedule?.cities||[]).join(", "));
@@ -137,7 +142,9 @@ export default function WhatsAppMarketAdmin(){
  const cities=readCities(citiesText);
  const save=async e=>{
   e.preventDefault();setError("");setSuccess("");
-  const schedule={markets:normalizeTimes(marketTimes),cities:normalizeTimes(cityTimes),hourly_markets:!!form.schedule?.hourly_markets};
+  const schedule={markets:normalizeTimes(marketTimes),cities:normalizeTimes(cityTimes),
+   hourly_markets:!!form.schedule?.hourly_markets,hourly_cities:!!form.schedule?.hourly_cities,
+   hourly_from:hourOr(form.schedule?.hourly_from,7),hourly_to:hourOr(form.schedule?.hourly_to,23)};
   const groups=[...new Set(groupsText.split(/\n+/).map(x=>x.trim()).filter(Boolean))];
   if(!schedule.markets.length||!schedule.cities.length||!cities.length){setError("ساعت‌ها و حداقل یک شهر باید تنظیم شوند.");return;}
   setBusy(true);
@@ -232,6 +239,20 @@ export default function WhatsAppMarketAdmin(){
       <input dir="ltr" value={cityTimes} onChange={e=>setCityTimes(e.target.value)} placeholder="11:00"/>
      </label>
      <label className="spad-wa-toggle"><input type="checkbox" checked={!!form.schedule?.hourly_markets} onChange={e=>set("schedule",{...form.schedule,hourly_markets:e.target.checked})}/> انتشار خودکار نرخ ارز، طلا و دلار در ابتدای هر ساعت</label>
+     <label className="spad-wa-toggle"><input type="checkbox" checked={!!form.schedule?.hourly_cities} onChange={e=>set("schedule",{...form.schedule,hourly_cities:e.target.checked})}/> انتشار خودکار بنر قیمت ملک شهرهای انتخابی در ابتدای هر ساعت</label>
+     {form.schedule?.hourly_markets||form.schedule?.hourly_cities?<div className="spad-wa-hour-window">
+      <label>ارسال ساعتی از ساعت
+       <select value={hourOr(form.schedule?.hourly_from,7)} onChange={e=>set("schedule",{...form.schedule,hourly_from:Number(e.target.value)})}>
+        {HOURS.map(h=><option key={h} value={h}>{faHour(h)}</option>)}
+       </select>
+      </label>
+      <label>تا ساعت
+       <select value={hourOr(form.schedule?.hourly_to,23)} onChange={e=>set("schedule",{...form.schedule,hourly_to:Number(e.target.value)})}>
+        {HOURS.map(h=><option key={h} value={h}>{faHour(h)}</option>)}
+       </select>
+      </label>
+      <p>هر ساعت (دقیقه صفر) در این بازه، بنرهای فعال‌شده ساخته و ارسال می‌شوند؛ بنرهای هر نوبت با فاصله حدود یک دقیقه از هم فرستاده می‌شوند. برای کل شبانه‌روز، از ۰۰:۰۰ تا ۲۳:۰۰ را انتخاب کنید.</p>
+     </div>:null}
      <p>برای چند ساعت، زمان‌ها را با ویرگول جدا کنید. قالب ۲۴ساعته است.</p>
     </Box>
     <Box title="شهرها و محله‌های منتشرشونده">
@@ -252,12 +273,12 @@ export default function WhatsAppMarketAdmin(){
      <label className="spad-wa-toggle"><input type="checkbox" checked={!!personal.preferences?.enabled}
       disabled={personalBusy||!personal.connection?.ready}
       onChange={togglePersonalSchedule}/> ارسال خودکار به پیام‌های خودم طبق زمان‌بندی بالای صفحه</label>
-     <p>ارسال با قالب‌های تأییدشده اسپاد؛ برای جلوگیری از ارسال زیاد، حداکثر ۱۲ تصویر در روز و یک صفحه از هر شهر در هر نوبت.</p>
+     <p>ارسال با قالب‌های تأییدشده اسپاد؛ برای جلوگیری از ارسال بیش از حد، حداکثر {faNumber(personal.preferences?.max_messages_per_day||12)} تصویر در روز (متناسب با زمان‌بندی ذخیره‌شده) و یک صفحه از هر شهر در هر نوبت.</p>
      <button type="button" className="spad-wa-secondary" onClick={sendPersonalTest} disabled={!personal.connection?.ready||personalBusy}>ارسال آزمایشی همین بنر به واتساپ خودم</button>
      {personalError?<p className="spad-wa-personal-error" role="alert">{personalError}</p>:null}
      {personalMessage?<p className="spad-wa-personal-ok" role="status">{personalMessage}</p>:null}
      {(personal.jobs||[]).length?<div className="spad-wa-personal-jobs"><strong>آخرین تلاش‌های ارسال شخصی</strong>
-      {personal.jobs.slice(0,5).map(j=><div key={j.id}>{j.subject}: {j.status==="accepted_local"?"پذیرش توسط اتصال":j.status==="failed"?"ناموفق":"در انتظار"}</div>)}
+      {personal.jobs.slice(0,5).map(j=><div key={j.id}>{j.subject}: {j.status==="accepted_local"?"پذیرش توسط اتصال":j.status==="failed"?"ناموفق":j.status==="expired"?"منقضی (نوبت بعدی ارسال می‌شود)":"در انتظار"}</div>)}
      </div>:null}
     </Box>
     <Box title="اتصال رسمی گروه‌های واتساپ">

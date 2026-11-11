@@ -18,7 +18,14 @@ use Throwable;
 class SpadWhatsAppPersonalDelivery
 {
     private const ZONE = 'Asia/Tehran';
-    private const MAX_PER_DAY = 12;
+    // The daily cap follows the configured schedule (hourly mode needs more
+    // than the original 12), but never exceeds a hard safety ceiling.
+    private const MIN_PER_DAY = 12;
+    private const HARD_MAX_PER_DAY = 150;
+    // Room for a few manual test sends on top of the scheduled ones.
+    private const MANUAL_ALLOWANCE = 6;
+    // A queued poster older than this is no longer "this hour's" report.
+    private const PENDING_TTL_MINUTES = 50;
 
     public function readyForSettings(): bool
     {
@@ -35,9 +42,26 @@ class SpadWhatsAppPersonalDelivery
             'enabled' => $row ? (bool) $row->enabled : false,
             'schema_ready' => $this->readyForSettings(),
             'uses_market_schedule' => true,
-            'max_messages_per_day' => self::MAX_PER_DAY,
+            'max_messages_per_day' => $this->dailyLimit(),
             'city_pages_per_session' => 1,
         ];
+    }
+
+    /**
+     * Expected scheduled images per day for the saved schedule, plus a small
+     * manual allowance, bounded to [MIN_PER_DAY, HARD_MAX_PER_DAY].
+     */
+    public function dailyLimit(?array $marketSettings = null): int
+    {
+        $settings = $marketSettings ?? app(SpadWhatsAppMarketPublisher::class)->settings();
+        $schedule = array_merge(SpadWhatsAppMarketPublisher::DEFAULT_SCHEDULE,
+            (array) ($settings['schedule'] ?? []));
+        $cityCount = max(1, count((array) ($settings['cities'] ?? [])));
+        $hours = SpadWhatsAppMarketPublisher::hourlySlotsPerDay($schedule);
+        $market = count((array) $schedule['markets']) + (!empty($schedule['hourly_markets']) ? $hours : 0);
+        $city = (count((array) $schedule['cities']) + (!empty($schedule['hourly_cities']) ? $hours : 0)) * $cityCount;
+        return max(self::MIN_PER_DAY,
+            min(self::HARD_MAX_PER_DAY, $market + $city + self::MANUAL_ALLOWANCE));
     }
 
     public function setEnabled(bool $enabled): array
@@ -137,19 +161,19 @@ class SpadWhatsAppPersonalDelivery
         $now = Carbon::now(self::ZONE);
         $today = $now->format('Y-m-d');
         $clock = $now->format('H:i');
+        $settings = app(SpadWhatsAppMarketPublisher::class)->settings();
+        $limit = $this->dailyLimit($settings);
         $existing = DB::table('spad_wa_personal_jobs')
             ->whereDate('created_at', Carbon::now()->toDateString())->count();
-        if ($existing >= self::MAX_PER_DAY) {
+        if ($existing >= $limit) {
             return ['status' => 'daily_limit'];
         }
-        $settings = app(SpadWhatsAppMarketPublisher::class)->settings();
         $schedule = $settings['schedule'] ?? SpadWhatsAppMarketPublisher::DEFAULT_SCHEDULE;
         $items = [];
-        if (in_array($clock, $schedule['markets'] ?? [], true) ||
-            (!empty($schedule['hourly_markets']) && substr($clock, 3, 2) === '00')) {
+        if (SpadWhatsAppMarketPublisher::isDue($schedule, 'market', $now)) {
             $items[] = ['kind'=>'market','province'=>null,'city'=>null];
         }
-        if (in_array($clock, $schedule['cities'] ?? [], true)) {
+        if (SpadWhatsAppMarketPublisher::isDue($schedule, 'city', $now)) {
             foreach (($settings['cities'] ?? SpadWhatsAppMarketPublisher::DEFAULT_CITIES) as $city) {
                 $p = trim((string) ($city['province'] ?? ''));
                 $c = trim((string) ($city['city'] ?? ''));
@@ -159,7 +183,7 @@ class SpadWhatsAppPersonalDelivery
         // Queue only at the requested scheduled minute. One outbound image
         // per cron tick avoids flooding the user's own chat.
         foreach ($items as $item) {
-            if ($existing >= self::MAX_PER_DAY) break;
+            if ($existing >= $limit) break;
             $key = 'self:' . $today . ':' . $clock . ':' . $item['kind'] . ':' .
                 sha1(($item['province'] ?? '') . '|' . ($item['city'] ?? ''));
             $inserted = DB::table('spad_wa_personal_jobs')->insertOrIgnore([
@@ -171,6 +195,17 @@ class SpadWhatsAppPersonalDelivery
             ]);
             $existing += $inserted ? 1 : 0;
         }
+        // If the scheduler or bridge stalled, do not flush a backlog of
+        // earlier hours into the chat later; the next hour sends fresh ones.
+        DB::table('spad_wa_personal_jobs')->where('status', 'pending')
+            ->where('created_at', '<', now()->subMinutes(self::PENDING_TTL_MINUTES))
+            ->update(['status' => 'expired', 'updated_at' => now()]);
+        // Hourly mode queues several posters at HH:00. The bridge rejects a
+        // send within 45s of the previous one, and failures are never retried,
+        // so leave a gap here and let the next minute's tick send the next one.
+        $justSent = DB::table('spad_wa_personal_jobs')->where('status', 'accepted_local')
+            ->where('updated_at', '>', now()->subSeconds(50))->exists();
+        if ($justSent) return ['status' => 'spacing'];
         $next = DB::table('spad_wa_personal_jobs')
             ->where('status', 'pending')->orderBy('id')->first();
         if (!$next) return ['status'=>'no_pending'];

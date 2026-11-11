@@ -48,6 +48,9 @@ class SpadWhatsAppMarketController extends Controller
             'schedule.cities' => ['required','array','min:1','max:6'],
             'schedule.cities.*' => ['required','string','regex:/^(?:[01]\d|2[0-3]):[0-5]\d$/D'],
             'schedule.hourly_markets' => ['required','boolean'],
+            'schedule.hourly_cities' => ['sometimes','boolean'],
+            'schedule.hourly_from' => ['sometimes','integer','between:0,23'],
+            'schedule.hourly_to' => ['sometimes','integer','between:0,23'],
             'cities' => ['required','array','min:1','max:30'],
             'cities.*.province' => ['required','string','min:2','max:80'],
             'cities.*.city' => ['required','string','min:2','max:80'],
@@ -58,6 +61,11 @@ class SpadWhatsAppMarketController extends Controller
             'clear_token' => ['sometimes','boolean'],
             'official_groups_acknowledged' => ['sometimes','boolean'],
         ]);
+        $data['schedule'] = array_merge(SpadWhatsAppMarketPublisher::DEFAULT_SCHEDULE, $data['schedule']);
+        $data['schedule']['hourly_markets'] = (bool) $data['schedule']['hourly_markets'];
+        $data['schedule']['hourly_cities'] = (bool) $data['schedule']['hourly_cities'];
+        $data['schedule']['hourly_from'] = (int) $data['schedule']['hourly_from'];
+        $data['schedule']['hourly_to'] = (int) $data['schedule']['hourly_to'];
         $data['schedule']['markets'] = array_values(array_unique($data['schedule']['markets']));
         $data['schedule']['cities'] = array_values(array_unique($data['schedule']['cities']));
         $data['cities'] = array_values(array_unique($data['cities'], SORT_REGULAR));

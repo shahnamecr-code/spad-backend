@@ -15,7 +15,12 @@ use Throwable;
 class SpadWhatsAppMarketPublisher
 {
     const ZONE = 'Asia/Tehran';
-    const DEFAULT_SCHEDULE = ['markets' => ['10:00', '18:00'], 'cities' => ['11:00'], 'hourly_markets' => false];
+    const DEFAULT_SCHEDULE = [
+        'markets' => ['10:00', '18:00'], 'cities' => ['11:00'],
+        'hourly_markets' => false, 'hourly_cities' => false,
+        // Inclusive Tehran-hour window for the hourly modes (owner choice: 07:00-23:00).
+        'hourly_from' => 7, 'hourly_to' => 23,
+    ];
     const DEFAULT_CITIES = [
         ['province' => 'تهران', 'city' => 'تهران'],
         ['province' => 'فارس', 'city' => 'شیراز'],
@@ -26,7 +31,9 @@ class SpadWhatsAppMarketPublisher
         $row = $this->configRow();
         return [
             'enabled' => $row ? (bool) $row->enabled : false,
-            'schedule' => $this->decode($row->schedule_json ?? null, self::DEFAULT_SCHEDULE),
+            // Older saved rows lack the newer hourly keys; fill them from defaults.
+            'schedule' => array_merge(self::DEFAULT_SCHEDULE,
+                $this->decode($row->schedule_json ?? null, self::DEFAULT_SCHEDULE)),
             'cities' => $this->decode($row->cities_json ?? null, self::DEFAULT_CITIES),
             'groups' => $this->decode($row->groups_json ?? null, []),
             'phone_number_id' => (string) ($row->phone_number_id ?? ''),
@@ -91,15 +98,15 @@ class SpadWhatsAppMarketPublisher
         }
         $settings = $this->settings();
         if (!$settings['enabled']) return ['status' => 'disabled', 'scheduled' => []];
-        $minute = Carbon::now(self::ZONE)->format('H:i');
-        $day = Carbon::now(self::ZONE)->format('Y-m-d');
+        $now = Carbon::now(self::ZONE);
+        $minute = $now->format('H:i');
+        $day = $now->format('Y-m-d');
         $jobs = [];
-        if (in_array($minute, $settings['schedule']['markets'] ?? [], true)
-            || (!empty($settings['schedule']['hourly_markets']) && substr($minute, 3, 2) === '00')) {
+        if (self::isDue($settings['schedule'], 'market', $now)) {
             $jobs[] = ['key' => $day . ':market:' . $minute, 'kind' => 'market',
                 'province' => null, 'city' => null, 'time' => $minute];
         }
-        if (in_array($minute, $settings['schedule']['cities'] ?? [], true)) {
+        if (self::isDue($settings['schedule'], 'city', $now)) {
             foreach ($settings['cities'] as $place) {
                 $jobs[] = [
                     'key' => $day . ':city:' . $minute . ':' . sha1($place['province'] . '|' . $place['city']),
@@ -121,6 +128,41 @@ class SpadWhatsAppMarketPublisher
             }
         }
         return $result;
+    }
+
+    /**
+     * Whether a poster kind ('market' or 'city') is due at this Tehran minute:
+     * either an exact daily HH:MM slot, or HH:00 when that kind's hourly mode
+     * is on and the hour falls inside the configured hourly window.
+     */
+    public static function isDue(array $schedule, string $kind, Carbon $now): bool
+    {
+        $schedule = array_merge(self::DEFAULT_SCHEDULE, $schedule);
+        $clock = $now->copy()->setTimezone(self::ZONE)->format('H:i');
+        $times = $kind === 'market' ? $schedule['markets'] : $schedule['cities'];
+        if (in_array($clock, (array) $times, true)) return true;
+        $hourly = $kind === 'market' ? $schedule['hourly_markets'] : $schedule['hourly_cities'];
+        if (empty($hourly) || substr($clock, 3, 2) !== '00') return false;
+        return self::hourInWindow((int) substr($clock, 0, 2),
+            (int) $schedule['hourly_from'], (int) $schedule['hourly_to']);
+    }
+
+    /** Number of hourly slots per day in the inclusive window (supports overnight wrap). */
+    public static function hourlySlotsPerDay(array $schedule): int
+    {
+        $schedule = array_merge(self::DEFAULT_SCHEDULE, $schedule);
+        $count = 0;
+        for ($h = 0; $h < 24; $h++) {
+            if (self::hourInWindow($h, (int) $schedule['hourly_from'], (int) $schedule['hourly_to'])) $count++;
+        }
+        return $count;
+    }
+
+    private static function hourInWindow(int $hour, int $from, int $to): bool
+    {
+        $from = max(0, min(23, $from));
+        $to = max(0, min(23, $to));
+        return $from <= $to ? ($hour >= $from && $hour <= $to) : ($hour >= $from || $hour <= $to);
     }
 
     public function preview(string $kind, ?string $province = null, ?string $city = null): string
