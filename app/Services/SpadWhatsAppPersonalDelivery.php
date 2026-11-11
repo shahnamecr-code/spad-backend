@@ -131,7 +131,7 @@ class SpadWhatsAppPersonalDelivery
                 'updated_at' => now(),
             ]);
             Log::warning('SPAD personal WhatsApp delivery failed', [
-                'kind' => $kind, 'error_type' => get_class($e),
+                'kind' => $kind, 'error_type' => get_class($e), 'reason' => $this->reason($e),
             ]);
             throw new RuntimeException('ارسال آزمایشی به واتساپ شخصی تأیید نشد؛ اتصال و گزارش را بررسی کن.', 503, $e);
         }
@@ -213,13 +213,22 @@ class SpadWhatsAppPersonalDelivery
                     DB::table('spad_wa_personal_jobs')->where('id', $job['id'])->update([
                         'status' => 'failed', 'error_code' => 'BRIDGE_OR_PROVIDER_ERROR', 'updated_at' => now(),
                     ]);
-                    Log::warning('SPAD personal send-now first poster failed', ['type' => get_class($e)]);
+                    Log::warning('SPAD personal send-now first poster failed', [
+                        'type' => get_class($e), 'reason' => $this->reason($e),
+                    ]);
                 }
                 break;
             }
         }
         return ['queued' => count($jobs), 'sent_now' => $sentNow,
             'remaining' => count($jobs) - ($sentNow ? 1 : 0)];
+    }
+
+    /** Innermost error text (bridge / WhatsApp Web reason), short; never contains secrets. */
+    private function reason(Throwable $e): string
+    {
+        while ($e->getPrevious()) $e = $e->getPrevious();
+        return mb_substr(preg_replace('/\d{6,}/', '<n>', $e->getMessage()), 0, 220);
     }
 
     /** Atomically take a pending job so the panel and the scheduler never both send it. */
