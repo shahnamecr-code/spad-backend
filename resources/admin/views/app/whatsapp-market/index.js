@@ -69,6 +69,7 @@ export default function WhatsAppMarketAdmin(){
  const [personalQr,setPersonalQr]=useState("");
  const [personalError,setPersonalError]=useState("");
  const [personalMessage,setPersonalMessage]=useState("");
+ const [nowBusy,setNowBusy]=useState(false),[nowMessage,setNowMessage]=useState(""),[nowError,setNowError]=useState("");
  const currentPreview=useRef("");
  const previewInFlight=useRef(false);
  const set=(key,value)=>setForm(p=>({...p,[key]:value}));
@@ -161,6 +162,20 @@ export default function WhatsAppMarketAdmin(){
    setPersonalMessage(enabled?"ارسال زمان‌بندی‌شده به گفت‌وگوی شخصی فعال شد.":"ارسال زمان‌بندی‌شده به گفت‌وگوی شخصی خاموش شد.");
   }catch(e){setPersonalError(e?.response?.data?.message||"ثبت تنظیمات واتساپ شخصی انجام نشد.");}
   finally{setPersonalBusy(false);}
+ };
+ const sendAllNow=async()=>{
+  if(!personal.connection?.ready)return;
+  if(!window.confirm("همین الان، خارج از برنامه زمانی، بنر ارز و طلا و بنر قیمت ملک همه شهرهای ذخیره‌شده به «پیام به خودم» در واتساپ ارسال شود؟"))return;
+  setNowBusy(true);setNowError("");setNowMessage("");
+  try{
+   const {data}=await axios.post(endpoint+"/personal/send-now",{confirmed:true});
+   setNowMessage(data?.message||"بنرها در صف ارسال قرار گرفتند.");
+   await refreshPersonal();
+  }catch(e){
+   setNowError(e?.response?.status===429
+    ?"ارسال فوری به‌تازگی انجام شده است؛ چند دقیقه دیگر دوباره امتحان کن."
+    :(e?.response?.data?.message||"ارسال فوری انجام نشد؛ وضعیت اتصال واتساپ را بررسی کن."));
+  }finally{setNowBusy(false);}
  };
  const sendPersonalTest=async()=>{
   if(!personal.connection?.ready)return;
@@ -294,6 +309,14 @@ export default function WhatsAppMarketAdmin(){
       <p>هر ساعت (دقیقه صفر) در این بازه، بنرهای فعال‌شده ساخته و ارسال می‌شوند؛ بنرهای هر نوبت با فاصله حدود یک دقیقه از هم فرستاده می‌شوند. برای کل شبانه‌روز، از ۰۰:۰۰ تا ۲۳:۰۰ را انتخاب کنید.</p>
      </div>:null}
      <p>برای چند ساعت، زمان‌ها را با ویرگول جدا کنید. قالب ۲۴ساعته است.</p>
+     <div className="spad-wa-send-now">
+      <button type="button" onClick={sendAllNow} disabled={nowBusy||!personal.connection?.ready}>{nowBusy?"در حال ارسال...":"ارسال همین الان"}</button>
+      <small>{personal.connection?.ready
+       ?"خارج از برنامه زمانی، بنر ارز و طلا و بنر ملک شهرهای ذخیره‌شده را همین حالا به «پیام به خودم» در واتساپ می‌فرستد. اگر قیمت تازه ارز و طلا منتشر نشده باشد، فقط بنرهای ملکی ارسال می‌شوند."
+       :"برای ارسال فوری، ابتدا واتساپ شخصی را در کادر «اتصال واتساپ شخصی من» متصل کن."}</small>
+      {nowError?<p className="spad-wa-personal-error" role="alert">{nowError}</p>:null}
+      {nowMessage?<p className="spad-wa-personal-ok" role="status">{nowMessage}</p>:null}
+     </div>
     </Box>
     <Box title="شهرها و محله‌های منتشرشونده">
      <p>هر سطر: نام استان | نام شهر. همه محله‌های دارای قیمت معتبر شهر در بنرهای چندصفحه‌ای قرار می‌گیرند.</p>
@@ -318,7 +341,7 @@ export default function WhatsAppMarketAdmin(){
      {personalError?<p className="spad-wa-personal-error" role="alert">{personalError}</p>:null}
      {personalMessage?<p className="spad-wa-personal-ok" role="status">{personalMessage}</p>:null}
      {(personal.jobs||[]).length?<div className="spad-wa-personal-jobs"><strong>آخرین تلاش‌های ارسال شخصی</strong>
-      {personal.jobs.slice(0,5).map(j=><div key={j.id}>{j.subject}: {j.status==="accepted_local"?"پذیرش توسط اتصال":j.status==="failed"?"ناموفق":j.status==="expired"?"منقضی (نوبت بعدی ارسال می‌شود)":"در انتظار"}</div>)}
+      {personal.jobs.slice(0,5).map(j=><div key={j.id}>{j.subject}: {j.status==="accepted_local"?"پذیرش توسط اتصال":j.status==="failed"?(j.error_code==="NO_FRESH_PRICE"?"ارسال نشد: قیمت تازه منتشر نشده":"ناموفق"):j.status==="expired"?"منقضی (نوبت بعدی ارسال می‌شود)":j.status==="sending"?"در حال ارسال":"در صف ارسال"}</div>)}
      </div>:null}
     </Box>
     <Box title="اتصال رسمی گروه‌های واتساپ">

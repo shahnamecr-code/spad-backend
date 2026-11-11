@@ -56,6 +56,24 @@ class SpadWhatsAppPersonalController extends Controller
         }
     }
 
+    /** Send the gold/FX banner and all saved cities' banners now, outside the schedule. */
+    public function sendAllNow(Request $request, SpadWhatsAppPersonalDelivery $delivery)
+    {
+        $this->guard($request);
+        $request->validate(['confirmed' => ['required','accepted']]);
+        try {
+            $r = $delivery->sendNowAll();
+            $first = $r['sent_now'] ? 'بنر «' . $r['sent_now'] . '» همین الان ارسال شد. ' : '';
+            $rest = $r['remaining'] > 0
+                ? $r['remaining'] . ' بنر دیگر در چند دقیقه‌ی آینده، با فاصله حدود یک دقیقه، می‌رسد.'
+                : '';
+            return response()->json(['status' => true, 'data' => $r,
+                'message' => trim($first . $rest) ?: 'بنرها در صف ارسال قرار گرفتند.']);
+        } catch (RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], $e->getCode() === 422 ? 422 : 503);
+        }
+    }
+
     public function sendNow(Request $request, SpadWhatsAppPersonalDelivery $delivery)
     {
         $this->guard($request);

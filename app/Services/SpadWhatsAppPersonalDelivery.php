@@ -22,8 +22,12 @@ class SpadWhatsAppPersonalDelivery
     // than the original 12), but never exceeds a hard safety ceiling.
     private const MIN_PER_DAY = 12;
     private const HARD_MAX_PER_DAY = 150;
-    // Room for a few manual test sends on top of the scheduled ones.
-    private const MANUAL_ALLOWANCE = 6;
+    // Room for manual test / "send now" batches on top of the scheduled ones.
+    private const MANUAL_ALLOWANCE = 15;
+    // A scheduler tick may send several queued posters, spaced for the bridge
+    // (it rejects a send within 45s of the previous one).
+    private const MAX_SENDS_PER_TICK = 4;
+    private const SEND_GAP_SECONDS = 50;
     // A queued poster older than this is no longer "this hour's" report.
     private const PENDING_TTL_MINUTES = 50;
 
@@ -102,8 +106,11 @@ class SpadWhatsAppPersonalDelivery
     {
         $publisher = app(SpadWhatsAppMarketPublisher::class);
         try {
+            // The PM2 preview worker keeps genuinely fresh PNGs (FX <=15 min,
+            // cities <=4 h). Use them first; render in this CLI only if absent.
+            $cached = $fresh ? app(SpadWhatsAppPreviewCache::class)->get($kind, $province, $city) : null;
             $image = $fresh
-                ? $publisher->buildPreviewFresh($kind, $province, $city)
+                ? ($cached ?? $publisher->buildPreviewFresh($kind, $province, $city))
                 : $publisher->preview($kind, $province, $city);
             $result = app(SpadWhatsAppPersonalBridge::class)->sendSelf(
                 $image, $this->caption($kind, $city)
@@ -119,7 +126,8 @@ class SpadWhatsAppPersonalDelivery
             // was lost. Never risk sending the same image multiple times.
             DB::table('spad_wa_personal_jobs')->where('id', $id)->update([
                 'status' => 'failed',
-                'error_code' => 'BRIDGE_OR_PROVIDER_ERROR',
+                'error_code' => str_contains($e->getMessage(), 'داده تازه')
+                    ? 'NO_FRESH_PRICE' : 'BRIDGE_OR_PROVIDER_ERROR',
                 'updated_at' => now(),
             ]);
             Log::warning('SPAD personal WhatsApp delivery failed', [
@@ -145,18 +153,100 @@ class SpadWhatsAppPersonalDelivery
             'kind' => $kind,
             'subject' => $kind === 'market' ? 'ارز، طلا و سکه' : 'آپارتمان ' . $city,
             'province' => $province, 'city' => $city,
-            'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
+            'status' => 'sending', 'created_at' => now(), 'updated_at' => now(),
         ]);
         return $this->sendJob((int) $id, $kind, $province, $city, false);
     }
 
+    /**
+     * "Send now": queue the gold/FX banner and every saved city's property
+     * banner outside the schedule. The first one whose fresh poster is
+     * already cached goes out immediately; the scheduler sends the rest
+     * within a few minutes, spaced for the bridge.
+     */
+    public function sendNowAll(): array
+    {
+        if (!$this->readyForSettings()) {
+            throw new RuntimeException('ماژول واتساپ شخصی هنوز نصب نشده است.', 503);
+        }
+        if (!app(SpadWhatsAppPersonalBridge::class)->status()['ready']) {
+            throw new RuntimeException('واتساپ هنوز متصل نشده است؛ ابتدا QR را در پنل اسکن کن.', 422);
+        }
+        $settings = app(SpadWhatsAppMarketPublisher::class)->settings();
+        $items = [['kind' => 'market', 'province' => null, 'city' => null]];
+        foreach (($settings['cities'] ?? []) as $place) {
+            $p = trim((string) ($place['province'] ?? ''));
+            $c = trim((string) ($place['city'] ?? ''));
+            if ($p !== '' && $c !== '') $items[] = ['kind' => 'city', 'province' => $p, 'city' => $c];
+        }
+        $items = array_slice($items, 0, 10);
+        $batch = (string) Str::uuid();
+        $jobs = [];
+        foreach ($items as $i => $item) {
+            $id = DB::table('spad_wa_personal_jobs')->insertGetId([
+                'slot_key' => 'self:now:' . $batch . ':' . $i,
+                'kind' => $item['kind'],
+                'subject' => $item['kind'] === 'market' ? 'ارز، طلا و سکه' : 'آپارتمان ' . $item['city'],
+                'province' => $item['province'], 'city' => $item['city'],
+                'status' => 'pending', 'created_at' => now(), 'updated_at' => now(),
+            ]);
+            $jobs[] = ['id' => (int) $id] + $item;
+        }
+        $sentNow = null;
+        if (!$this->recentlySent()) {
+            $cache = app(SpadWhatsAppPreviewCache::class);
+            foreach ($jobs as $job) {
+                $png = $cache->get($job['kind'], $job['province'], $job['city']);
+                if ($png === null) continue; // scheduler renders it fresh
+                if (!$this->claim($job['id'])) break;
+                try {
+                    $result = app(SpadWhatsAppPersonalBridge::class)->sendSelf(
+                        $png, $this->caption($job['kind'], $job['city']));
+                    DB::table('spad_wa_personal_jobs')->where('id', $job['id'])->update([
+                        'status' => 'accepted_local',
+                        'message_id' => mb_substr($result['message_id'] ?? '', 0, 175),
+                        'updated_at' => now(),
+                    ]);
+                    $sentNow = $job['kind'] === 'market' ? 'ارز، طلا و سکه' : 'آپارتمان ' . $job['city'];
+                } catch (Throwable $e) {
+                    // The send may or may not have happened; never resend blindly.
+                    DB::table('spad_wa_personal_jobs')->where('id', $job['id'])->update([
+                        'status' => 'failed', 'error_code' => 'BRIDGE_OR_PROVIDER_ERROR', 'updated_at' => now(),
+                    ]);
+                    Log::warning('SPAD personal send-now first poster failed', ['type' => get_class($e)]);
+                }
+                break;
+            }
+        }
+        return ['queued' => count($jobs), 'sent_now' => $sentNow,
+            'remaining' => count($jobs) - ($sentNow ? 1 : 0)];
+    }
+
+    /** Atomically take a pending job so the panel and the scheduler never both send it. */
+    private function claim(int $id): bool
+    {
+        return DB::table('spad_wa_personal_jobs')->where('id', $id)->where('status', 'pending')
+            ->update(['status' => 'sending', 'updated_at' => now()]) === 1;
+    }
+
+    private function recentlySent(): bool
+    {
+        return DB::table('spad_wa_personal_jobs')->where('status', 'accepted_local')
+            ->where('updated_at', '>', now()->subSeconds(self::SEND_GAP_SECONDS))->exists();
+    }
+
     public function runScheduled(): array
     {
-        if (!$this->readyForSettings() || empty($this->settings()['enabled'])) {
+        if (!$this->readyForSettings()) {
             return ['status' => 'disabled'];
         }
         if (!app(SpadWhatsAppPersonalBridge::class)->status()['ready']) {
             return ['status' => 'not_connected'];
+        }
+        // "Send now" batches are delivered even when the hourly schedule is
+        // off; only queuing NEW scheduled posters requires it to be enabled.
+        if (empty($this->settings()['enabled'])) {
+            return $this->drainPending('disabled_schedule');
         }
         $now = Carbon::now(self::ZONE);
         $today = $now->format('Y-m-d');
@@ -166,7 +256,7 @@ class SpadWhatsAppPersonalDelivery
         $existing = DB::table('spad_wa_personal_jobs')
             ->whereDate('created_at', Carbon::now()->toDateString())->count();
         if ($existing >= $limit) {
-            return ['status' => 'daily_limit'];
+            return $this->drainPending('daily_limit');
         }
         $schedule = $settings['schedule'] ?? SpadWhatsAppMarketPublisher::DEFAULT_SCHEDULE;
         $items = [];
@@ -195,22 +285,39 @@ class SpadWhatsAppPersonalDelivery
             ]);
             $existing += $inserted ? 1 : 0;
         }
+        return $this->drainPending('scheduled');
+    }
+
+    /**
+     * Send up to MAX_SENDS_PER_TICK queued posters, oldest first, at least
+     * SEND_GAP_SECONDS apart (the host cron runs every five minutes, so one
+     * per tick would spread an hour's three posters over ten minutes).
+     */
+    private function drainPending(string $mode): array
+    {
         // If the scheduler or bridge stalled, do not flush a backlog of
         // earlier hours into the chat later; the next hour sends fresh ones.
         DB::table('spad_wa_personal_jobs')->where('status', 'pending')
             ->where('created_at', '<', now()->subMinutes(self::PENDING_TTL_MINUTES))
             ->update(['status' => 'expired', 'updated_at' => now()]);
-        // Hourly mode queues several posters at HH:00. The bridge rejects a
-        // send within 45s of the previous one, and failures are never retried,
-        // so leave a gap here and let the next minute's tick send the next one.
-        $justSent = DB::table('spad_wa_personal_jobs')->where('status', 'accepted_local')
-            ->where('updated_at', '>', now()->subSeconds(50))->exists();
-        if ($justSent) return ['status' => 'spacing'];
-        $next = DB::table('spad_wa_personal_jobs')
-            ->where('status', 'pending')->orderBy('id')->first();
-        if (!$next) return ['status'=>'no_pending'];
-        $result = $this->sendJob((int) $next->id, (string) $next->kind,
-            $next->province, $next->city, true);
-        return ['status' => $result['status'], 'kind' => $next->kind];
+        $sent = 0; $failed = 0;
+        for ($i = 0; $i < self::MAX_SENDS_PER_TICK; $i++) {
+            $next = DB::table('spad_wa_personal_jobs')
+                ->where('status', 'pending')->orderBy('id')->first();
+            if (!$next) break;
+            $last = DB::table('spad_wa_personal_jobs')->where('status', 'accepted_local')
+                ->max('updated_at');
+            $since = $last ? now()->diffInSeconds(Carbon::parse($last), true) : PHP_INT_MAX;
+            if ($since < self::SEND_GAP_SECONDS) sleep(self::SEND_GAP_SECONDS - $since + 1);
+            if (!$this->claim((int) $next->id)) continue;
+            try {
+                $this->sendJob((int) $next->id, (string) $next->kind, $next->province, $next->city, true);
+                $sent++;
+            } catch (Throwable $e) {
+                $failed++; // marked failed inside sendJob; never retried
+            }
+        }
+        return ['status' => $sent || $failed ? 'processed' : 'no_pending',
+            'mode' => $mode, 'sent' => $sent, 'failed' => $failed];
     }
 }
