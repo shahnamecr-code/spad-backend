@@ -267,12 +267,36 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// A previous bridge's Chrome can outlive its Node process for a few seconds
+// (PM2 restart) and keep the profile locked, so the new browser fails to
+// start. Stop only Chrome processes using THIS bridge's private profile.
+function stopLeftoverBrowsers() {
+  const marker = Buffer.from(path.resolve(AUTH_DIR));
+  let stopped = 0;
+  for (const pid of fs.readdirSync('/proc')) {
+    if (!/^\d+$/.test(pid) || Number(pid) === process.pid) continue;
+    try {
+      const cmd = fs.readFileSync('/proc/' + pid + '/cmdline');
+      if (cmd.includes(marker) && cmd.includes(Buffer.from('chrom'))) {
+        process.kill(Number(pid), 'SIGKILL'); stopped++;
+      }
+    } catch (_) {}
+  }
+  if (stopped) console.log('SPAD personal bridge: stopped ' + stopped + ' leftover browser process(es)');
+  return stopped;
+}
+
 server.listen(PORT, HOST, () => {
   console.log('SPAD personal WhatsApp loopback bridge listening; QR/manual approval required');
-  client.initialize().catch(() => {
-    state = 'error';
-    lastError = 'WhatsApp browser failed to initialize';
-  });
+  const waitMs = stopLeftoverBrowsers() ? 1500 : 0;
+  setTimeout(() => {
+    client.initialize().catch(() => {
+      state = 'error';
+      lastError = 'WhatsApp browser failed to initialize';
+      // Retry in a fresh process instead of staying broken.
+      setTimeout(() => restartSoon('browser failed to start; retrying'), 10_000);
+    });
+  }, waitMs);
 });
 process.on('SIGTERM', async () => {
   server.close();
