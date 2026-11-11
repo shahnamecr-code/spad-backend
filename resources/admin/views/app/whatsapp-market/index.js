@@ -108,7 +108,8 @@ export default function WhatsAppMarketAdmin(){
   const wait=ms=>new Promise(r=>setTimeout(r,ms));
   setPersonalBusy(true);setPersonalError("");setPersonalQr("");
   setPersonalMessage("در حال آماده‌سازی کد QR تازه؛ ممکن است تا یک دقیقه طول بکشد...");
-  const deadline=Date.now()+4*60*1000;
+  const started=Date.now();
+  let deadline=started+4*60*1000;
   let shown=false;
   try{
    while(alive()&&Date.now()<deadline){
@@ -126,7 +127,10 @@ export default function WhatsAppMarketAdmin(){
      setPersonalQr(data.image);shown=true;setPersonalBusy(false);
      setPersonalMessage("کد QR را همین حالا اسکن کن: واتساپ گوشی ← دستگاه‌های متصل ← اتصال دستگاه. کد هر چند ثانیه خودکار تازه می‌شود.");
     }else if(data?.state==="authenticating"){
-     setPersonalQr("");setPersonalMessage("کد اسکن شد؛ در حال تکمیل اتصال...");
+     // First sync after the scan can take several minutes; keep waiting.
+     deadline=Math.min(started+12*60*1000,Math.max(deadline,Date.now()+3*60*1000));
+     setPersonalQr("");setPersonalBusy(true);
+     setPersonalMessage("کد اسکن شد و واتساپ در حال همگام‌سازی است؛ ممکن است چند دقیقه طول بکشد. این صفحه را نبند و دوباره اسکن نکن.");
     }else if(!shown){
      setPersonalMessage("در حال ساخت کد QR تازه روی سرور؛ چند ثانیه صبر کن...");
     }
@@ -193,7 +197,9 @@ export default function WhatsAppMarketAdmin(){
    setSuccess("تنظیمات ذخیره شد. زمان‌بندی بر اساس ساعت ایران خواهد بود.");
    load();
   }catch(e){
-   setError(e?.response?.data?.message||"ذخیره تنظیمات انجام نشد. فرمت زمان و شناسه‌ها را بررسی کنید.");
+   const errs=e?.response?.data?.errors;
+   const first=errs&&typeof errs==="object"?Object.values(errs).flat()[0]:null;
+   setError(first||e?.response?.data?.message||"ذخیره تنظیمات انجام نشد. فرمت زمان و شناسه‌ها را بررسی کنید.");
   }finally{setBusy(false);}
  };
  const showPreview=async()=>{
