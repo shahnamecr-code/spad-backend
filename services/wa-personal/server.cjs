@@ -13,6 +13,31 @@ const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
+// whatsapp-web.js 1.34.7 + WhatsApp Web 2.3000.104x (since Sep 2026): every
+// media send fails with "Data passed to getter must include an id property
+// (it's how we memoize) but got undefined", because the spread MediaData
+// model carries a MobX __x_id into the outgoing message. No released fix yet
+// (upstream PRs #201922/#201923/#201938); apply the community fix to the
+// installed package before it is loaded. Idempotent; survives reinstalls.
+function ensureMediaSendFix() {
+  try {
+    const file = path.join(path.dirname(require.resolve('whatsapp-web.js')), 'src', 'util', 'Injected', 'Utils.js');
+    const src = fs.readFileSync(file, 'utf8');
+    if (src.includes('delete message.__x_id')) return 'present';
+    const anchor = /\n([ \t]*)\/\/ Bot's won't reply if canonicalUrl is set \(linking\)/;
+    if (!anchor.test(src)) return 'anchor_missing';
+    const patched = src.replace(anchor, (m, indent) =>
+      '\n' + indent + '// SPAD fix: drop MobX id carried in from MediaData (media send memoize error)\n' +
+      indent + 'delete message.__x_id;\n' + m);
+    fs.writeFileSync(file + '.spad-tmp', patched);
+    fs.renameSync(file + '.spad-tmp', file);
+    return 'applied';
+  } catch (err) {
+    return 'failed: ' + String(err && err.message || err).slice(0, 120);
+  }
+}
+const mediaFix = ensureMediaSendFix();
+console.log('SPAD personal bridge: media send fix ' + mediaFix);
 const {Client, LocalAuth, MessageMedia} = require('whatsapp-web.js');
 
 process.umask(0o077);
@@ -298,8 +323,10 @@ server.listen(PORT, HOST, () => {
     });
   }, waitMs);
 });
-process.on('SIGTERM', async () => {
+async function shutdown() {
   server.close();
-  try { await client.destroy(); } catch (_) {}
+  try { await Promise.race([client.destroy(), new Promise(r => setTimeout(r, 8000))]); } catch (_) {}
   process.exit(0);
-});
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
