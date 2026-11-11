@@ -142,19 +142,9 @@ class Setting extends Model
                     'type' => 'text',
                 ],
                 [
-                    'code' => 'bale_icon',
-                    'name' => 'آیکون بله (اختیاری؛ بدون آیکون، نام پیام‌رسان نمایش داده می‌شود)',
-                    'type' => 'image',
-                ],
-                [
                     'code' => 'eitaa_account',
                     'name' => 'لینک یا شناسه ایتا (مثال: https://eitaa.com/spad)',
                     'type' => 'text',
-                ],
-                [
-                    'code' => 'eitaa_icon',
-                    'name' => 'آیکون ایتا (اختیاری؛ بدون آیکون، نام پیام‌رسان نمایش داده می‌شود)',
-                    'type' => 'image',
                 ],
                 [
                     'code' => 'soroush_account',
@@ -162,19 +152,9 @@ class Setting extends Model
                     'type' => 'text',
                 ],
                 [
-                    'code' => 'soroush_icon',
-                    'name' => 'آیکون سروش (اختیاری؛ بدون آیکون، نام پیام‌رسان نمایش داده می‌شود)',
-                    'type' => 'image',
-                ],
-                [
                     'code' => 'rubika_account',
                     'name' => 'لینک یا شناسه روبیکا (مثال: https://rubika.ir/spad)',
                     'type' => 'text',
-                ],
-                [
-                    'code' => 'rubika_icon',
-                    'name' => 'آیکون روبیکا (اختیاری؛ بدون آیکون، نام پیام‌رسان نمایش داده می‌شود)',
-                    'type' => 'image',
                 ],
                 [
                     'code' => 'header_status_text',
