@@ -160,6 +160,13 @@ class VirtualTourController extends Controller
             'Cache-Control' => 'no-store',
             'Referrer-Policy' => 'no-referrer',
         ];
+        // Panorama photos, thumbnails and fonts are large and never change in
+        // place: let the browser keep them for a day, so reopening a tour or
+        // returning to a room does not download 0.2-10 MB again. The player's
+        // HTML, JS and CSS stay uncached (they are transformed on the fly).
+        if (in_array($ext, ['jpg', 'jpeg', 'webp', 'png', 'gif', 'svg', 'woff', 'woff2', 'ttf'], true)) {
+            $headers['Cache-Control'] = 'public, max-age=86400';
+        }
         if ($asset === 'index.html') {
             // Sandbox with an opaque origin; user-provided JavaScript cannot
             // read SPAD cookies, local storage or the parent website.
