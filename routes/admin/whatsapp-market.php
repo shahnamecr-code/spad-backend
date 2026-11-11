@@ -13,8 +13,10 @@ Route::prefix('whatsapp-market')->group(function () {
     Route::post('/run', [WA::class, 'runNow'])->middleware('throttle:2,1');
     // All routes inherit auth:sanctum,admin; PersonalWA additionally checks
     // the Super Admin role. The QR and self-send never expose a group target.
-    Route::get('/personal/status', [PersonalWA::class, 'status'])->middleware('throttle:30,1');
-    Route::get('/personal/qr', [PersonalWA::class, 'pairingQr'])->middleware('throttle:5,1');
+    // Own counters (3rd arg = key prefix): the QR screen polls status and a
+    // rotating code every few seconds while the owner scans with the phone.
+    Route::get('/personal/status', [PersonalWA::class, 'status'])->middleware('throttle:40,1,spad-wa-personal-status');
+    Route::get('/personal/qr', [PersonalWA::class, 'pairingQr'])->middleware('throttle:30,1,spad-wa-personal-qr');
     Route::post('/personal/settings', [PersonalWA::class, 'preferences'])->middleware('throttle:5,1');
     Route::post('/personal/send', [PersonalWA::class, 'sendNow'])->middleware('throttle:2,1');
 });
