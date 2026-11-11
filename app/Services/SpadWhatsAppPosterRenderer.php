@@ -321,7 +321,8 @@ class SpadWhatsAppPosterRenderer
             $note = 'نرخ‌ها از بازار آزاد دریافت شده‌اند و ممکن است با نرخ نهایی معامله متفاوت باشند.';
         } else {
             $body = $this->cityBody($page['rows'] ?? [], max(1, (int) ($page['page'] ?? 1)));
-            $note = 'منبع داده: نمودا (nemuda.com/data، مجوز CC BY 4.0). برآورد قیمت پیشنهادی بازار است و قیمت قطعی معامله یا کارشناسی نیست.';
+            // Owner's wording; the Nemuda credit stays because CC BY 4.0 requires attribution.
+            $note = 'منبع داده: سرورهای هوشمند سامانه اسپاد (بر پایه داده‌های باز نمودا، CC BY 4.0). قیمت‌ها برآوردی است، نه قیمت قطعی معامله.';
         }
         $globe = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 12h18.4M12 2.8c2.6 2.6 3.9 5.6 3.9 9.2s-1.3 6.6-3.9 9.2M12 2.8C9.4 5.4 8.1 8.4 8.1 12s1.3 6.6 3.9 9.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
         $css = <<<'CSS'

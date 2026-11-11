@@ -97,8 +97,7 @@ class SpadWhatsAppPersonalDelivery
             return 'نرخ لحظه‌ای ارز و طلا و سکه | اسپاد' . "\n"
                 . 'https://spad.estate';
         }
-        return 'نرخ لحظه‌ای قیمت ملک (' . $city . ')'
-            . ' | منبع داده: نمودا، CC BY 4.0 | اسپاد' . "\n"
+        return 'نرخ لحظه‌ای قیمت ملک (' . $city . ') | اسپاد' . "\n"
             . 'https://spad.estate';
     }
 
