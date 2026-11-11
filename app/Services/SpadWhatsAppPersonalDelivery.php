@@ -94,11 +94,10 @@ class SpadWhatsAppPersonalDelivery
     private function caption(string $kind, ?string $city): string
     {
         if ($kind === 'market') {
-            return 'گزارش به‌روزشده قیمت ارز، طلا و سکه | اسپاد' . "\n"
+            return 'نرخ لحظه‌ای ارز و طلا و سکه | اسپاد' . "\n"
                 . 'https://spad.estate';
         }
-        return 'گزارش برآورد قیمت آپارتمان ' . $city
-            . ' | منبع داده: نمودا، CC BY 4.0 | اسپاد' . "\n"
+        return 'نرخ لحظه‌ای قیمت ملک (' . $city . ') | اسپاد' . "\n"
             . 'https://spad.estate';
     }
 
