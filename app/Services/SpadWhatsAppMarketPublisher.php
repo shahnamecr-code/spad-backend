@@ -18,8 +18,8 @@ class SpadWhatsAppMarketPublisher
     const DEFAULT_SCHEDULE = [
         'markets' => ['10:00', '18:00'], 'cities' => ['11:00'],
         'hourly_markets' => false, 'hourly_cities' => false,
-        // Inclusive Tehran-hour window for the hourly modes; 0..23 = all day.
-        'hourly_from' => 0, 'hourly_to' => 23,
+        // Inclusive Tehran-hour window for the hourly modes (owner choice: 07:00-23:00).
+        'hourly_from' => 7, 'hourly_to' => 23,
     ];
     const DEFAULT_CITIES = [
         ['province' => 'تهران', 'city' => 'تهران'],

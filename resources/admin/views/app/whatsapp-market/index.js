@@ -5,7 +5,7 @@ import "./whatsapp-market.scss";
 
 const endpoint = adminPathApi + "/whatsapp-market";
 const defaults = {
-  enabled:false, schedule:{markets:["10:00","18:00"],cities:["11:00"],hourly_markets:false,hourly_cities:false,hourly_from:0,hourly_to:23},
+  enabled:false, schedule:{markets:["10:00","18:00"],cities:["11:00"],hourly_markets:false,hourly_cities:false,hourly_from:7,hourly_to:23},
   cities:[{province:"تهران",city:"تهران"},{province:"فارس",city:"شیراز"}],
   groups:[], phone_number_id:"", access_token:"", token_configured:false,
   official_groups_acknowledged:false,render_available:false
@@ -144,7 +144,7 @@ export default function WhatsAppMarketAdmin(){
   e.preventDefault();setError("");setSuccess("");
   const schedule={markets:normalizeTimes(marketTimes),cities:normalizeTimes(cityTimes),
    hourly_markets:!!form.schedule?.hourly_markets,hourly_cities:!!form.schedule?.hourly_cities,
-   hourly_from:hourOr(form.schedule?.hourly_from,0),hourly_to:hourOr(form.schedule?.hourly_to,23)};
+   hourly_from:hourOr(form.schedule?.hourly_from,7),hourly_to:hourOr(form.schedule?.hourly_to,23)};
   const groups=[...new Set(groupsText.split(/\n+/).map(x=>x.trim()).filter(Boolean))];
   if(!schedule.markets.length||!schedule.cities.length||!cities.length){setError("ساعت‌ها و حداقل یک شهر باید تنظیم شوند.");return;}
   setBusy(true);
@@ -242,7 +242,7 @@ export default function WhatsAppMarketAdmin(){
      <label className="spad-wa-toggle"><input type="checkbox" checked={!!form.schedule?.hourly_cities} onChange={e=>set("schedule",{...form.schedule,hourly_cities:e.target.checked})}/> انتشار خودکار بنر قیمت ملک شهرهای انتخابی در ابتدای هر ساعت</label>
      {form.schedule?.hourly_markets||form.schedule?.hourly_cities?<div className="spad-wa-hour-window">
       <label>ارسال ساعتی از ساعت
-       <select value={hourOr(form.schedule?.hourly_from,0)} onChange={e=>set("schedule",{...form.schedule,hourly_from:Number(e.target.value)})}>
+       <select value={hourOr(form.schedule?.hourly_from,7)} onChange={e=>set("schedule",{...form.schedule,hourly_from:Number(e.target.value)})}>
         {HOURS.map(h=><option key={h} value={h}>{faHour(h)}</option>)}
        </select>
       </label>

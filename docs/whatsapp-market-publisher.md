@@ -12,7 +12,7 @@ No credentials are committed. Configure through the Super Admin screen after mer
 Uses the Laravel schedule:run host cron (every minute) and Asia/Tehran time.
 Gold/FX slots: configurable HH:MM, default 10:00 and 18:00. Optional hourly mode sends at HH:00 each hour (unless the exact daily slot also matches; no duplicates).
 City slots: default 11:00 daily, one or more selected cities. Optional hourly city mode (`hourly_cities`) sends the property banners of every selected city at HH:00 as well.
-Both hourly modes share an inclusive Tehran-hour window (`hourly_from`..`hourly_to`, default 0..23 = all day; overnight wrap such as 20..2 is supported).
+Both hourly modes share an inclusive Tehran-hour window (`hourly_from`..`hourly_to`, default 7..23; overnight wrap such as 20..2 is supported).
 Personal self-chat delivery follows the same schedule. Its daily cap is derived from the saved schedule (expected images + 6 manual), min 12, hard max 150. Posters queued at HH:00 are sent one per scheduler tick with at least 50s between sends (the bridge rejects <45s); a queued poster older than 50 minutes is marked `expired` instead of being sent late.
 Job uniqueness is date + schedule + city + page. A database unique slot_key prevents duplicates across concurrent workers. Production requires an operational database, Laravel cron, and a renderer.
 
