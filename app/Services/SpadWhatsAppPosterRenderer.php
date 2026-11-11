@@ -19,7 +19,9 @@ class SpadWhatsAppPosterRenderer
     public const HEIGHT = 1402;
 
     private const KINDS = ['market', 'city'];
-    private const LOGO = 'resources/wa-posters/spad-logo.png';
+    // Official SPAD logo (2026 pack, full 1024x512) with the navy wordmark
+    // reversed to white for the dark banner header; artwork otherwise unchanged.
+    private const LOGO = 'resources/wa-posters/spad-logo-on-dark.png';
 
     /** Market layout: two featured quotes, then three grouped columns. */
     private const FEATURED = ['usd', 'gold_18'];
@@ -339,30 +341,29 @@ html,body{width:1122px;height:1402px;overflow:hidden}
 body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;background:#eef3f9}
 .wa-poster{position:relative;width:1122px;height:1402px;display:flex;flex-direction:column;background:#eef3f9;overflow:hidden}
 /* header */
-.hd{position:relative;height:300px;padding:34px 48px 0;color:#fff;
- background:linear-gradient(160deg,#0f3666 0%,#0a2850 52%,#071c3a 100%);overflow:hidden}
+.hd{position:relative;height:318px;padding:26px 46px 0;color:#fff;overflow:hidden;
+ background:radial-gradient(120% 160% at 0% 0%,rgba(46,124,214,.35) 0%,rgba(46,124,214,0) 45%),
+  linear-gradient(160deg,#0f3666 0%,#0a2850 52%,#071c3a 100%)}
 .hd::before{content:"";position:absolute;inset:0;
  background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 26px);pointer-events:none}
 .hd::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;
  background:linear-gradient(90deg,#8a6a26,#e2c47a 30%,#c9a14a 60%,#8a6a26)}
 .hd-top{position:relative;display:flex;justify-content:space-between;align-items:center}
-.logo{display:flex;align-items:center;justify-content:center;width:236px;height:112px;border-radius:22px;background:#fff;
- box-shadow:0 10px 30px rgba(0,0,0,.25)}
-.logo img{width:212px;height:106px;object-fit:contain}
-.title{position:relative;margin-top:26px;font-size:60px;font-weight:900;line-height:1.35;color:#fff;letter-spacing:-.5px}
+.logo{display:block;width:300px;height:150px;object-fit:contain;filter:drop-shadow(0 6px 18px rgba(0,0,0,.35))}
+.title{position:relative;margin-top:8px;font-size:60px;font-weight:900;line-height:1.35;color:#fff;letter-spacing:-.5px;text-shadow:0 3px 14px rgba(0,0,0,.25)}
 .meta{position:relative;display:inline-flex;align-items:center;gap:12px;padding:10px 22px;border-radius:999px;
- background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);font-size:24px;font-weight:500;color:#dbe7f5}
+ background:rgba(7,28,58,.55);border:1.5px solid rgba(226,196,122,.55);font-size:24px;font-weight:500;color:#dbe7f5}
 .live{width:13px;height:13px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 6px rgba(61,220,132,.22)}
 /* body */
 .bd{position:relative;flex:1;padding:28px 44px 0;display:flex;flex-direction:column;min-height:0}
 /* market */
 .featured{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .q{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:14px;align-items:center}
-.q.featured{background:#fff;border-radius:24px;padding:18px 24px;border:1px solid #dde6f1;
- box-shadow:0 10px 24px rgba(10,34,64,.08);grid-template-columns:auto 1fr auto;row-gap:2px;position:relative;overflow:hidden}
+.q.featured{background:linear-gradient(160deg,#ffffff 0%,#f3f7fc 100%);border-radius:24px;padding:18px 24px;border:2px solid #c3d3e6;
+ box-shadow:0 12px 26px rgba(10,34,64,.10);grid-template-columns:auto 1fr auto;row-gap:2px;position:relative;overflow:hidden}
 .q.featured::before{content:"";position:absolute;right:0;top:0;bottom:0;width:7px;background:linear-gradient(#e2c47a,#b28a35)}
 .q-icon{grid-row:1/3;display:flex}
-.q-icon svg{width:54px;height:54px;border-radius:50%;box-shadow:0 2px 6px rgba(10,34,64,.18)}
+.q-icon svg{width:50px;height:50px;border-radius:50%;box-shadow:0 2px 6px rgba(10,34,64,.18)}
 .q.featured .q-icon svg{width:72px;height:72px}
 .q-name{font-size:20px;font-weight:700;color:#0a2240;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .q.featured .q-name{font-size:25px;grid-column:2/4}
@@ -380,22 +381,23 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
 .chip.flat{color:#6b7c90;background:#edf1f6;font-weight:500;direction:rtl}
 .q.featured .chip{font-size:19px;padding:4px 14px}
 .cols{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:20px;min-height:0;padding-bottom:18px}
-.col{background:#fff;border-radius:22px;border:1px solid #dde6f1;padding:14px 18px 6px;overflow:hidden;display:flex;flex-direction:column;min-height:0;
+.col{background:#fff;border-radius:22px;border:2px solid #c3d3e6;padding:14px 14px 14px;overflow:hidden;display:flex;flex-direction:column;min-height:0;
  box-shadow:0 8px 20px rgba(10,34,64,.06)}
-.col h3{font-size:22px;font-weight:900;color:#0f3666;padding-bottom:8px;margin-bottom:2px;border-bottom:2px solid #e2c47a;display:flex;align-items:center;gap:10px}
-.col-rows{flex:1;display:flex;flex-direction:column;justify-content:space-around}
-.col .q{padding:7px 0;border-bottom:1px solid #edf1f6;row-gap:1px}
-.col .q:last-child{border-bottom:0}
+.col h3{font-size:23px;font-weight:900;color:#0f3666;padding:0 4px 8px;margin-bottom:10px;border-bottom:3px solid #d4b263;display:flex;align-items:center;gap:10px}
+.col-rows{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0}
+.col .q{flex:1;min-height:0;padding:6px 12px;row-gap:1px;align-content:center;
+ border:1.8px solid #b9cbe0;border-radius:16px;background:linear-gradient(160deg,#fbfdff 0%,#eef4fb 100%);
+ box-shadow:inset 0 1px 0 #fff}
 .col .q-name{grid-column:2}
 .col .q-price{grid-column:2}
 .col .q-change{grid-column:2}
 /* city */
 .city-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .city-head p{font-size:25px;font-weight:700;color:#0f3666}
-.unit{font-size:19px;font-weight:500;color:#5b6f86;padding:6px 16px;border-radius:999px;background:#fff;border:1px solid #dde6f1}
+.unit{font-size:19px;font-weight:500;color:#41566e;padding:6px 16px;border-radius:999px;background:#fff;border:1.8px solid #b9cbe0}
 .ranking{list-style:none;flex:1;display:flex;flex-direction:column;gap:9px;padding-bottom:18px;min-height:0}
 .ranking li{flex:1;display:grid;grid-template-columns:52px 260px 1fr 140px;align-items:center;column-gap:18px;
- background:#fff;border-radius:18px;border:1px solid #dde6f1;padding:0 20px;box-shadow:0 6px 14px rgba(10,34,64,.05)}
+ background:linear-gradient(160deg,#ffffff 0%,#f3f7fc 100%);border-radius:18px;border:1.8px solid #b9cbe0;padding:0 20px;box-shadow:0 6px 14px rgba(10,34,64,.06)}
 .rank{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
  background:#0f3666;color:#fff;font-size:21px;font-weight:700}
 .ranking li:nth-child(-n+3) .rank{background:linear-gradient(150deg,#e9cf8c,#b28a35);color:#2b1d02}
@@ -417,7 +419,7 @@ CSS;
             . '<style>' . $this->fontCss() . $css . '</style></head><body>'
             . '<main class="wa-poster" data-kind="' . $this->e($kind) . '">'
             . '<header class="hd"><div class="hd-top">'
-            . '<span class="logo"><img src="data:image/png;base64,' . $logo . '" alt="اسپاد"/></span>'
+            . '<img class="logo" src="data:image/png;base64,' . $logo . '" alt="اسپاد"/>'
             . '<div class="meta"><span class="live"></span>' . $this->e($this->clock()) . '</div></div>'
             . '<h1 class="title">' . $this->e($title) . '</h1></header>'
             . '<div class="bd">' . $body . '</div>'
