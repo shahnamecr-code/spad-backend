@@ -341,7 +341,7 @@ class SpadWhatsAppMarketPublisher
             $last = max(array_column($quotes, 'timestamp'));
             return [[
                 'kind' => 'market',
-                'title' => 'گزارش کامل قیمت ارز، طلا و سکه',
+                'title' => 'نرخ لحظه‌ای ارز و طلا و سکه',
                 'caption' => 'نرخ‌های معتبر بازار ارز، طلا و سکه | دستیار تمام هوشمند ملکی اسپاد | https://spad.estate',
                 'source' => 'Iran Market Data',
                 'updated_at' => date('c', $last),
@@ -375,7 +375,7 @@ class SpadWhatsAppMarketPublisher
         foreach (array_chunk($rows, 12) as $chunk) {
             $pages[] = [
                 'kind' => 'city', 'city' => $city, 'province' => $province,
-                'title' => 'گزارش کامل قیمت آپارتمان ' . $city,
+                'title' => 'نرخ لحظه‌ای قیمت ملک (' . $city . ')',
                 'caption' => 'برآورد قیمت پیشنهادی هر مترمربع آپارتمان در محله‌های ' . $city .
                     ' | منبع: نمودا (CC BY 4.0) | دستیار تمام هوشمند ملکی اسپاد | https://spad.estate',
                 'source' => 'نمودا · nemuda.com/data · CC BY 4.0',

@@ -9,26 +9,30 @@ use RuntimeException;
 use Symfony\Component\Process\Process;
 
 /**
- * SPAD-approved photographic WhatsApp posters, with live data rendered over the
- * original artwork. No example price/date is ever exposed in a published tile.
- * The main site IRANSans FaNum is read from the licensed site installation.
+ * SPAD WhatsApp banners (v2): fully drawn in HTML/CSS/SVG with live data only.
+ * No photographic artwork, no sample numbers; every price comes from $page.
+ * Fonts: the main site IRANSans FaNum, read from the licensed site install.
  */
 class SpadWhatsAppPosterRenderer
 {
     public const WIDTH = 1122;
     public const HEIGHT = 1402;
 
-    private const ART = [
-        'market' => 'resources/wa-posters/approved-market.jpg',
-        'city' => 'resources/wa-posters/approved-city.jpg',
+    private const KINDS = ['market', 'city'];
+    private const LOGO = 'resources/wa-posters/spad-logo.png';
+
+    /** Market layout: two featured quotes, then three grouped columns. */
+    private const FEATURED = ['usd', 'gold_18'];
+    private const GROUPS = [
+        ['title' => 'ارز', 'keys' => ['eur', 'gbp', 'aed', 'try', 'usdt']],
+        ['title' => 'طلا', 'keys' => ['gold_24', 'mesghal_gold', 'melted_gold', 'gold_ounce']],
+        ['title' => 'سکه', 'keys' => ['new_coin', 'old_coin', 'half_coin', 'quarter_coin']],
     ];
 
     public function available(): bool
     {
-        foreach (self::ART as $art) {
-            if (!is_file(base_path($art))) return false;
-        }
-        return is_file(base_path('resources/wa-posters/render-wa-poster.cjs'))
+        return is_file(base_path(self::LOGO))
+            && is_file(base_path('resources/wa-posters/render-wa-poster.cjs'))
             && is_file($this->browserModule() . '/index.js')
             && is_file($this->siteFont('IRANSansWeb(FaNum).woff'))
             && function_exists('proc_open');
@@ -37,10 +41,10 @@ class SpadWhatsAppPosterRenderer
     public function render(array $page): string
     {
         if (!$this->available()) {
-            throw new RuntimeException('قالب تصویری یا موتور مرورگر و فونت اصلی اسپاد روی سرور آماده نیست.', 503);
+            throw new RuntimeException('موتور مرورگر، لوگو یا فونت اصلی اسپاد روی سرور آماده نیست.', 503);
         }
         $kind = $page['kind'] ?? '';
-        if (!array_key_exists($kind, self::ART)) {
+        if (!in_array($kind, self::KINDS, true)) {
             throw new RuntimeException('نوع قالب واتساپ معتبر نیست.', 422);
         }
 
@@ -56,7 +60,7 @@ class SpadWhatsAppPosterRenderer
         if (!$process->isSuccessful()
             || strlen($png) < 40000
             || substr($png, 0, 8) !== "\x89PNG\r\n\x1a\n") {
-            Log::warning('SPAD approved WhatsApp poster browser rendering failed', [
+            Log::warning('SPAD WhatsApp poster browser rendering failed', [
                 'kind' => $kind,
                 'exit_code' => $process->getExitCode(),
                 'stderr_excerpt' => mb_substr($process->getErrorOutput(), 0, 350),
@@ -82,6 +86,7 @@ class SpadWhatsAppPosterRenderer
             ['IRANSansWeb(FaNum).woff', 400],
             ['IRANSansWeb(FaNum)_Medium.woff', 500],
             ['IRANSansWeb(FaNum)_Bold.woff', 700],
+            ['IRANSansWeb(FaNum)_Black.woff', 900],
         ];
         $rules = '';
         foreach ($fonts as [$filename, $weight]) {
@@ -111,7 +116,18 @@ class SpadWhatsAppPosterRenderer
     {
         $now = Carbon::now('Asia/Tehran');
         $jalali = Jalalian::fromCarbon($now);
-        return $this->fa($jalali->format('l | j F Y') . ' | ساعت ' . $now->format('H:i'));
+        return $this->fa($jalali->format('l j F Y') . ' | ساعت ' . $now->format('H:i'));
+    }
+
+    /** "ساعت ۱۳:۲۹" for the provider timestamp, or '' when unknown. */
+    private function updatedAt($value): string
+    {
+        if (!$value) return '';
+        try {
+            return $this->fa(Carbon::parse($value)->setTimezone('Asia/Tehran')->format('H:i'));
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     private function price($value, string $unit): string
@@ -125,9 +141,9 @@ class SpadWhatsAppPosterRenderer
                 : number_format($millions, 1);
             return $this->fa($valueText);
         }
+        if ($unit === 'دلار') return $this->fa(number_format($amount, $amount < 100 ? 2 : 1));
         return $this->fa(number_format(round($amount)));
     }
-
 
     /**
      * Inlined vector illustrations rather than font/emoji glyphs. Headless
@@ -215,13 +231,6 @@ class SpadWhatsAppPosterRenderer
             . $end;
     }
 
-    private function pinIcon(): string
-    {
-        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="29" height="29" aria-hidden="true" focusable="false">'
-            . '<path d="M16 2.5c-6.3 0-11 4.6-11 11.1C5 21.1 16 30 16 30s11-8.9 11-16.4C27 7.1 22.3 2.5 16 2.5z" fill="#fff"/>'
-            . '<circle cx="16" cy="13.5" r="5.1" fill="#0984e3"/></svg>';
-    }
-
     private function trendIcon(bool $isUp): string
     {
         return $isUp
@@ -229,169 +238,191 @@ class SpadWhatsAppPosterRenderer
             : '<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="M6 11 1 2h10z" fill="currentColor"/></svg>';
     }
 
-    /**
-     * The original approved artwork contains illustrative rate cards. They are
-     * fully hidden behind one opaque stage (see .wa-market-grid CSS), and every
-     * displayed card here is redrawn from fresh provider data. Never overlay
-     * transparent cards on the baked-in sample numbers or symbols.
-     */
-    private function marketCards(array $rows): string
+    private function changeChip(array $row): string
     {
-        $html = '';
-        foreach (array_slice($rows, 0, 15) as $index => $row) {
-            $value = $row['value'] ?? null;
-            $unit = (string) ($row['unit'] ?? 'تومان');
-            $key = (string) ($row['key'] ?? '');
-            $name = trim((string) ($row['name'] ?? ''));
-            if ($name === '') continue;
-
-            $available = is_numeric($value) && (float) $value > 0;
-            $number = $available
-                ? $this->e($this->price($value, $unit)) : '—';
-            $unitText = $available ? $this->e($unit) : 'نرخ موجود نیست';
-            $indicator = '';
-            $change = $row['change'] ?? null;
-            if ($available && is_numeric($change) && abs((float) $change) > 0) {
-                $previous = (float) $value - (float) $change;
-                if ($previous > 0) {
-                    $percent = abs((float) $change / $previous * 100);
-                    if ($percent <= 100) {
-                        $up = (float) $change > 0;
-                        $indicator = '<span class="wa-market-trend ' . ($up ? 'up' : 'down') . '">'
-                            . $this->trendIcon($up)
-                            . '<span dir="ltr">' . $this->e($this->fa(number_format($percent, 2))) . '٪</span></span>';
-                    }
-                }
-            }
-            if ($indicator === '') {
-                $indicator = '<span class="wa-market-no-change">—</span>';
-            }
-
-            $last = $index === 14 ? ' last-card' : '';
-            $html .= '<article class="wa-market-card' . $last . '">'
-                . '<div class="wa-market-icon">' . $this->marketIcon($key) . '</div>'
-                . '<div class="wa-market-name">' . $this->e($name) . '</div>'
-                . '<span class="wa-market-sep" aria-hidden="true"></span>'
-                . '<div class="wa-market-value">'
-                . '<div class="wa-market-amount"><b dir="ltr">' . $number . '</b>'
-                . '<small>' . $unitText . '</small></div>'
-                . '<div class="wa-market-trend-row">' . $indicator . '</div>'
-                . '</div></article>';
+        $value = $row['value'] ?? null;
+        $change = $row['change'] ?? null;
+        if (!is_numeric($value) || (float) $value <= 0 || !is_numeric($change) || (float) $change == 0.0) {
+            return '<span class="chip flat">بدون تغییر</span>';
         }
-        return $html;
+        $previous = (float) $value - (float) $change;
+        if ($previous <= 0) return '<span class="chip flat">—</span>';
+        $percent = abs((float) $change / $previous * 100);
+        if ($percent > 100) return '<span class="chip flat">—</span>';
+        $up = (float) $change > 0;
+        return '<span class="chip ' . ($up ? 'up' : 'down') . '">' . $this->trendIcon($up)
+            . '<span dir="ltr">' . $this->e($this->fa(number_format($percent, 2))) . '٪</span></span>';
     }
 
-    private function cityCards(array $rows, string $city, int $page, int $total): string
+    private function quote(array $row, bool $featured): string
     {
-        $html = '';
-        foreach (array_slice($rows, 0, 12) as $row) {
-            $label = trim((string) ($row['name'] ?? ''));
-            if ($label === '' || !isset($row['value']) || (float) $row['value'] <= 0) continue;
-            $title = $city ? $city . ' • ' . $label : $label;
-            $number = $this->e($this->price($row['value'], 'تومان / مترمربع'));
-            $html .= '<article class="wa-city-card"><span class="wa-pin">' . $this->pinIcon() . '</span>'
-                . '<span class="wa-city-name">' . $this->e($title) . '</span>'
-                . '<span class="wa-city-divider"></span>'
-                . '<span class="wa-city-value"><small>میانگین قیمت هر متر</small>'
-                . '<strong>' . $number . '</strong><em>میلیون تومان</em></span>'
-                . '</article>';
+        $key = (string) ($row['key'] ?? '');
+        $unit = (string) ($row['unit'] ?? 'تومان');
+        $available = is_numeric($row['value'] ?? null) && (float) $row['value'] > 0;
+        $number = $available ? $this->e($this->price($row['value'], $unit)) : '—';
+        $unitText = $available ? $this->e($unit) : 'نرخ موجود نیست';
+        $class = $featured ? 'q featured' : 'q';
+        return '<div class="' . $class . '">'
+            . '<span class="q-icon">' . $this->marketIcon($key) . '</span>'
+            . '<span class="q-name">' . $this->e($row['name'] ?? '') . '</span>'
+            . '<span class="q-price"><b dir="ltr">' . $number . '</b><small>' . $unitText . '</small></span>'
+            . '<span class="q-change">' . ($available ? $this->changeChip($row) : '') . '</span>'
+            . '</div>';
+    }
+
+    private function marketBody(array $rows): string
+    {
+        $byKey = [];
+        foreach ($rows as $row) {
+            if (!empty($row['key'])) $byKey[(string) $row['key']] = $row;
         }
-        return $html;
+        $featured = '';
+        foreach (self::FEATURED as $key) {
+            if (isset($byKey[$key])) $featured .= $this->quote($byKey[$key], true);
+        }
+        $columns = '';
+        foreach (self::GROUPS as $group) {
+            $items = '';
+            foreach ($group['keys'] as $key) {
+                if (isset($byKey[$key])) $items .= $this->quote($byKey[$key], false);
+            }
+            if ($items === '') continue;
+            $columns .= '<section class="col"><h3>' . $this->e($group['title']) . '</h3>'
+                . '<div class="col-rows">' . $items . '</div></section>';
+        }
+        return '<div class="featured">' . $featured . '</div><div class="cols">' . $columns . '</div>';
+    }
+
+    private function cityBody(array $rows, int $page): string
+    {
+        $valid = [];
+        foreach (array_slice($rows, 0, 12) as $row) {
+            $name = trim((string) ($row['name'] ?? ''));
+            if ($name === '' || !is_numeric($row['value'] ?? null) || (float) $row['value'] <= 0) continue;
+            $valid[] = ['name' => $name, 'value' => (float) $row['value']];
+        }
+        $max = $valid ? max(array_column($valid, 'value')) : 1;
+        $first = ($page - 1) * 12;
+        $list = '';
+        foreach ($valid as $i => $row) {
+            // Bar length is proportional to price per m2 (relative to the top row).
+            $width = round(max(6, 100 * $row['value'] / $max), 1);
+            $list .= '<li><span class="rank">' . $this->fa($first + $i + 1) . '</span>'
+                . '<span class="hood">' . $this->e($row['name']) . '</span>'
+                . '<span class="bar"><i style="width:' . $width . '%"></i></span>'
+                . '<span class="ppm"><b>' . $this->e($this->price($row['value'], 'تومان / مترمربع')) . '</b></span></li>';
+        }
+        return '<div class="city-head"><p>میانگین قیمت هر متر مربع آپارتمان در گران‌ترین محله‌ها</p>'
+            . '<span class="unit">ارقام به میلیون تومان</span></div><ol class="ranking">' . $list . '</ol>';
     }
 
     private function html(array $page): string
     {
         $kind = (string) ($page['kind'] ?? '');
-        $image = base64_encode(file_get_contents(base_path(self::ART[$kind])));
-        $body = $kind === 'market'
-            ? '<div class="wa-market-grid">' . $this->marketCards($page['rows'] ?? []) . '</div>'
-            : '<div class="wa-city-panel"><div class="wa-city-grid">'
-                . $this->cityCards(
-                    $page['rows'] ?? [],
-                    (string) ($page['city'] ?? ''),
-                    (int) ($page['page'] ?? 1),
-                    (int) ($page['total'] ?? 1)
-                ) . '</div></div>'
-                . ((int) ($page['total'] ?? 1) > 1
-                    ? '<div class="wa-city-pages">' . $this->fa('صفحه ' . ($page['page'] ?? 1) . ' از ' . ($page['total'] ?? 1)) . '</div>'
-                    : '');
-        $clock = $this->e($this->clock());
+        $city = trim((string) ($page['city'] ?? ''));
+        $title = $kind === 'market' ? 'نرخ لحظه‌ای ارز و طلا و سکه'
+            : 'نرخ لحظه‌ای قیمت ملک' . ($city !== '' ? ' (' . $city . ')' : '');
+        $logo = base64_encode(file_get_contents(base_path(self::LOGO)));
+        $updated = $this->updatedAt($page['updated_at'] ?? null);
+        if ($kind === 'market') {
+            $body = $this->marketBody($page['rows'] ?? []);
+            $note = 'نرخ‌ها از بازار آزاد دریافت شده‌اند و ممکن است با نرخ نهایی معامله متفاوت باشند.'
+                . ($updated !== '' ? ' آخرین به‌روزرسانی قیمت‌ها: ساعت ' . $updated . '.' : '');
+        } else {
+            $body = $this->cityBody($page['rows'] ?? [], max(1, (int) ($page['page'] ?? 1)));
+            $note = 'منبع داده: نمودا (nemuda.com/data، مجوز CC BY 4.0). برآورد قیمت پیشنهادی بازار است و قیمت قطعی معامله یا کارشناسی نیست.';
+        }
+        $globe = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><circle cx="12" cy="12" r="9.2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.8 12h18.4M12 2.8c2.6 2.6 3.9 5.6 3.9 9.2s-1.3 6.6-3.9 9.2M12 2.8C9.4 5.4 8.1 8.4 8.1 12s1.3 6.6 3.9 9.2" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>';
         $css = <<<'CSS'
-*{box-sizing:border-box}
-html,body{width:1122px;height:1402px;margin:0;overflow:hidden}
-body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#071b39;background:#062d50}
-.wa-poster{position:relative;width:1122px;height:1402px;background-position:center;background-size:1122px 1402px;background-repeat:no-repeat;overflow:hidden}
-.wa-time{position:absolute;z-index:5;display:flex;align-items:center;justify-content:center;white-space:nowrap;font-weight:500;color:white;font-size:26px;letter-spacing:0;border-radius:42px;background:linear-gradient(160deg,#0d649d 0%,#052c59 48%,#08213f 100%);border:2px solid #e4bb68;box-shadow:0 2px 14px rgba(255,214,133,.55),inset 0 1px 5px rgba(255,255,255,.22)}
-.wa-time-market{top:292px;left:326px;width:454px;height:59px}
-.wa-time-city{top:324px;left:359px;width:521px;height:61px}
-.wa-market-grid{
- position:absolute;top:357px;left:47px;width:1028px;height:731px;
- display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(8,82px);
- gap:7px 12px;padding:10px;direction:rtl;overflow:hidden;
- border:1px solid rgba(255,211,132,.36);border-radius:26px;
- background:radial-gradient(ellipse 80% 58% at 50% 0%,#11508d 0%,#0a407c 43%,#062d60 100%);
- box-shadow:0 12px 30px rgba(0,22,60,.34),inset 0 1px 9px rgba(127,201,255,.16);
-}
-.wa-market-card{
- position:relative;z-index:1;min-width:0;min-height:0;width:100%;height:82px;
- display:flex;align-items:center;gap:9px;padding:8px 12px;
- border-radius:19px;border:1.5px solid #fff;
- background:linear-gradient(144deg,#f7fbff,#e2f0fb 62%,#cfdfef);
- box-shadow:0 3px 6px rgba(1,21,58,.19),inset 0 1px 3px #fff;
- overflow:hidden;
-}
-.wa-market-card.last-card{grid-column:1/-1;width:calc((100% - 12px)/2);height:82px;justify-self:center}
-.wa-market-icon{
- flex:0 0 52px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;
- border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(3,43,86,.24);overflow:hidden
-}
-.wa-market-icon svg{display:block;flex:0 0 52px;width:52px;height:52px}
-.wa-market-name{
- flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
- text-align:right;direction:rtl;font-size:17px;font-weight:500;line-height:1.55;color:#0b2848;
-}
-.wa-market-sep{flex:0 0 1px;width:1px;height:50px;background:#9ab3c9}
-.wa-market-value{
- flex:0 0 45%;min-width:0;height:100%;display:flex;flex-direction:column;
- align-items:center;justify-content:center;gap:1px;direction:rtl;
-}
-.wa-market-amount{
- display:flex;align-items:baseline;justify-content:center;gap:5px;
- width:100%;white-space:nowrap;min-width:0;
-}
-.wa-market-amount b{
- font-size:21px;font-weight:700;line-height:1.3;font-variant-numeric:tabular-nums;
- letter-spacing:-.5px;color:#082542;white-space:nowrap;
-}
-.wa-market-amount small{font-size:11px;font-weight:500;line-height:1.3;color:#31516e;white-space:nowrap}
-.wa-market-trend-row{width:100%;height:22px;display:flex;align-items:center;justify-content:center}
-.wa-market-trend{
- display:inline-flex;align-items:center;justify-content:center;gap:5px;
- min-width:84px;padding:1px 11px;border-radius:18px;
- font-size:12px;font-weight:500;line-height:20px;direction:ltr;white-space:nowrap;
-}
-.wa-market-trend svg{display:block;flex:0 0 11px;width:11px;height:11px}
-.wa-market-trend.up{color:#147a37;background:#c7edd0}
-.wa-market-trend.down{color:#ad2429;background:#f9d1d6}
-.wa-market-no-change{font-size:13px;line-height:20px;color:#889bad}
-.wa-city-panel{position:absolute;top:395px;left:264px;width:811px;height:804px;border-radius:38px;border:2px solid #f4fbff;box-shadow:0 4px 15px rgba(3,29,75,.25),inset 0 2px 8px #fff;background:linear-gradient(155deg,#f4faff,#d3e9f9);padding:15px 17px;overflow:hidden}
-.wa-city-grid{width:100%;height:100%;display:flex;flex-direction:column;gap:5px}
-.wa-city-card{flex:1 1 0;min-height:0;display:flex;align-items:center;gap:11px;padding:5px 10px;border-radius:20px;border:1.4px solid #fff;background:linear-gradient(115deg,#f2f9ff,#cee7f9);box-shadow:0 2px 5px rgba(28,90,148,.14);overflow:hidden}
-.wa-pin{width:38px;height:38px;border-radius:12px;background:linear-gradient(155deg,#0984e3,#075aa3);display:flex;align-items:center;justify-content:center;flex:0 0 38px;box-shadow:0 2px 5px rgba(0,26,72,.18)}
-.wa-pin svg{display:block;width:28px;height:28px}
-.wa-city-name{min-width:0;flex:1 1 0;font-size:21px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;color:#0a2340}
-.wa-city-divider{width:1px;height:63%;flex:0 0 1px;background:#8ca6bf}
-.wa-city-value{flex:0 0 43%;height:100%;min-width:0;display:flex;align-items:center;justify-content:center;column-gap:5px;row-gap:0;flex-wrap:wrap;white-space:nowrap;border-radius:18px;background:linear-gradient(110deg,#d9eefc,#bcdff3);padding:2px 8px}
-.wa-city-value small{font-size:10px;font-weight:400;line-height:1.3;color:#49647d}
-.wa-city-value strong{font-size:26px;font-weight:700;line-height:1.3;color:#092542}
-.wa-city-value em{font-size:12px;font-weight:500;font-style:normal;color:#254665}
-.wa-city-pages{position:absolute;z-index:5;top:1204px;right:95px;padding:4px 17px;border-radius:18px;background:#063c6d;color:#fff;border:1px solid #d3b67c;font-size:15px;line-height:23px;box-shadow:0 3px 6px rgba(5,23,47,.2)}
-
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1122px;height:1402px;overflow:hidden}
+body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;background:#eef3f9}
+.wa-poster{position:relative;width:1122px;height:1402px;display:flex;flex-direction:column;background:#eef3f9;overflow:hidden}
+/* header */
+.hd{position:relative;height:300px;padding:34px 48px 0;color:#fff;
+ background:linear-gradient(160deg,#0f3666 0%,#0a2850 52%,#071c3a 100%);overflow:hidden}
+.hd::before{content:"";position:absolute;inset:0;
+ background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 26px);pointer-events:none}
+.hd::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;
+ background:linear-gradient(90deg,#8a6a26,#e2c47a 30%,#c9a14a 60%,#8a6a26)}
+.hd-top{position:relative;display:flex;justify-content:space-between;align-items:center}
+.logo{display:flex;align-items:center;justify-content:center;width:236px;height:112px;border-radius:22px;background:#fff;
+ box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.logo img{width:212px;height:106px;object-fit:contain}
+.title{position:relative;margin-top:26px;font-size:60px;font-weight:900;line-height:1.35;color:#fff;letter-spacing:-.5px}
+.meta{position:relative;display:inline-flex;align-items:center;gap:12px;padding:10px 22px;border-radius:999px;
+ background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);font-size:24px;font-weight:500;color:#dbe7f5}
+.live{width:13px;height:13px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 6px rgba(61,220,132,.22)}
+/* body */
+.bd{position:relative;flex:1;padding:28px 44px 0;display:flex;flex-direction:column;min-height:0}
+/* market */
+.featured{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.q{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:14px;align-items:center}
+.q.featured{background:#fff;border-radius:24px;padding:18px 24px;border:1px solid #dde6f1;
+ box-shadow:0 10px 24px rgba(10,34,64,.08);grid-template-columns:auto 1fr auto;row-gap:2px;position:relative;overflow:hidden}
+.q.featured::before{content:"";position:absolute;right:0;top:0;bottom:0;width:7px;background:linear-gradient(#e2c47a,#b28a35)}
+.q-icon{grid-row:1/3;display:flex}
+.q-icon svg{width:54px;height:54px;border-radius:50%;box-shadow:0 2px 6px rgba(10,34,64,.18)}
+.q.featured .q-icon svg{width:72px;height:72px}
+.q-name{font-size:20px;font-weight:700;color:#0a2240;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q.featured .q-name{font-size:25px;grid-column:2/4}
+.q-price{display:flex;align-items:baseline;gap:7px;white-space:nowrap}
+.q-price b{font-size:27px;font-weight:900;color:#071c3a;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.q.featured .q-price b{font-size:44px}
+.q-price small{font-size:15px;font-weight:500;color:#5b6f86}
+.q.featured .q-price small{font-size:18px}
+.q-change{grid-column:2;justify-self:start}
+.q.featured .q-change{grid-column:3;grid-row:2;justify-self:end}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 11px;border-radius:999px;font-size:15px;font-weight:700;line-height:1.6;direction:ltr}
+.chip svg{width:11px;height:11px}
+.chip.up{color:#0f7a45;background:#def3e7}
+.chip.down{color:#b4342a;background:#fbe6e3}
+.chip.flat{color:#6b7c90;background:#edf1f6;font-weight:500;direction:rtl}
+.q.featured .chip{font-size:19px;padding:4px 14px}
+.cols{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:20px;min-height:0;padding-bottom:18px}
+.col{background:#fff;border-radius:22px;border:1px solid #dde6f1;padding:14px 18px 6px;overflow:hidden;display:flex;flex-direction:column;min-height:0;
+ box-shadow:0 8px 20px rgba(10,34,64,.06)}
+.col h3{font-size:22px;font-weight:900;color:#0f3666;padding-bottom:8px;margin-bottom:2px;border-bottom:2px solid #e2c47a;display:flex;align-items:center;gap:10px}
+.col-rows{flex:1;display:flex;flex-direction:column;justify-content:space-around}
+.col .q{padding:7px 0;border-bottom:1px solid #edf1f6;row-gap:1px}
+.col .q:last-child{border-bottom:0}
+.col .q-name{grid-column:2}
+.col .q-price{grid-column:2}
+.col .q-change{grid-column:2}
+/* city */
+.city-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.city-head p{font-size:25px;font-weight:700;color:#0f3666}
+.unit{font-size:19px;font-weight:500;color:#5b6f86;padding:6px 16px;border-radius:999px;background:#fff;border:1px solid #dde6f1}
+.ranking{list-style:none;flex:1;display:flex;flex-direction:column;gap:9px;padding-bottom:18px;min-height:0}
+.ranking li{flex:1;display:grid;grid-template-columns:52px 260px 1fr 140px;align-items:center;column-gap:18px;
+ background:#fff;border-radius:18px;border:1px solid #dde6f1;padding:0 20px;box-shadow:0 6px 14px rgba(10,34,64,.05)}
+.rank{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+ background:#0f3666;color:#fff;font-size:21px;font-weight:700}
+.ranking li:nth-child(-n+3) .rank{background:linear-gradient(150deg,#e9cf8c,#b28a35);color:#2b1d02}
+.hood{font-size:25px;font-weight:700;color:#0a2240;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar{height:16px;border-radius:999px;background:#edf1f6;overflow:hidden;direction:rtl}
+.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(270deg,#e2c47a,#b28a35)}
+.ppm{text-align:left;direction:ltr}
+.ppm b{font-size:34px;font-weight:900;color:#071c3a;font-variant-numeric:tabular-nums}
+/* footer */
+.ft{padding:0 44px 0}
+.note{font-size:17px;line-height:1.75;color:#5b6f86;padding:0 4px 16px}
+.band{height:88px;margin:0 -44px;background:#071c3a;display:flex;align-items:center;justify-content:center;gap:14px;padding:0 48px;
+ color:#fff;border-top:4px solid #c9a14a}
+.band svg{color:#e2c47a;width:28px;height:28px}
+.band strong{font-size:25px;font-weight:700}
+.band span{color:#e2c47a;letter-spacing:.3px}
 CSS;
         return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="UTF-8"/>'
             . '<style>' . $this->fontCss() . $css . '</style></head><body>'
-            . '<main class="wa-poster" style="background-image:url(data:image/jpeg;base64,' . $image . ')">'
-            . '<div class="wa-time wa-time-' . $kind . '">' . $clock . '</div>'
-            . $body . '</main></body></html>';
+            . '<main class="wa-poster" data-kind="' . $this->e($kind) . '">'
+            . '<header class="hd"><div class="hd-top">'
+            . '<span class="logo"><img src="data:image/png;base64,' . $logo . '" alt="اسپاد"/></span>'
+            . '<div class="meta"><span class="live"></span>' . $this->e($this->clock()) . '</div></div>'
+            . '<h1 class="title">' . $this->e($title) . '</h1></header>'
+            . '<div class="bd">' . $body . '</div>'
+            . '<footer class="ft"><p class="note">' . $this->e($note) . '</p>'
+            . '<div class="band">' . $globe . '<strong>برای مشاهده جزئیات بیشتر به <span>www.spad.estate</span> مراجعه کنید</strong></div></footer>'
+            . '</main></body></html>';
     }
 }
