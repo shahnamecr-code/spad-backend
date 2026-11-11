@@ -19,9 +19,9 @@ class SpadWhatsAppPosterRenderer
     public const HEIGHT = 1402;
 
     private const KINDS = ['market', 'city'];
-    // Official SPAD logo (2026 pack, full 1024x512) with the navy wordmark
-    // reversed to white for the dark banner header; artwork otherwise unchanged.
-    private const LOGO = 'resources/wa-posters/spad-logo-on-dark.png';
+    // Official SPAD logo (2026 pack, full/SPAD-full-1024x512, resampled to
+    // 640x320), shown as the pack advises: on a white background.
+    private const LOGO = 'resources/wa-posters/spad-logo.png';
 
     /** Market layout: two featured quotes, then three grouped columns. */
     private const FEATURED = ['usd', 'gold_18'];
@@ -338,22 +338,37 @@ class SpadWhatsAppPosterRenderer
         $css = <<<'CSS'
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{width:1122px;height:1402px;overflow:hidden}
-body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;background:#eef3f9}
-.wa-poster{position:relative;width:1122px;height:1402px;display:flex;flex-direction:column;background:#eef3f9;overflow:hidden}
-/* header */
-.hd{position:relative;height:318px;padding:26px 46px 0;color:#fff;overflow:hidden;
- background:radial-gradient(120% 160% at 0% 0%,rgba(46,124,214,.35) 0%,rgba(46,124,214,0) 45%),
-  linear-gradient(160deg,#0f3666 0%,#0a2850 52%,#071c3a 100%)}
+body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;background:#eef8ff}
+.wa-poster{position:relative;width:1122px;height:1402px;display:flex;flex-direction:column;overflow:hidden;
+ background:linear-gradient(180deg,#f7fbff 0%,#eef8ff 100%)}
+/* header: site brand blue (styles/abstracts/_variables.scss $color-primary #0984e3,
+   footer shades #0874c7 / #0669b7), with the site footer's soft white glows */
+.hd{position:relative;height:340px;padding:26px 46px 0;color:#fff;overflow:hidden;
+ background:
+  radial-gradient(circle at 12% 10%,rgba(255,255,255,.14),transparent 30%),
+  radial-gradient(circle at 86% 22%,rgba(255,255,255,.09),transparent 26%),
+  linear-gradient(160deg,#0984e3 0%,#0874c7 55%,#0669b7 100%)}
 .hd::before{content:"";position:absolute;inset:0;
- background:repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 2px,transparent 2px 26px);pointer-events:none}
-.hd::after{content:"";position:absolute;left:0;right:0;bottom:0;height:5px;
- background:linear-gradient(90deg,#8a6a26,#e2c47a 30%,#c9a14a 60%,#8a6a26)}
+ background-image:radial-gradient(rgba(255,255,255,.22) .8px,transparent .9px);background-size:22px 22px;
+ -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.6),transparent 75%);pointer-events:none}
 .hd-top{position:relative;display:flex;justify-content:space-between;align-items:center}
-.logo{display:block;width:300px;height:150px;object-fit:contain;filter:drop-shadow(0 6px 18px rgba(0,0,0,.35))}
-.title{position:relative;margin-top:8px;font-size:60px;font-weight:900;line-height:1.35;color:#fff;letter-spacing:-.5px;text-shadow:0 3px 14px rgba(0,0,0,.25)}
+.logo{display:flex;align-items:center;justify-content:center;width:250px;height:124px;border-radius:24px;background:#fff;
+ box-shadow:0 12px 28px rgba(4,52,104,.28)}
+.logo img{width:230px;height:115px;object-fit:contain}
 .meta{position:relative;display:inline-flex;align-items:center;gap:12px;padding:10px 22px;border-radius:999px;
- background:rgba(7,28,58,.55);border:1.5px solid rgba(226,196,122,.55);font-size:24px;font-weight:500;color:#dbe7f5}
-.live{width:13px;height:13px;border-radius:50%;background:#3ddc84;box-shadow:0 0 0 6px rgba(61,220,132,.22)}
+ background:rgba(4,60,120,.28);border:1.5px solid rgba(255,255,255,.38);font-size:24px;font-weight:500;color:#fff}
+.live{width:13px;height:13px;border-radius:50%;background:#65efad;box-shadow:0 0 0 6px rgba(101,239,173,.25)}
+.title-wrap{position:relative;display:flex;justify-content:center;margin-top:26px}
+.title{position:relative;display:inline-block;padding:12px 54px 16px;border-radius:30px;
+ font-size:56px;font-weight:900;line-height:1.35;color:#fff;letter-spacing:-.5px;text-align:center;white-space:nowrap;
+ background:linear-gradient(180deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,.08) 100%);
+ border:2px solid rgba(255,255,255,.6);
+ box-shadow:0 14px 34px rgba(4,52,104,.35),inset 0 1px 0 rgba(255,255,255,.6),inset 0 -10px 24px rgba(4,60,120,.18);
+ text-shadow:0 3px 12px rgba(4,52,104,.45)}
+.title.long{font-size:46px;padding:14px 44px 18px}
+.title::before,.title::after{content:"";position:absolute;top:50%;width:70px;height:2px}
+.title::before{right:100%;margin-right:16px;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.8))}
+.title::after{left:100%;margin-left:16px;background:linear-gradient(90deg,rgba(255,255,255,.8),rgba(255,255,255,0))}
 /* body */
 .bd{position:relative;flex:1;padding:28px 44px 0;display:flex;flex-direction:column;min-height:0}
 /* market */
@@ -361,7 +376,7 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
 .q{display:grid;grid-template-columns:auto 1fr;grid-template-rows:auto auto;column-gap:14px;align-items:center}
 .q.featured{background:linear-gradient(160deg,#ffffff 0%,#f3f7fc 100%);border-radius:24px;padding:18px 24px;border:2px solid #c3d3e6;
  box-shadow:0 12px 26px rgba(10,34,64,.10);grid-template-columns:auto 1fr auto;row-gap:2px;position:relative;overflow:hidden}
-.q.featured::before{content:"";position:absolute;right:0;top:0;bottom:0;width:7px;background:linear-gradient(#e2c47a,#b28a35)}
+.q.featured::before{content:"";position:absolute;right:0;top:0;bottom:0;width:7px;background:linear-gradient(#17aef3,#0669b7)}
 .q-icon{grid-row:1/3;display:flex}
 .q-icon svg{width:50px;height:50px;border-radius:50%;box-shadow:0 2px 6px rgba(10,34,64,.18)}
 .q.featured .q-icon svg{width:72px;height:72px}
@@ -383,7 +398,7 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
 .cols{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:20px;min-height:0;padding-bottom:18px}
 .col{background:#fff;border-radius:22px;border:2px solid #c3d3e6;padding:14px 14px 14px;overflow:hidden;display:flex;flex-direction:column;min-height:0;
  box-shadow:0 8px 20px rgba(10,34,64,.06)}
-.col h3{font-size:23px;font-weight:900;color:#0f3666;padding:0 4px 8px;margin-bottom:10px;border-bottom:3px solid #d4b263;display:flex;align-items:center;gap:10px}
+.col h3{font-size:23px;font-weight:900;color:#0669b7;padding:0 4px 8px;margin-bottom:10px;border-bottom:3px solid #0984e3;display:flex;align-items:center;gap:10px}
 .col-rows{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0}
 .col .q{flex:1;min-height:0;padding:6px 12px;row-gap:1px;align-content:center;
  border:1.8px solid #b9cbe0;border-radius:16px;background:linear-gradient(160deg,#fbfdff 0%,#eef4fb 100%);
@@ -393,38 +408,40 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
 .col .q-change{grid-column:2}
 /* city */
 .city-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.city-head p{font-size:25px;font-weight:700;color:#0f3666}
+.city-head p{font-size:25px;font-weight:700;color:#0669b7}
 .unit{font-size:19px;font-weight:500;color:#41566e;padding:6px 16px;border-radius:999px;background:#fff;border:1.8px solid #b9cbe0}
 .ranking{list-style:none;flex:1;display:flex;flex-direction:column;gap:9px;padding-bottom:18px;min-height:0}
 .ranking li{flex:1;display:grid;grid-template-columns:52px 260px 1fr 140px;align-items:center;column-gap:18px;
  background:linear-gradient(160deg,#ffffff 0%,#f3f7fc 100%);border-radius:18px;border:1.8px solid #b9cbe0;padding:0 20px;box-shadow:0 6px 14px rgba(10,34,64,.06)}
 .rank{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;
- background:#0f3666;color:#fff;font-size:21px;font-weight:700}
+ background:#0874c7;color:#fff;font-size:21px;font-weight:700}
 .ranking li:nth-child(-n+3) .rank{background:linear-gradient(150deg,#e9cf8c,#b28a35);color:#2b1d02}
 .hood{font-size:25px;font-weight:700;color:#0a2240;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bar{height:16px;border-radius:999px;background:#edf1f6;overflow:hidden;direction:rtl}
-.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(270deg,#e2c47a,#b28a35)}
+.bar i{display:block;height:100%;border-radius:999px;background:linear-gradient(270deg,#17aef3,#0669b7)}
 .ppm{text-align:left;direction:ltr}
 .ppm b{font-size:34px;font-weight:900;color:#071c3a;font-variant-numeric:tabular-nums}
 /* footer */
 .ft{padding:0 44px 0}
 .note{font-size:17px;line-height:1.75;color:#5b6f86;padding:0 4px 16px}
-.band{height:88px;margin:0 -44px;background:#071c3a;display:flex;align-items:center;justify-content:center;gap:14px;padding:0 48px;
- color:#fff;border-top:4px solid #c9a14a}
-.band svg{color:#e2c47a;width:28px;height:28px}
-.band strong{font-size:25px;font-weight:700}
-.band span{color:#e2c47a;letter-spacing:.3px}
+.band{height:96px;margin:0 -44px;display:flex;align-items:center;justify-content:center;gap:14px;padding:0 40px;color:#fff;
+ background:radial-gradient(circle at 12% 10%,rgba(255,255,255,.12),transparent 30%),linear-gradient(160deg,#0984e3 0%,#0874c7 55%,#0669b7 100%)}
+.band strong{font-size:26px;font-weight:700;white-space:nowrap}
+.site-pill{display:inline-flex;align-items:center;gap:9px;padding:6px 20px;border-radius:999px;background:#fff;color:#0984e3;
+ font-size:27px;font-weight:900;direction:ltr;box-shadow:0 6px 16px rgba(4,52,104,.25)}
+.site-pill svg{width:26px;height:26px;color:#0984e3}
 CSS;
         return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="UTF-8"/>'
             . '<style>' . $this->fontCss() . $css . '</style></head><body>'
             . '<main class="wa-poster" data-kind="' . $this->e($kind) . '">'
             . '<header class="hd"><div class="hd-top">'
-            . '<img class="logo" src="data:image/png;base64,' . $logo . '" alt="اسپاد"/>'
+            . '<span class="logo"><img src="data:image/png;base64,' . $logo . '" alt="اسپاد"/></span>'
             . '<div class="meta"><span class="live"></span>' . $this->e($this->clock()) . '</div></div>'
-            . '<h1 class="title">' . $this->e($title) . '</h1></header>'
+            . '<div class="title-wrap"><h1 class="title' . (mb_strlen($title) > 30 ? ' long' : '') . '">' . $this->e($title) . '</h1></div></header>'
             . '<div class="bd">' . $body . '</div>'
             . '<footer class="ft"><p class="note">' . $this->e($note) . '</p>'
-            . '<div class="band">' . $globe . '<strong>برای مشاهده جزئیات بیشتر به <span>www.spad.estate</span> مراجعه کنید</strong></div></footer>'
+            . '<div class="band"><strong>برای مشاهده لحظه‌ای نرخ‌ها به سایت</strong>'
+            . '<span class="site-pill">' . $globe . 'Spad.estate</span><strong>مراجعه کنید</strong></div></footer>'
             . '</main></body></html>';
     }
 }
