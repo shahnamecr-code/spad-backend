@@ -78,6 +78,34 @@ class SpadWhatsAppMarketPublisher
         }
     }
 
+    /**
+     * Personal-only admin: save just the hourly schedule and the cities.
+     * Fixed daily HH:MM slots are cleared (hourly mode is the only mode in the
+     * panel) and Meta group publishing is forced off; Meta fields untouched.
+     */
+    public function saveSchedule(array $hourly, array $cities): void
+    {
+        $schedule = [
+            'markets' => [], 'cities' => [],
+            'hourly_markets' => (bool) $hourly['hourly_markets'],
+            'hourly_cities' => (bool) $hourly['hourly_cities'],
+            'hourly_from' => (int) $hourly['hourly_from'],
+            'hourly_to' => (int) $hourly['hourly_to'],
+        ];
+        $values = [
+            'enabled' => false,
+            'schedule_json' => json_encode($schedule, JSON_UNESCAPED_UNICODE),
+            'cities_json' => json_encode(array_values($cities), JSON_UNESCAPED_UNICODE),
+            'updated_at' => now(),
+        ];
+        if ($this->configRow()) {
+            DB::table('spad_wa_market_config')->where('id', 1)->update($values);
+        } else {
+            DB::table('spad_wa_market_config')->insert(['id' => 1, 'groups_json' => '[]',
+                'created_at' => now()] + $values);
+        }
+    }
+
     public function logs(): array
     {
         return DB::table('spad_wa_market_publications')->orderByDesc('id')->limit(40)
