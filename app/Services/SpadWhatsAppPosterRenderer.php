@@ -19,9 +19,10 @@ class SpadWhatsAppPosterRenderer
     public const HEIGHT = 1402;
 
     private const KINDS = ['market', 'city'];
-    // Official SPAD logo (2026 pack, full/SPAD-full-1024x512, resampled to
-    // 640x320), shown as the pack advises: on a white background.
-    private const LOGO = 'resources/wa-posters/spad-logo.png';
+    // Official SPAD logo (2026 pack, full/SPAD-full-1024x512) as a transparent
+    // white version for the brand-blue header: same shapes, wordmark solid
+    // white, house mark white with its ribbon shading kept as opacity.
+    private const LOGO = 'resources/wa-posters/spad-logo-white.png';
 
     /** Market layout: two featured quotes, then three grouped columns. */
     private const FEATURED = ['usd', 'gold_18'];
@@ -85,6 +86,7 @@ class SpadWhatsAppPosterRenderer
     private function fontCss(): string
     {
         $fonts = [
+            ['IRANSansWeb(FaNum)_Light.woff', 300],
             ['IRANSansWeb(FaNum).woff', 400],
             ['IRANSansWeb(FaNum)_Medium.woff', 500],
             ['IRANSansWeb(FaNum)_Bold.woff', 700],
@@ -119,17 +121,6 @@ class SpadWhatsAppPosterRenderer
         $now = Carbon::now('Asia/Tehran');
         $jalali = Jalalian::fromCarbon($now);
         return $this->fa($jalali->format('l j F Y') . ' | ساعت ' . $now->format('H:i'));
-    }
-
-    /** "ساعت ۱۳:۲۹" for the provider timestamp, or '' when unknown. */
-    private function updatedAt($value): string
-    {
-        if (!$value) return '';
-        try {
-            return $this->fa(Carbon::parse($value)->setTimezone('Asia/Tehran')->format('H:i'));
-        } catch (\Throwable $e) {
-            return '';
-        }
     }
 
     private function price($value, string $unit): string
@@ -289,7 +280,7 @@ class SpadWhatsAppPosterRenderer
                 if (isset($byKey[$key])) $items .= $this->quote($byKey[$key], false);
             }
             if ($items === '') continue;
-            $columns .= '<section class="col"><h3>' . $this->e($group['title']) . '</h3>'
+            $columns .= '<section class="col"><h3><span>' . $this->e($group['title']) . '</span></h3>'
                 . '<div class="col-rows">' . $items . '</div></section>';
         }
         return '<div class="featured">' . $featured . '</div><div class="cols">' . $columns . '</div>';
@@ -325,11 +316,9 @@ class SpadWhatsAppPosterRenderer
         $title = $kind === 'market' ? 'نرخ لحظه‌ای ارز و طلا و سکه'
             : 'نرخ لحظه‌ای قیمت ملک' . ($city !== '' ? ' (' . $city . ')' : '');
         $logo = base64_encode(file_get_contents(base_path(self::LOGO)));
-        $updated = $this->updatedAt($page['updated_at'] ?? null);
         if ($kind === 'market') {
             $body = $this->marketBody($page['rows'] ?? []);
-            $note = 'نرخ‌ها از بازار آزاد دریافت شده‌اند و ممکن است با نرخ نهایی معامله متفاوت باشند.'
-                . ($updated !== '' ? ' آخرین به‌روزرسانی قیمت‌ها: ساعت ' . $updated . '.' : '');
+            $note = 'نرخ‌ها از بازار آزاد دریافت شده‌اند و ممکن است با نرخ نهایی معامله متفاوت باشند.';
         } else {
             $body = $this->cityBody($page['rows'] ?? [], max(1, (int) ($page['page'] ?? 1)));
             $note = 'منبع داده: نمودا (nemuda.com/data، مجوز CC BY 4.0). برآورد قیمت پیشنهادی بازار است و قیمت قطعی معامله یا کارشناسی نیست.';
@@ -352,9 +341,7 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
  background-image:radial-gradient(rgba(255,255,255,.22) .8px,transparent .9px);background-size:22px 22px;
  -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.6),transparent 75%);pointer-events:none}
 .hd-top{position:relative;display:flex;justify-content:space-between;align-items:center}
-.logo{display:flex;align-items:center;justify-content:center;width:250px;height:124px;border-radius:24px;background:#fff;
- box-shadow:0 12px 28px rgba(4,52,104,.28)}
-.logo img{width:230px;height:115px;object-fit:contain}
+.logo{display:block;width:290px;height:145px;object-fit:contain;filter:drop-shadow(0 6px 16px rgba(4,52,104,.35))}
 .meta{position:relative;display:inline-flex;align-items:center;gap:12px;padding:10px 22px;border-radius:999px;
  background:rgba(4,60,120,.28);border:1.5px solid rgba(255,255,255,.38);font-size:24px;font-weight:500;color:#fff}
 .live{width:13px;height:13px;border-radius:50%;background:#65efad;box-shadow:0 0 0 6px rgba(101,239,173,.25)}
@@ -383,9 +370,9 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
 .q-name{font-size:20px;font-weight:700;color:#0a2240;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .q.featured .q-name{font-size:25px;grid-column:2/4}
 .q-price{display:flex;align-items:baseline;gap:7px;white-space:nowrap}
-.q-price b{font-size:27px;font-weight:900;color:#071c3a;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
-.q.featured .q-price b{font-size:44px}
-.q-price small{font-size:15px;font-weight:500;color:#5b6f86}
+.q-price b{font-size:29px;font-weight:500;color:#071c3a;letter-spacing:0;font-variant-numeric:tabular-nums}
+.q.featured .q-price b{font-size:46px;font-weight:500}
+.q-price small{font-size:15px;font-weight:400;color:#5b6f86}
 .q.featured .q-price small{font-size:18px}
 .q-change{grid-column:2;justify-self:start}
 .q.featured .q-change{grid-column:3;grid-row:2;justify-self:end}
@@ -398,7 +385,13 @@ body{font-family:'SPAD-IRANSans',Tahoma,sans-serif;direction:rtl;color:#0a2240;b
 .cols{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:20px;min-height:0;padding-bottom:18px}
 .col{background:#fff;border-radius:22px;border:2px solid #c3d3e6;padding:14px 14px 14px;overflow:hidden;display:flex;flex-direction:column;min-height:0;
  box-shadow:0 8px 20px rgba(10,34,64,.06)}
-.col h3{font-size:23px;font-weight:900;color:#0669b7;padding:0 4px 8px;margin-bottom:10px;border-bottom:3px solid #0984e3;display:flex;align-items:center;gap:10px}
+.col h3{position:relative;display:flex;justify-content:center;align-items:center;margin:2px 0 12px}
+.col h3::before{content:"";position:absolute;left:6px;right:6px;top:50%;height:2px;
+ background:linear-gradient(90deg,rgba(9,132,227,0),rgba(9,132,227,.45) 25%,rgba(9,132,227,.45) 75%,rgba(9,132,227,0))}
+.col h3 span{position:relative;display:inline-block;min-width:140px;padding:5px 30px 7px;border-radius:999px;text-align:center;
+ font-size:23px;font-weight:900;color:#fff;letter-spacing:.2px;
+ background:linear-gradient(160deg,#17aef3 0%,#0984e3 45%,#0669b7 100%);
+ border:2px solid #fff;box-shadow:0 6px 16px rgba(9,132,227,.35),0 0 0 2px rgba(9,132,227,.35)}
 .col-rows{flex:1;display:flex;flex-direction:column;gap:10px;min-height:0}
 .col .q{flex:1;min-height:0;padding:6px 12px;row-gap:1px;align-content:center;
  border:1.8px solid #b9cbe0;border-radius:16px;background:linear-gradient(160deg,#fbfdff 0%,#eef4fb 100%);
@@ -435,7 +428,7 @@ CSS;
             . '<style>' . $this->fontCss() . $css . '</style></head><body>'
             . '<main class="wa-poster" data-kind="' . $this->e($kind) . '">'
             . '<header class="hd"><div class="hd-top">'
-            . '<span class="logo"><img src="data:image/png;base64,' . $logo . '" alt="اسپاد"/></span>'
+            . '<img class="logo" src="data:image/png;base64,' . $logo . '" alt="اسپاد"/>'
             . '<div class="meta"><span class="live"></span>' . $this->e($this->clock()) . '</div></div>'
             . '<div class="title-wrap"><h1 class="title' . (mb_strlen($title) > 30 ? ' long' : '') . '">' . $this->e($title) . '</h1></div></header>'
             . '<div class="bd">' . $body . '</div>'
