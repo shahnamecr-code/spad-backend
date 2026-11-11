@@ -19,4 +19,6 @@ Route::prefix('whatsapp-market')->group(function () {
     Route::get('/personal/qr', [PersonalWA::class, 'pairingQr'])->middleware('throttle:30,1,spad-wa-personal-qr');
     Route::post('/personal/settings', [PersonalWA::class, 'preferences'])->middleware('throttle:5,1');
     Route::post('/personal/send', [PersonalWA::class, 'sendNow'])->middleware('throttle:2,1');
+    // "Send now" batch (gold/FX + every saved city): at most 3 per 10 minutes.
+    Route::post('/personal/send-now', [PersonalWA::class, 'sendAllNow'])->middleware('throttle:3,10,spad-wa-personal-send-now');
 });
