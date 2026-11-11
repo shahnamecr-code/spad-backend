@@ -88,6 +88,29 @@ client.on('disconnected', () => {
   state = 'disconnected'; qrDataUri = null; linkedSelfId = null; lastError = 'Disconnected';
 });
 
+// Pairing diagnostics for the PM2 log: what WhatsApp Web itself shows while
+// linking (e.g. a passkey/security step or a link error). Never logs the QR
+// payload, phone numbers or chat content; long digit runs are masked.
+let qrCount = 0;
+let lastPageText = '';
+const note = msg => console.log('SPAD personal bridge: ' + msg);
+client.on('qr', () => { qrCount++; if (qrCount === 1 || qrCount % 5 === 0) note('pairing code #' + qrCount); });
+client.on('loading_screen', (pct, msg) => note('loading ' + pct + '% ' + String(msg || '').slice(0, 60)));
+client.on('change_state', s => note('wa state ' + String(s).slice(0, 40)));
+client.on('authenticated', () => note('phone scan accepted (authenticated)'));
+client.on('auth_failure', m => note('auth_failure ' + String(m || '').slice(0, 120)));
+client.on('disconnected', r => note('disconnected ' + String(r || '').slice(0, 80)));
+client.on('ready', () => note('ready (linked)'));
+setInterval(async () => {
+  if (state === 'ready' || !client.pupPage) return;
+  try {
+    const text = await client.pupPage.evaluate(() =>
+      ((document.body && document.body.innerText) || '').replace(/\s+/g, ' ').slice(0, 400));
+    const clean = text.replace(/\d{5,}/g, '<n>');
+    if (clean && clean !== lastPageText) { lastPageText = clean; note('page: ' + clean); }
+  } catch (_) {}
+}, 4000).unref();
+
 function qrFresh() {
   return !!qrDataUri && Date.now() - qrCreatedAt <= QR_MAX_AGE_MS;
 }
