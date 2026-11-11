@@ -1,67 +1,253 @@
-.spad-wa-panel{color:#23405c;padding-bottom:38px;font-size:14px;font-weight:400}
-.spad-wa-panel *{box-sizing:border-box}
-.spad-wa-hero{background:linear-gradient(125deg,#052e52,#0d83bd);border-radius:20px;padding:34px 38px;color:#fff;margin:0 0 18px}
-.spad-wa-hero span{font-size:14px;color:#ccebf9}.spad-wa-hero h1{font-size:26px;color:#fff;font-weight:500;margin:12px 0}
-.spad-wa-hero p{font-size:14px;line-height:2;color:#e3eff7;max-width:780px}.spad-wa-hero a{color:#fff;text-decoration:underline}
-.spad-wa-warning,.spad-wa-alert,.spad-wa-success{border:1px solid #d6e6ef;background:#f3f8fc;padding:16px 20px;margin-bottom:18px;border-radius:12px;line-height:2}
-.spad-wa-alert{background:#fff2f2;color:#a32929}.spad-wa-success{background:#e9f9f2;color:#116a47}
-.spad-wa-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px;margin-bottom:20px}
-.spad-wa-card{background:#fff;border:1px solid #dce9f1;border-radius:16px;padding:23px;margin:0 0 18px;min-width:0}
-.spad-wa-grid .spad-wa-card{margin:0}
-.spad-wa-card h2{font-size:18px;font-weight:500;margin:0 0 18px;color:#164b75}
-.spad-wa-card p{font-size:13px;font-weight:400;line-height:1.9;color:#6e8698}
-.spad-wa-card label{font-size:13px;line-height:1.9;color:#365c77;display:block;margin-bottom:14px}
-.spad-wa-card input:not([type=checkbox]),.spad-wa-card textarea,.spad-wa-card select{width:100%;display:block;margin-top:7px;padding:12px 13px;border-radius:10px;border:1px solid #ccdfea;background:#f9fcfe;color:#193e59;font-family:inherit;font-weight:400}
-.spad-wa-card textarea{resize:vertical}
-.spad-wa-toggle{display:flex!important;align-items:flex-start;gap:9px}.spad-wa-toggle input{margin-top:7px;accent-color:#087db9}
-.spad-wa-panel button{border:0;background:#087db9;color:#fff;border-radius:9px;padding:11px 18px;cursor:pointer;font-size:13px}
-.spad-wa-panel button:disabled{opacity:.5;cursor:default}
-.spad-wa-actions{display:flex;flex-wrap:wrap;gap:10px;margin:13px 0}
-.spad-wa-panel button.spad-wa-secondary{background:#eaf3f8;color:#17628c}
-.spad-wa-preview{display:block;width:100%;max-height:560px;object-fit:contain;border:1px solid #dbe9f2;border-radius:12px;margin:12px 0}
-.spad-wa-footer{display:flex;align-items:center;flex-wrap:wrap;gap:16px;margin-bottom:22px}
-.spad-wa-footer span{font-size:12px;color:#7a93a5}
-.spad-wa-table-wrap{overflow-x:auto}
-.spad-wa-table-wrap table{width:100%;border-collapse:collapse;min-width:650px}
-.spad-wa-table-wrap th,.spad-wa-table-wrap td{text-align:right;padding:13px 10px;border-bottom:1px solid #ebf1f5;vertical-align:top;font-size:12px}
-.spad-wa-table-wrap small{display:block;color:#b34141;margin-top:8px;max-width:250px}
-@media(max-width:900px){.spad-wa-grid{grid-template-columns:1fr}.spad-wa-hero{padding:24px}.spad-wa-hero h1{font-size:22px}}
+// Personal WhatsApp banner sender. Palette taken from the SPAD banners
+// themselves: deep navy, ice blue and the gold trim as the single accent.
+.wa2{
+  --ink:#0f2f57;
+  --ink-2:#2c568b;
+  --ice:#eef4fa;
+  --line:#d9e4ef;
+  --muted:#5f7489;
+  --gold:#c9a14a;
+  --gold-ink:#5a4413;
+  --ok:#138a5b;
+  --bad:#b23b2e;
+  --warn:#a86512;
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.9;
+  max-width:1240px;
+  padding-bottom:40px;
+  *{box-sizing:border-box}
+  h1,h2,h3,p{margin:0}
+  button,input,select{font-family:inherit}
+  :focus-visible{outline:3px solid rgba(201,161,74,.75);outline-offset:2px}
+}
 
+// ---------- hero band (the one bold element) ----------
+.wa2-hero{
+  position:relative;
+  background:
+    radial-gradient(120% 140% at 100% 0%, #1d4a82 0%, rgba(29,74,130,0) 55%),
+    var(--ink);
+  color:#fff;
+  border-radius:18px;
+  padding:26px 30px 22px;
+  margin-bottom:22px;
+  box-shadow:inset 0 0 0 1px rgba(201,161,74,.32);
+}
+.wa2-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px}
+.wa2-title h1{font-size:26px;font-weight:700;line-height:1.5;color:#fff}
+.wa2-title p{font-size:14px;color:#c9d9ea;margin-top:4px}
 
-/* Opt-in private QR pairing panel; inherits the exact SPAD admin typography. */
-.spad-wa-personal-warning{
-  padding:12px 14px;border-radius:12px;
-  border:1px solid rgba(180,122,22,.35);
-  background:#fff7e8;color:#704a18;line-height:1.9;
+.wa2-pill{
+  display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
+  padding:6px 14px;border-radius:999px;font-size:13px;font-weight:500;
+  background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.14);
+  .wa2-dot{background:#9fb3c8}
+  &.is-ok .wa2-dot{background:#3ad48f;box-shadow:0 0 0 4px rgba(58,212,143,.18)}
+  &.is-warn .wa2-dot{background:#f0b54d}
+  &.is-bad .wa2-dot{background:#ff7a6b}
 }
-.spad-wa-personal-status{
-  padding:11px 14px;border-radius:12px;background:#e9f5ff;
-  border:1px solid #b3d8f5;color:#163758;
-  strong{font-weight:500;color:#065ba3;}
+.wa2-dot{display:inline-block;width:8px;height:8px;border-radius:50%;flex:none}
+
+// ---------- 24-hour strip ----------
+.wa2-strip{margin-bottom:20px}
+.wa2-hours,.wa2-fresh{
+  list-style:none;margin:0;padding:0;
+  display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:4px;
 }
-.spad-wa-personal-qr{
-  display:flex;flex-direction:column;align-items:center;gap:7px;
-  max-width:380px;margin:14px auto;padding:15px;
-  border:1px solid #c4daec;border-radius:18px;background:#fff;
-  box-shadow:0 8px 24px rgba(5,52,99,.11);
-  img{display:block;max-width:100%;width:300px;height:auto;image-rendering:auto;}
-  small{color:#516b84;text-align:center;font-size:12px;}
+.wa2-hours li{
+  position:relative;height:58px;border-radius:8px;
+  background:rgba(255,255,255,.05);
+  border-top:2px solid transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+  padding:6px 0 8px;
 }
-.spad-wa-personal-error{font-size:13px;color:#9b2828;background:#fff0f0;border-radius:10px;padding:10px 12px}
-.spad-wa-personal-ok{font-size:13px;color:#17643a;background:#ecfff2;border-radius:10px;padding:10px 12px}
-.spad-wa-personal-jobs{
-  padding:12px;background:#f4f8fc;border-radius:12px;
-  font-size:13px;line-height:1.85;
-  div{border-top:1px solid #d6e4f0;padding-top:5px;margin-top:5px;}
+.wa2-hours li.is-on{background:rgba(201,161,74,.2);border-top-color:var(--gold)}
+.wa2-hours li.is-now{box-shadow:0 0 0 2px #fff}
+.wa2-hour{font-size:12px;color:#9fb7cf;line-height:1}
+.wa2-hours li.is-on .wa2-hour{color:#fff}
+.wa2-marks{display:flex;gap:4px;align-items:center;min-height:8px}
+.wa2-mark-fx{display:inline-block;width:8px;height:8px;background:var(--gold);transform:rotate(45deg);border-radius:1px}
+.wa2-mark-prop{display:inline-block;width:8px;height:8px;background:#bcd8f4;border-radius:50%}
+.wa2-mark-fresh{display:inline-block;width:18px;height:3px;background:#6fb3ec;border-radius:2px}
+.wa2-fresh{margin-top:5px}
+.wa2-fresh li{height:3px;border-radius:2px}
+.wa2-fresh li.is-fresh{background:#6fb3ec}
+.wa2-legend{
+  display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;
+  font-size:12px;color:#b8cbe0;
+  span{display:inline-flex;align-items:center;gap:7px}
 }
-.spad-wa-hour-window{
-  display:grid;grid-template-columns:1fr 1fr;gap:0 12px;
-  padding:12px;margin-bottom:14px;background:#f4f8fc;border-radius:12px;
-  p{grid-column:1/-1;margin:0;font-size:12.5px;line-height:1.8;}
+
+.wa2-hero-foot{
+  display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;
+  padding-top:16px;border-top:1px solid rgba(255,255,255,.1);
 }
-.spad-wa-send-now{
-  margin-top:14px;padding:12px;border-radius:12px;background:#eef7fc;border:1px solid #cfe5f2;
-  button{margin-bottom:8px}
-  small{display:block;font-size:12.5px;line-height:1.8;color:#365c77}
-  p{margin:8px 0 0}
+.wa2-next{
+  display:flex;flex-direction:column;min-width:0;
+  strong{font-size:16px;font-weight:600;color:#fff}
+  span{font-size:13px;color:#c9d9ea}
+}
+.wa2-now{
+  display:flex;flex-direction:column;align-items:flex-start;gap:4px;
+  small{font-size:12px;color:#b8cbe0}
+}
+.wa2-hero .wa2-note{margin-top:14px;background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.14)}
+.wa2-hero .wa2-note.is-ok{background:rgba(58,212,143,.14);border-color:rgba(58,212,143,.35)}
+.wa2-hero .wa2-note.is-bad{background:rgba(255,122,107,.14);border-color:rgba(255,122,107,.4)}
+
+// ---------- buttons ----------
+.wa2-btn-gold,.wa2-btn-ink,.wa2-btn-quiet{
+  border-radius:11px;font-size:14px;font-weight:600;line-height:1.6;cursor:pointer;
+  padding:10px 20px;border:1px solid transparent;transition:background-color .15s,border-color .15s;
+  &:disabled{opacity:.5;cursor:not-allowed}
+}
+.wa2-btn-gold{background:var(--gold);color:#10243f;font-size:15px;padding:12px 26px;
+  &:hover:not(:disabled){background:#d8b35e}}
+.wa2-btn-ink{background:var(--ink);color:#fff;
+  &:hover:not(:disabled){background:#173f70}}
+.wa2-btn-quiet{background:#fff;color:var(--ink);border-color:#c6d5e4;
+  &:hover:not(:disabled){border-color:var(--ink-2)}}
+.wa2-link-btn{background:none;border:0;padding:0;color:var(--ink-2);font-size:13px;cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+
+// ---------- layout ----------
+.wa2-layout{
+  display:grid;gap:18px;
+  grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+  grid-template-areas:"schedule link" "preview history";
+  align-items:start;
+}
+.wa2-schedule{grid-area:schedule}
+.wa2-link{grid-area:link}
+.wa2-preview{grid-area:preview}
+.wa2-history{grid-area:history}
+
+.wa2-panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 24px;min-width:0}
+.wa2-panel h2{font-size:18px;font-weight:700;line-height:1.5;margin-bottom:16px}
+.wa2-panel h3{font-size:14px;font-weight:600;margin-bottom:10px}
+.wa2-link{background:var(--ice);border-color:#d3e1ee}
+.wa2-muted{color:var(--muted);font-size:13px}
+.wa2-small{font-size:12px;line-height:1.8}
+.wa2-fine{margin-top:16px}
+.wa2-page-note{margin-bottom:18px}
+
+// ---------- switches ----------
+.wa2-switches{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+.wa2-switch{
+  display:flex;align-items:flex-start;gap:12px;cursor:pointer;margin:0;
+  input{position:absolute;opacity:0;width:1px;height:1px}
+  &.is-disabled{cursor:not-allowed;opacity:.6}
+}
+.wa2-switch-track{
+  flex:none;width:42px;height:24px;border-radius:999px;background:#c3d0dd;position:relative;margin-top:3px;
+  transition:background-color .15s;
+  span{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 2px rgba(15,47,87,.3);transition:transform .15s}
+}
+.wa2-switch input:checked + .wa2-switch-track{background:var(--ink)}
+.wa2-switch input:checked + .wa2-switch-track span{transform:translateX(-18px)}
+.wa2-switch input:focus-visible + .wa2-switch-track{outline:3px solid rgba(201,161,74,.75);outline-offset:2px}
+.wa2-switch-text{
+  display:flex;flex-direction:column;
+  strong{font-size:14px;font-weight:600;color:var(--ink)}
+  small{font-size:12.5px;color:var(--muted);line-height:1.8}
+}
+
+// ---------- hour window ----------
+.wa2-window{
+  border:0;margin:0 0 20px;padding:16px 0 0;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;
+  legend{float:right;width:100%;font-size:14px;font-weight:600;margin-bottom:8px;padding:0}
+  label{display:inline-flex;align-items:center;gap:8px;margin:0;font-size:14px}
+  select{min-width:104px;padding:8px 10px;border-radius:10px;border:1px solid #c6d5e4;background:#fff;color:var(--ink);font-size:14px}
+  .wa2-small{flex-basis:100%}
+}
+
+// ---------- cities ----------
+.wa2-cities{padding-top:16px;border-top:1px solid var(--line);margin-bottom:20px}
+.wa2-cities ul{list-style:none;margin:0 0 12px;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.wa2-cities li{
+  display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 14px;
+  border-radius:999px;background:var(--ice);border:1px solid #cfdcea;font-size:13.5px;
+  button{width:24px;height:24px;border-radius:50%;border:0;background:transparent;color:var(--muted);
+    font-size:17px;line-height:1;cursor:pointer;
+    &:hover{background:#dbe6f1;color:var(--bad)}}
+}
+.wa2-add{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;
+  input{padding:8px 12px;border-radius:10px;border:1px solid #c6d5e4;background:#fff;color:var(--ink);font-size:14px;min-width:0}
+}
+
+.wa2-save{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding-top:16px;border-top:1px solid var(--line)}
+.wa2-inline{font-size:13px}
+.wa2-inline.is-ok{color:var(--ok)}
+.wa2-inline.is-bad{color:var(--bad)}
+
+// ---------- connection ----------
+.wa2-linked{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;margin-bottom:16px;
+  .wa2-dot{background:var(--ok);box-shadow:0 0 0 4px rgba(19,138,91,.15)}}
+.wa2-link .wa2-switch{margin-bottom:12px}
+.wa2-steps{margin:0 0 14px;padding:0 20px 0 0;font-size:13.5px;line-height:2;list-style:persian}
+.wa2-qr{
+  margin:16px 0 0;padding:14px;background:#fff;border-radius:12px;border:1px solid #d3e1ee;text-align:center;
+  img{width:100%;max-width:260px;height:auto;display:block;margin:0 auto}
+  figcaption{font-size:12px;color:var(--muted);margin-top:6px}
+}
+
+// ---------- notes ----------
+.wa2-note{margin-top:12px;padding:10px 14px;border-radius:10px;border:1px solid transparent;font-size:13.5px;line-height:1.9}
+.wa2-note.is-ok{background:#e8f6ef;color:#0f6b47;border-color:#c5e8d6}
+.wa2-note.is-bad{background:#fcefed;color:var(--bad);border-color:#f2cfc9}
+.wa2-note.is-info{background:#fff;color:var(--ink-2);border-color:#d3e1ee}
+
+// ---------- preview ----------
+.wa2-seg{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;
+  button{padding:6px 14px;border-radius:999px;border:1px solid #c6d5e4;background:#fff;color:var(--ink);font-size:13.5px;cursor:pointer;
+    &.is-on{background:var(--ink);border-color:var(--ink);color:#fff}}}
+.wa2-preview-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px}
+.wa2-poster{display:block;width:100%;max-width:440px;height:auto;margin-top:14px;border-radius:10px;border:1px solid var(--line)}
+.wa2-poster-empty{
+  margin-top:14px;max-width:300px;aspect-ratio:1122/1402;border-radius:10px;border:1px dashed #c6d5e4;
+  display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:13px;
+  background:repeating-linear-gradient(135deg,#f7fafd 0 12px,#fff 12px 24px);
+}
+
+// ---------- history ----------
+.wa2-history-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;h2{margin-bottom:10px}}
+.wa2-jobs{list-style:none;margin:0;padding:0;
+  li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;
+    padding:10px 0;border-bottom:1px solid #edf2f7;font-size:13.5px}
+  li:last-child{border-bottom:0}}
+.wa2-job-subject{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wa2-job-time{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.wa2-chip{font-size:12px;padding:2px 10px;border-radius:999px;white-space:nowrap;border:1px solid transparent}
+.wa2-chip.is-ok{background:#e8f6ef;color:#0f6b47}
+.wa2-chip.is-warn{background:#fdf3e2;color:var(--warn)}
+.wa2-chip.is-bad{background:#fcefed;color:var(--bad)}
+.wa2-chip.is-info{background:var(--ice);color:var(--ink-2)}
+.wa2-chip.is-mute{background:#f1f3f5;color:#6b7785}
+
+// ---------- responsive ----------
+@media (max-width:1100px){
+  .wa2-layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"schedule" "link" "preview" "history"}
+}
+@media (max-width:640px){
+  .wa2-hero{padding:20px 16px 18px;border-radius:14px}
+  .wa2-hero-top{flex-direction:column}
+  .wa2-title h1{font-size:21px}
+  .wa2-hours{gap:2px}
+  .wa2-hours li{height:44px;border-radius:5px;padding:5px 0 6px}
+  .wa2-hours li .wa2-hour{visibility:hidden}
+  .wa2-hours li:nth-child(3n+1) .wa2-hour{visibility:visible}
+  .wa2-fresh{gap:2px}
+  .wa2-marks{flex-direction:column;gap:3px}
+  .wa2-mark-fx,.wa2-mark-prop{width:6px;height:6px}
+  .wa2-panel{padding:18px 16px}
+  .wa2-add{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  .wa2-add button{grid-column:1/-1}
+  .wa2-jobs li{grid-template-columns:minmax(0,1fr) auto;
+    .wa2-job-time{grid-column:1;grid-row:2}}
+}
+@media (prefers-reduced-motion:reduce){
+  .wa2 *{transition:none!important}
 }

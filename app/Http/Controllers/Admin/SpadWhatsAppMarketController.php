@@ -24,61 +24,47 @@ class SpadWhatsAppMarketController extends Controller
     public function index(Request $request, SpadWhatsAppMarketPublisher $publisher)
     {
         $this->guard($request);
+        $settings = $publisher->settings();
         return response()->json([
-            'data' => $publisher->settings(),
-            'logs' => $publisher->logs(),
-            'notes' => [
-                'only_meta_official_groups' => true,
-                'requires_official_business_account' => true,
-                'channel_api_available' => false,
-                'max_group_members' => 8,
-                'timezone' => SpadWhatsAppMarketPublisher::ZONE,
+            'data' => [
+                'schedule' => $settings['schedule'],
+                'cities' => $settings['cities'],
+                'render_available' => $settings['render_available'],
             ],
+            'timezone' => SpadWhatsAppMarketPublisher::ZONE,
         ])->header('Cache-Control', 'private, no-store');
     }
 
-    public function save(Request $request, SpadWhatsAppMarketPublisher $publisher)
+    /** Personal-only panel: hourly schedule + cities. Meta group publishing stays off. */
+    public function saveSchedule(Request $request, SpadWhatsAppMarketPublisher $publisher)
     {
         $this->guard($request);
         $data = $request->validate([
-            'enabled' => ['required','boolean'],
-            'schedule' => ['required','array'],
-            'schedule.markets' => ['required','array','min:1','max:6'],
-            'schedule.markets.*' => ['required','string','regex:/^(?:[01]\d|2[0-3]):[0-5]\d$/D'],
-            'schedule.cities' => ['required','array','min:1','max:6'],
-            'schedule.cities.*' => ['required','string','regex:/^(?:[01]\d|2[0-3]):[0-5]\d$/D'],
-            'schedule.hourly_markets' => ['required','boolean'],
-            'schedule.hourly_cities' => ['sometimes','boolean'],
-            'schedule.hourly_from' => ['sometimes','integer','between:0,23'],
-            'schedule.hourly_to' => ['sometimes','integer','between:0,23'],
-            'cities' => ['required','array','min:1','max:30'],
+            'hourly_markets' => ['required','boolean'],
+            'hourly_cities' => ['required','boolean'],
+            'hourly_from' => ['required','integer','between:0,23'],
+            'hourly_to' => ['required','integer','between:0,23'],
+            'cities' => ['required','array','min:1','max:10'],
             'cities.*.province' => ['required','string','min:2','max:80'],
             'cities.*.city' => ['required','string','min:2','max:80'],
-            // Meta groups are optional (personal self-chat needs none); an empty list
-            // must not fail 'required'. Enabling Meta publishing still demands them.
-            'groups' => ['present','array','max:20'],
-            'groups.*' => ['required','string','min:3','max:250','regex:/^[A-Za-z0-9_:.\-=]+$/D'],
-            'phone_number_id' => ['nullable','string','regex:/^[0-9]{5,40}$/D'],
-            'access_token' => ['nullable','string','min:12','max:2048'],
-            'clear_token' => ['sometimes','boolean'],
-            'official_groups_acknowledged' => ['sometimes','boolean'],
+        ], [
+            'cities.required' => 'حداقل یک شهر برای بنر قیمت ملک لازم است.',
+            'cities.min' => 'حداقل یک شهر برای بنر قیمت ملک لازم است.',
+            'cities.max' => 'حداکثر ۱۰ شهر را می‌توان اضافه کرد.',
+            'cities.*.province.min' => 'نام استان کوتاه است.',
+            'cities.*.city.min' => 'نام شهر کوتاه است.',
         ]);
-        $data['schedule'] = array_merge(SpadWhatsAppMarketPublisher::DEFAULT_SCHEDULE, $data['schedule']);
-        $data['schedule']['hourly_markets'] = (bool) $data['schedule']['hourly_markets'];
-        $data['schedule']['hourly_cities'] = (bool) $data['schedule']['hourly_cities'];
-        $data['schedule']['hourly_from'] = (int) $data['schedule']['hourly_from'];
-        $data['schedule']['hourly_to'] = (int) $data['schedule']['hourly_to'];
-        $data['schedule']['markets'] = array_values(array_unique($data['schedule']['markets']));
-        $data['schedule']['cities'] = array_values(array_unique($data['schedule']['cities']));
-        $data['cities'] = array_values(array_unique($data['cities'], SORT_REGULAR));
-        try {
-            $publisher->save($data);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
+        $cities = [];
+        foreach ($data['cities'] as $c) {
+            $key = trim($c['province']) . '|' . trim($c['city']);
+            $cities[$key] = ['province' => trim($c['province']), 'city' => trim($c['city'])];
         }
+        $publisher->saveSchedule($data, array_values($cities));
+        $settings = $publisher->settings();
         return response()->json([
-            'status' => true, 'data' => $publisher->settings(),
-            'message' => 'تنظیمات انتشار اسپاد ثبت شد.',
+            'status' => true,
+            'data' => ['schedule' => $settings['schedule'], 'cities' => $settings['cities']],
+            'message' => 'زمان‌بندی ذخیره شد.',
         ])->header('Cache-Control', 'private, no-store');
     }
 
@@ -120,26 +106,6 @@ class SpadWhatsAppMarketController extends Controller
             ]);
             return response()->json(['message' => $friendly, 'code' => $code], 503)
                 ->header('Cache-Control', 'no-store');
-        }
-    }
-
-    public function runNow(Request $request, SpadWhatsAppMarketPublisher $publisher)
-    {
-        $this->guard($request);
-        $data = $request->validate([
-            'kind' => ['required','in:market,city'],
-            'province' => ['required_if:kind,city','nullable','string','max:80'],
-            'city' => ['required_if:kind,city','nullable','string','max:80'],
-            'confirmed' => ['required','accepted'],
-        ]);
-        try {
-            $result = $publisher->runNow($data['kind'], $data['province'] ?? null, $data['city'] ?? null);
-            return response()->json(['status' => true, 'data' => $result,
-                'message' => 'فرآیند ارسال اجرا شد؛ وضعیت پذیرش هر گروه در گزارش‌ها مشخص می‌شود.']);
-        } catch (RuntimeException $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        } catch (\Throwable $e) {
-            return response()->json(['message' => 'ارسال ناموفق بود؛ گزارش‌ها و دسترسی سرویس را بررسی کنید.'], 503);
         }
     }
 }
