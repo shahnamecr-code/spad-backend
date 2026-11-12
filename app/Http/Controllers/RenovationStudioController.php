@@ -228,10 +228,25 @@ class RenovationStudioController extends Controller
         $path = $this->scenePanoramaPath($tour, (string) $sceneKey);
         abort_unless($path, 404, 'تصویر این فضا یافت نشد.');
 
-        $lock = Cache::lock('spad:reno-studio:analyze:' . $tourId . ':' . $sceneKey, 150);
+        @set_time_limit(320);
+        $lock = Cache::lock('spad:reno-studio:analyze:' . $tourId . ':' . $sceneKey, 330);
         abort_unless($lock->get(), 409, 'تحلیل این فضا در حال انجام است؛ چند لحظه بعد دوباره امتحان کنید.');
         try {
-            $result = (new RoomLayoutAnalyzer())->analyze((string) $this->disk()->get($path));
+            // The rooms before and after this one in the tour give context (shared walls, the kitchen seen from the hall...).
+            $scenes = $this->scenesOf($tour);
+            $keys = array_column($scenes, 'key');
+            $at = array_search((string) $sceneKey, $keys, true);
+            $neighbours = [];
+            $name = '';
+            if ($at !== false) {
+                $name = (string) ($scenes[$at]['name'] ?? '');
+                foreach ([$at - 1, $at + 1] as $j) {
+                    if (!isset($scenes[$j])) continue;
+                    $np = $this->scenePanoramaPath($tour, (string) $scenes[$j]['key']);
+                    if ($np) $neighbours[] = ['name' => (string) ($scenes[$j]['name'] ?? ''), 'bytes' => (string) $this->disk()->get($np)];
+                }
+            }
+            $result = (new RoomLayoutAnalyzer())->analyze((string) $this->disk()->get($path), $neighbours, $name);
             DB::table('spad_renovation_layouts')->updateOrInsert(
                 ['tour_id' => (int) $tourId, 'scene_key' => $sceneKey, 'source' => 'claude'],
                 ['layout' => json_encode($result['layout'], JSON_UNESCAPED_UNICODE), 'model' => $result['model'],
