@@ -53,24 +53,54 @@ final class RoomLayoutAnalyzer
         ];
     }
 
-    /** @return array{layout: array, model: string} */
-    public function analyze(string $imageBytes): array
+    /**
+     * Two passes. 1) The whole panorama (plus the neighbouring rooms of the same
+     * tour as context) gives the room outline, every element and free spots.
+     * 2) Close-ups of the original panorama around each corner and each key
+     * element, with a fine grid and the first estimate marked, are sent back so
+     * the positions can be corrected to the exact edges.
+     *
+     * @param array<int, array{name: string, bytes: string}> $neighbours
+     * @return array{layout: array, model: string}
+     */
+    public function analyze(string $imageBytes, array $neighbours = [], string $roomName = ''): array
     {
-        $jpeg = $this->prepare($imageBytes);
         $model = (string) config('spad-claude.model', 'claude-opus-5-5');
+        $content = [self::image($this->prepare($imageBytes))];
+        foreach (array_slice($neighbours, 0, 2) as $i => $nb) {
+            try {
+                $content[] = ['type' => 'text', 'text' => 'Image ' . ($i + 2) . ': the neighbouring space "' . mb_substr($nb['name'], 0, 40) . '" of the same home (another tour stop), for context only — shared walls, doors and the kitchen or windows seen from another angle.'];
+                $content[] = self::image($this->thumb($nb['bytes']));
+            } catch (\Throwable $e) {
+                // context is optional
+            }
+        }
+        $content[] = ['type' => 'text', 'text' => self::prompt() . ($roomName !== '' ? "\nThe tour calls this space: " . mb_substr($roomName, 0, 40) . '.' : '')
+            . (count($content) > 1 ? "\nReport geometry and elements for image 1 only." : '')];
+        $data = $this->ask($model, $content, 6000);
+        $layout = self::normalize($data);
+        try {
+            $layout = $this->refine($model, $imageBytes, $layout);
+        } catch (\Throwable $e) {
+            // keep the first pass
+        }
+        return ['layout' => $layout, 'model' => $model];
+    }
+
+    private static function image(string $jpeg): array
+    {
+        return ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => 'image/jpeg', 'data' => base64_encode($jpeg)]];
+    }
+
+    private function ask(string $model, array $content, int $maxTokens): array
+    {
         $reply = Http::withHeaders([
             'x-api-key' => (string) config('spad-claude.key'),
             'anthropic-version' => '2023-06-01',
-        ])->acceptJson()->timeout(120)->connectTimeout(15)->post((string) config('spad-claude.endpoint'), [
+        ])->acceptJson()->timeout(150)->connectTimeout(15)->post((string) config('spad-claude.endpoint'), [
             'model' => $model,
-            'max_tokens' => 6000,
-            'messages' => [[
-                'role' => 'user',
-                'content' => [
-                    ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => 'image/jpeg', 'data' => base64_encode($jpeg)]],
-                    ['type' => 'text', 'text' => self::prompt()],
-                ],
-            ]],
+            'max_tokens' => $maxTokens,
+            'messages' => [['role' => 'user', 'content' => $content]],
         ]);
         if (!$reply->successful()) {
             throw new \RuntimeException('claude-http-' . $reply->status());
@@ -84,7 +114,159 @@ final class RoomLayoutAnalyzer
         if ($start === false || $end === false || $end <= $start) throw new \RuntimeException('claude-no-json');
         $data = json_decode(substr($text, $start, $end - $start + 1), true);
         if (!is_array($data)) throw new \RuntimeException('claude-bad-json');
-        return ['layout' => self::normalize($data), 'model' => $model];
+        return $data;
+    }
+
+    /** Elements whose exact edges matter most when a catalog item replaces them. */
+    private const REFINE_KINDS = ['window', 'curtain', 'blind', 'door', 'hob', 'hood', 'sink', 'oven', 'chandelier', 'cabinet_lower', 'cabinet_upper', 'countertop'];
+
+    /** Second pass: close-ups of the original panorama around every corner and key element. */
+    public function refine(string $model, string $imageBytes, array $layout): array
+    {
+        $crops = $this->closeUps($imageBytes, $layout);
+        if (!$crops['images']) return $layout;
+        $content = [];
+        foreach ($crops['images'] as $c) {
+            $content[] = ['type' => 'text', 'text' => $c['label']];
+            $content[] = self::image($c['jpeg']);
+        }
+        $content[] = ['type' => 'text', 'text' => self::refinePrompt()];
+        $fix = $this->ask($model, $content, 4000);
+
+        $corners = $layout['corners'];
+        foreach ((array) ($fix['corners'] ?? []) as $c) {
+            $i = (int) ($c['i'] ?? -1);
+            if (!isset($corners[$i])) continue;
+            if (!empty($c['drop'])) { $corners[$i]['drop'] = true; continue; }
+            foreach (['u' => 'u', 'v_floor' => 'vf', 'v_ceiling' => 'vc'] as $from => $to) {
+                if (isset($c[$from]) && is_numeric($c[$from]) && abs((float) $c[$from] - $corners[$i][$to]) < 0.06) $corners[$i][$to] = (float) $c[$from];
+            }
+        }
+        $elements = $layout['elements'];
+        foreach ((array) ($fix['elements'] ?? []) as $e) {
+            $i = (int) ($e['i'] ?? -1);
+            if (!isset($elements[$i])) continue;
+            foreach (['u0', 'u1', 'v0', 'v1'] as $k) {
+                if (isset($e[$k]) && is_numeric($e[$k]) && abs((float) $e[$k] - $elements[$i][$k]) < 0.08) $elements[$i][$k] = (float) $e[$k];
+            }
+        }
+        $data = $layout;
+        $data['corners'] = array_values(array_map(fn ($c) => ['u' => $c['u'], 'v_floor' => $c['vf'], 'v_ceiling' => $c['vc']],
+            array_filter($corners, fn ($c) => empty($c['drop']))));
+        $data['elements'] = $elements;
+        $out = self::normalize($data);
+        $out['refined'] = true;
+        return $out;
+    }
+
+    /** @return array{images: array<int, array{label: string, jpeg: string}>} */
+    public function closeUps(string $bytes, array $layout): array
+    {
+        $previous = ini_get('memory_limit');
+        @ini_set('memory_limit', '1024M');
+        try {
+            $src = @imagecreatefromstring($bytes);
+            if (!$src) throw new \RuntimeException('pano-unreadable');
+            $images = [];
+            foreach ($layout['corners'] as $i => $c) {
+                $images[] = ['label' => "Corner close-up C{$i} (first estimate u={$c['u']}, v_floor={$c['vf']}, v_ceiling={$c['vc']}, marked with cyan dots):",
+                    'jpeg' => $this->crop($src, $c['u'] - 0.05, $c['u'] + 0.05, 0.08, 0.92, 360, 1100, [[$c['u'], $c['vf']], [$c['u'], $c['vc']]], null)];
+            }
+            $n = 0;
+            foreach ($layout['elements'] as $i => $e) {
+                if ($n >= 10 || !in_array($e['kind'], self::REFINE_KINDS, true)) continue;
+                $span = $e['u0'] <= $e['u1'] ? $e['u1'] - $e['u0'] : 1 - $e['u0'] + $e['u1'];
+                $mu = max(0.03, $span * 0.5);
+                $mv = max(0.04, ($e['v1'] - $e['v0']) * 0.5);
+                $images[] = ['label' => "Element close-up E{$i} ({$e['kind']}, first estimate u0={$e['u0']} u1={$e['u1']} v0={$e['v0']} v1={$e['v1']}, cyan rectangle):",
+                    'jpeg' => $this->crop($src, $e['u0'] - $mu, $e['u0'] + $span + $mu, max(0.0, $e['v0'] - $mv), min(1.0, $e['v1'] + $mv), 900, 700, [], [$e['u0'], $e['u0'] + $span, $e['v0'], $e['v1']])];
+                $n++;
+            }
+            imagedestroy($src);
+            return ['images' => $images];
+        } finally {
+            @ini_set('memory_limit', (string) $previous);
+        }
+    }
+
+    /** A region of the equirectangular image (u may wrap), scaled to fit, with a 0.01 grid and the estimate drawn on it. */
+    private function crop($src, float $u0, float $u1, float $v0, float $v1, int $maxW, int $maxH, array $dots, ?array $rect): string
+    {
+        $W = imagesx($src); $H = imagesy($src);
+        $sw = ($u1 - $u0) * $W; $sh = ($v1 - $v0) * $H;
+        $k = min($maxW / $sw, $maxH / $sh, 1.6);
+        $dw = max(60, (int) round($sw * $k)); $dh = max(60, (int) round($sh * $k));
+        $img = imagecreatetruecolor($dw, $dh);
+        // copy, splitting where the panorama wraps around
+        $x = $u0 * $W; $done = 0.0;
+        while ($done < $sw - 0.5) {
+            $sx = fmod(fmod($x + $done, $W) + $W, $W);
+            $len = min($sw - $done, $W - $sx);
+            imagecopyresampled($img, $src, (int) round($done * $k), 0, (int) $sx, (int) round($v0 * $H), (int) ceil($len * $k), $dh, (int) ceil($len), (int) round($sh));
+            $done += $len;
+        }
+        $minor = imagecolorallocatealpha($img, 255, 214, 0, 80);
+        $major = imagecolorallocatealpha($img, 255, 64, 64, 45);
+        $ink = imagecolorallocate($img, 255, 255, 255);
+        $shadow = imagecolorallocate($img, 0, 0, 0);
+        $cyan = imagecolorallocate($img, 0, 235, 255);
+        $px = fn ($u) => (int) round(($u - $u0) / ($u1 - $u0) * $dw);
+        $py = fn ($v) => (int) round(($v - $v0) / ($v1 - $v0) * $dh);
+        for ($g = ceil($u0 * 100); $g <= floor($u1 * 100); $g++) {
+            $X = $px($g / 100);
+            imageline($img, $X, 0, $X, $dh, $g % 5 ? $minor : $major);
+            if ($g % 2 === 0 || ($u1 - $u0) < 0.12) {
+                $label = number_format(fmod($g / 100 + 1, 1.0), 2);
+                imagestring($img, 2, $X + 3, 3, $label, $shadow); imagestring($img, 2, $X + 2, 2, $label, $ink);
+            }
+        }
+        for ($g = ceil($v0 * 100); $g <= floor($v1 * 100); $g++) {
+            $Y = $py($g / 100);
+            imageline($img, 0, $Y, $dw, $Y, $g % 5 ? $minor : $major);
+            if ($g % 2 === 0) {
+                $label = 'v' . number_format($g / 100, 2);
+                imagestring($img, 2, 3, $Y + 2, $label, $shadow); imagestring($img, 2, 2, $Y + 1, $label, $ink);
+            }
+        }
+        foreach ($dots as [$u, $v]) {
+            imageellipse($img, $px($u), $py($v), 14, 14, $cyan);
+            imageellipse($img, $px($u), $py($v), 15, 15, $cyan);
+        }
+        if ($rect) {
+            imagesetthickness($img, 2);
+            imagerectangle($img, $px($rect[0]), $py($rect[2]), $px($rect[1]), $py($rect[3]), $cyan);
+        }
+        ob_start();
+        imagejpeg($img, null, 86);
+        $out = (string) ob_get_clean();
+        imagedestroy($img);
+        return $out;
+    }
+
+    /** Small context image of a neighbouring room. */
+    private function thumb(string $bytes): string
+    {
+        $src = @imagecreatefromstring($bytes);
+        if (!$src) throw new \RuntimeException('pano-unreadable');
+        $img = imagecreatetruecolor(1200, 600);
+        imagecopyresampled($img, $src, 0, 0, 0, 0, 1200, 600, imagesx($src), imagesy($src));
+        imagedestroy($src);
+        ob_start();
+        imagejpeg($img, null, 78);
+        $out = (string) ob_get_clean();
+        imagedestroy($img);
+        return $out;
+    }
+
+    private static function refinePrompt(): string
+    {
+        return <<<'TXT'
+These are close-ups of the same 360° equirectangular panorama, at full resolution, with a fine grid every 0.01 in u (horizontal) and v (vertical); grid labels give the absolute panorama coordinates. Each close-up shows a first estimate:
+- Corner close-ups C<i>: two cyan circles mark where the vertical wall corner was thought to meet the floor (lower) and the ceiling (upper). Move them exactly onto the real corner: u is the vertical corner edge; v_floor is where that edge meets the floor (or the skirting bottom); v_ceiling is where it meets the ceiling (below any cornice or cove the wall ends at). If the edge is hidden by furniture or cabinets, extend the visible floor and ceiling lines. If this is not a real wall corner (for example a door frame or furniture edge), answer drop: true.
+- Element close-ups E<i>: the cyan rectangle is the estimated box; give the tight box around the element itself (for a curtain the whole fabric from rail to hem, for a hob or sink its outline on the counter, for cabinets the fronts).
+Read the values against the grid labels to 0.005 where you can. Reply with JSON only:
+{"corners":[{"i":0,"u":0.123,"v_floor":0.712,"v_ceiling":0.301}],"elements":[{"i":3,"u0":0.41,"u1":0.47,"v0":0.36,"v1":0.62}]}
+TXT;
     }
 
     /** Downscale to 2400x1200 and draw a labelled u/v grid so positions can be read precisely. */
