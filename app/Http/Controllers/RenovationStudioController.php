@@ -218,8 +218,10 @@ class RenovationStudioController extends Controller
         abort_unless(RoomLayoutAnalyzer::configured(), 503, 'تحلیل خودکار اتاق هنوز فعال نشده است؛ گوشه‌های دیوار را خودتان تنظیم کنید.');
         $existing = DB::table('spad_renovation_layouts')->where('tour_id', (int) $tourId)
             ->where('scene_key', $sceneKey)->where('source', 'claude')->first();
-        if ($existing) {
-            return response()->json(['data' => ['layout' => json_decode($existing->layout, true), 'source' => 'claude', 'analysis' => true]]);
+        // Layouts from the first version (walls only, no elements) are analysed again once.
+        $old = $existing ? json_decode($existing->layout, true) : null;
+        if ($old && (int) ($old['schema'] ?? 1) >= 2) {
+            return response()->json(['data' => ['layout' => $old, 'source' => 'claude', 'analysis' => true]]);
         }
         $tour = $this->publishedTours()->firstWhere('id', (int) $tourId);
         abort_unless($tour, 404, 'تور یافت نشد.');

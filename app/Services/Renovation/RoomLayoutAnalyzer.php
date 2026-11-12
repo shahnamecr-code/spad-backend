@@ -8,15 +8,32 @@ use Illuminate\Support\Facades\Http;
  * Reads one equirectangular 360° room panorama with the Claude API and returns
  * the room's layout in image coordinates (u: 0..1 left→right, v: 0..1
  * top→bottom): wall corners where they meet the floor and the ceiling, the
- * ceiling height, and boxes for windows, doors, radiators, cabinets, etc.
- * Claude only reads the image; nothing is generated. The studio turns the
- * layout into a 3D room so materials can be previewed on the real photo.
+ * ceiling height, every recognisable element (windows, curtains, doors,
+ * cabinets, hob, hood, sink, lights, furniture...) as a box, and where new
+ * items would best go. Claude only reads the image; nothing is generated. The
+ * studio turns this into a 3D room: materials are laid on the real photo and
+ * catalog items replace the detected elements or go to the suggested spots.
  */
 final class RoomLayoutAnalyzer
 {
     public const KINDS = ['window', 'door', 'opening', 'radiator', 'fireplace', 'appliance', 'furniture', 'stairs', 'column', 'other'];
     public const ROOMS = ['living', 'kitchen', 'bedroom', 'bathroom', 'hall', 'entrance', 'balcony', 'other'];
     public const FLOORS = ['ceramic', 'stone', 'parquet', 'laminate', 'carpet', 'mosaic', 'concrete', 'other'];
+    /** Element kinds Claude may report; the studio knows how to replace most of them. */
+    public const ELEMENTS = [
+        'window', 'door', 'opening', 'curtain', 'blind', 'radiator', 'fireplace', 'stairs', 'column',
+        'cabinet_upper', 'cabinet_lower', 'cabinet_tall', 'countertop', 'hob', 'hood', 'oven', 'sink', 'fridge',
+        'chandelier', 'ceiling_light', 'sconce', 'sofa', 'armchair', 'table', 'bed', 'tv', 'rug', 'plant',
+        'wardrobe', 'toilet', 'vanity', 'shower', 'bathtub', 'mirror', 'appliance', 'furniture', 'other',
+    ];
+    /** Items Claude may suggest a free spot for. */
+    public const SUGGEST = ['chandelier', 'sofa', 'tv', 'table', 'rug', 'plant', 'sconce', 'hob', 'hood', 'sink', 'oven', 'vanity', 'toilet', 'shower'];
+    /** How each element kind maps to the older exclusion list (kept for saved designs and the admin). */
+    private const LEGACY = [
+        'window' => 'window', 'door' => 'door', 'opening' => 'opening', 'radiator' => 'radiator', 'fireplace' => 'fireplace',
+        'stairs' => 'stairs', 'column' => 'column', 'hob' => 'appliance', 'hood' => 'appliance', 'oven' => 'appliance',
+        'sink' => 'appliance', 'fridge' => 'appliance', 'appliance' => 'appliance',
+    ];
 
     public static function configured(): bool
     {
@@ -32,7 +49,7 @@ final class RoomLayoutAnalyzer
                 ['u' => 0.125, 'vf' => 0.70, 'vc' => 0.30], ['u' => 0.375, 'vf' => 0.70, 'vc' => 0.30],
                 ['u' => 0.625, 'vf' => 0.70, 'vc' => 0.30], ['u' => 0.875, 'vf' => 0.70, 'vc' => 0.30],
             ],
-            'exclusions' => [], 'cabinets' => [], 'floor_material' => 'other', 'confidence' => 0,
+            'exclusions' => [], 'cabinets' => [], 'elements' => [], 'suggest' => [], 'floor_material' => 'other', 'confidence' => 0,
         ];
     }
 
@@ -46,7 +63,7 @@ final class RoomLayoutAnalyzer
             'anthropic-version' => '2023-06-01',
         ])->acceptJson()->timeout(120)->connectTimeout(15)->post((string) config('spad-claude.endpoint'), [
             'model' => $model,
-            'max_tokens' => 3000,
+            'max_tokens' => 6000,
             'messages' => [[
                 'role' => 'user',
                 'content' => [
@@ -117,18 +134,24 @@ final class RoomLayoutAnalyzer
     private static function prompt(): string
     {
         return <<<'TXT'
-You are measuring a room for an interior-renovation preview tool.
+You are the vision engine of an interior-renovation studio. A user will repaint walls, change floors and cabinets, and replace or add curtains, appliances, lights and furniture on this photo, so you must find the room's geometry and every element precisely.
 
-The image is a full equirectangular 360° panorama (2:1) of one room in an Iranian apartment, shot from a tripod at roughly 1.5 m height. A labelled grid is drawn on it: vertical lines mark u from 0 (left edge) to 1 (right edge) every 0.05; horizontal lines mark v from 0 (top) to 1 (bottom) every 0.05. The left and right edges are the same direction (the image wraps around).
+The image is a full equirectangular 360° panorama (2:1) of one room in an Iranian home, shot from a tripod at roughly 1.5 m height. A labelled grid is drawn on it: vertical lines mark u from 0 (left edge) to 1 (right edge) every 0.05; horizontal lines mark v from 0 (top) to 1 (bottom) every 0.05. The horizon is v=0.5. The left and right edges are the same direction (the image wraps around). Straight vertical edges stay vertical in this projection; horizontal edges become curves.
 
-Find the room's structural layout, reading positions against the grid as precisely as you can (two decimals or better):
-1. Every vertical wall corner of the room, ordered by increasing u, all the way around 360°. For each corner give u, v_floor (where the corner meets the floor, below the horizon v=0.5) and v_ceiling (where it meets the ceiling, above the horizon). For a simple rectangular room there are 4 corners. For an L-shaped or open-plan space give the main corners of the space that surrounds the camera (at most 10). If a corner is hidden behind furniture, estimate it from the floor-wall and ceiling-wall lines.
-2. Rectangular boxes (u0, u1, v0, v1) for things that are not plain wall/floor/ceiling surface: windows, doors and openings, radiators, fireplace, appliances, built-in or loose furniture, stairs, columns. Use u0 > u1 only if a box crosses the left/right edge.
-3. Kitchen cabinet fronts as separate boxes (upper, lower, tall), if any.
-4. Estimated floor-to-ceiling height in metres, the room type, a short Persian room name, and the current floor material.
+Read every position against the grid as precisely as you can (two decimals, three where it matters):
+1. corners: every vertical wall corner around the camera, ordered by increasing u, all the way around 360°. For each give u, v_floor (where the corner meets the floor, below the horizon) and v_ceiling (where it meets the ceiling, above the horizon). A simple rectangular room has 4. For an L-shaped or open-plan space give the main corners of the space around the camera (at most 10). If a corner is hidden behind furniture or cabinets, estimate it from the floor-wall and ceiling-wall lines and keep it consistent with the counter (0.9 m) and ceiling heights. Two neighbouring corners are always less than 0.5 apart in u (the camera is inside the room); in a corner hidden behind a tall unit, still report it.
+2. elements: a tight box (u0, u1, v0, v1) around every visible element of these kinds:
+   window, door (the door leaf and frame), opening (doorless passage), curtain (each curtain or sheer panel; report the whole hanging fabric from rail to hem), blind (roller or zebra blind), radiator, fireplace, stairs, column,
+   cabinet_upper, cabinet_lower, cabinet_tall (kitchen cabinet fronts, one box per continuous run), countertop (the worktop strip), hob, hood, oven, sink, fridge,
+   chandelier, ceiling_light, sconce, sofa, armchair, table, bed, tv, rug, plant, wardrobe, toilet, vanity, shower, bathtub, mirror,
+   appliance or furniture (anything else of that sort), other.
+   Use u0 > u1 only if a box crosses the left/right edge. Do not merge separate windows or separate curtains.
+3. suggest: where a new item would best go in this room if the user adds one, for items the room does not already have and that make sense in it. Choose free spots that do not overlap existing furniture, windows or doors:
+   chandelier (centre of the ceiling or above the dining/sitting area; give a small box around that ceiling point), sofa (box on the floor against a free wall, from the floor contact to the top of a 0.85 m back), tv (box on a free wall facing the sitting area, about 1.1 to 1.9 m above the floor), table (dining table footprint up to 0.75 m high), rug (floor box in the sitting area), plant (a free corner), sconce (wall point beside a mirror, bed or tv), and for kitchens without them: hob, hood, sink, oven (on or above the lower cabinet run); for bathrooms: vanity, toilet, shower.
+4. ceiling height in metres, room type, a short Persian room name and the current floor material.
 
 Reply with JSON only, no prose:
-{"room_type":"living|kitchen|bedroom|bathroom|hall|entrance|balcony|other","name_fa":"...","ceiling_height_m":2.9,"floor_material":"ceramic|stone|parquet|laminate|carpet|mosaic|concrete|other","corners":[{"u":0.12,"v_floor":0.71,"v_ceiling":0.29}],"exclusions":[{"kind":"window|door|opening|radiator|fireplace|appliance|furniture|stairs|column|other","u0":0.4,"u1":0.48,"v0":0.35,"v1":0.55}],"cabinets":[{"kind":"upper|lower|tall","u0":0.6,"u1":0.7,"v0":0.3,"v1":0.42}],"confidence":0.8}
+{"room_type":"living|kitchen|bedroom|bathroom|hall|entrance|balcony|other","name_fa":"...","ceiling_height_m":2.9,"floor_material":"ceramic|stone|parquet|laminate|carpet|mosaic|concrete|other","corners":[{"u":0.12,"v_floor":0.71,"v_ceiling":0.29}],"elements":[{"kind":"curtain","u0":0.40,"u1":0.47,"v0":0.31,"v1":0.66}],"suggest":[{"for":"chandelier","u0":0.49,"u1":0.51,"v0":0.10,"v1":0.12}],"confidence":0.8}
 TXT;
     }
 
@@ -154,6 +177,11 @@ TXT;
         if (count($clean) < 3) {
             throw new \RuntimeException('layout-too-few-corners');
         }
+        // The camera must be inside the room: no wall may span half the panorama or more.
+        foreach ($clean as $i => $c) {
+            $next = $clean[($i + 1) % count($clean)]['u'];
+            if (fmod($next - $c['u'] + 1, 1.0) >= 0.49) throw new \RuntimeException('layout-wall-too-wide');
+        }
         $boxes = function ($list, array $kinds, int $max) use ($f) {
             $out = [];
             foreach (array_slice((array) $list, 0, $max) as $b) {
@@ -168,14 +196,40 @@ TXT;
             }
             return $out;
         };
+        // New schema: one element list. Older replies (and admin layouts) used exclusions + cabinets.
+        $elements = $boxes($d['elements'] ?? [], self::ELEMENTS, 48);
+        if (!$elements) {
+            foreach ($boxes($d['exclusions'] ?? [], self::KINDS, 24) as $b) $elements[] = $b;
+            foreach ($boxes($d['cabinets'] ?? [], ['upper', 'lower', 'tall'], 6) as $b) $elements[] = ['kind' => 'cabinet_' . $b['kind']] + $b;
+        }
+        $suggest = [];
+        foreach (array_slice((array) ($d['suggest'] ?? []), 0, 16) as $g) {
+            if (!is_array($g) || !in_array($g['for'] ?? '', self::SUGGEST, true)) continue;
+            $one = $boxes([['kind' => 'other'] + $g], ['other'], 1);
+            if ($one) $suggest[] = ['for' => $g['for']] + array_diff_key($one[0], ['kind' => 1]);
+        }
+        $exclusions = [];
+        $cabinets = [];
+        foreach ($elements as $e) {
+            if (strncmp($e['kind'], 'cabinet_', 8) === 0) {
+                if (count($cabinets) < 6) $cabinets[] = ['kind' => substr($e['kind'], 8)] + array_diff_key($e, ['kind' => 1]);
+                continue;
+            }
+            if ($e['kind'] === 'rug') continue;
+            $kind = self::LEGACY[$e['kind']] ?? (in_array($e['kind'], ['curtain', 'blind', 'chandelier', 'ceiling_light', 'sconce', 'countertop', 'mirror', 'other'], true) ? 'other' : 'furniture');
+            if (count($exclusions) < 24) $exclusions[] = ['kind' => $kind] + array_diff_key($e, ['kind' => 1]);
+        }
         return [
             'room_type' => in_array($d['room_type'] ?? '', self::ROOMS, true) ? $d['room_type'] : 'other',
             'name_fa' => mb_substr(trim((string) ($d['name_fa'] ?? '')), 0, 40),
             'ceiling_height_m' => round($f($d['ceiling_height_m'] ?? null, 2.3, 4.5, 2.9), 2),
             'floor_material' => in_array($d['floor_material'] ?? '', self::FLOORS, true) ? $d['floor_material'] : 'other',
             'corners' => $clean,
-            'exclusions' => $boxes($d['exclusions'] ?? [], self::KINDS, 24),
-            'cabinets' => $boxes($d['cabinets'] ?? [], ['upper', 'lower', 'tall'], 6),
+            'exclusions' => $exclusions,
+            'cabinets' => $cabinets,
+            'elements' => $elements,
+            'suggest' => $suggest,
+            'schema' => 2,
             'confidence' => round($f($d['confidence'] ?? null, 0, 1, 0.5), 2),
         ];
     }
