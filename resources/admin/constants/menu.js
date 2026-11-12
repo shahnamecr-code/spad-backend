@@ -357,6 +357,13 @@ const data = [
     // ],
   },
   {
+    id: "mobile-app",
+    icon: "simple-icon-screen-smartphone",
+    label: "تنظیمات اپلیکیشن",
+    to: `${adminRoot}/mobile-app`,
+    roles: [UserRole.Admin],
+  },
+  {
     id: "ai-assistant",
     icon: "simple-icon-bubbles",
     label: "دستیار هوشمند ملکی",

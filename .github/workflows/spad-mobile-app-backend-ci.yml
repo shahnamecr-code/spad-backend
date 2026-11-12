@@ -1,0 +1,101 @@
+name: SPAD Mobile App - Backend Checks
+
+# Tests the app settings and notification endpoints and builds the admin panel
+# with the «تنظیمات اپلیکیشن» page. Read-only: it never deploys anything.
+on:
+  push:
+    branches: [claude/mobile-app-settings-notifications]
+  pull_request:
+    paths:
+      - 'app/Http/Controllers/SpadMobileAppController.php'
+      - 'app/Http/Controllers/Admin/SpadMobileAppController.php'
+      - 'app/Models/SpadApp*.php'
+      - 'app/Services/SpadMobileAppSettings.php'
+      - 'database/migrations/2026_11_13_000000_create_spad_mobile_app.php'
+      - 'routes/**'
+      - 'resources/admin/views/app/mobile-app/**'
+      - 'resources/admin/views/app/index.js'
+      - 'resources/admin/constants/menu.js'
+      - 'tests/Feature/SpadMobileAppTest.php'
+      - '.github/workflows/spad-mobile-app-backend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spad-mobile-app-backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  php-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, intl, zip, bcmath, exif
+          coverage: none
+      - name: Lint the new files
+        run: |
+          set -euo pipefail
+          for file in app/Http/Controllers/SpadMobileAppController.php \
+                      app/Http/Controllers/Admin/SpadMobileAppController.php \
+                      app/Models/SpadAppSetting.php app/Models/SpadAppDevice.php app/Models/SpadAppNotification.php \
+                      app/Services/SpadMobileAppSettings.php \
+                      database/migrations/2026_11_13_000000_create_spad_mobile_app.php \
+                      routes/customer/mobile-app.php routes/admin/mobile-app.php \
+                      routes/customer/route.php routes/admin/route.php \
+                      tests/Feature/SpadMobileAppTest.php; do
+            php -l "$file"
+          done
+      - name: Install PHP packages
+        run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Run the app settings and notification tests
+        env:
+          APP_ENV: testing
+          APP_KEY: base64:2fl+Ktvkfl+Fuz4Qp/A75G2RTiWVA/ZoKZvp6fiiM10=
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: |
+          touch .env
+          vendor/bin/phpunit --testdox tests/Feature/SpadMobileAppTest.php
+      - name: Routes are registered
+        env:
+          APP_KEY: base64:2fl+Ktvkfl+Fuz4Qp/A75G2RTiWVA/ZoKZvp6fiiM10=
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+        run: |
+          php artisan route:list --path=app/ --columns=method,uri 2>/dev/null || php artisan route:list --path=app/
+          php artisan route:list --path=mobile-app --columns=method,uri 2>/dev/null || php artisan route:list --path=mobile-app
+
+  admin-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install admin panel packages
+        run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Build the admin panel
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider --max-old-space-size=4096
+        run: npm run production
+      - name: The «تنظیمات اپلیکیشن» page is in the bundle
+        run: |
+          set -euo pipefail
+          find public -path '*/js/*mobile-app*' -type f -size +100c | tee /dev/stderr | grep -q .
+          grep -rl "SPAD MOBILE APP" public/js | grep -q .
+          echo "MOBILE_APP_ADMIN_BUILD=PASS"
