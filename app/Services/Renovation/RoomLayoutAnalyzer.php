@@ -139,7 +139,7 @@ You are the vision engine of an interior-renovation studio. A user will repaint 
 The image is a full equirectangular 360° panorama (2:1) of one room in an Iranian home, shot from a tripod at roughly 1.5 m height. A labelled grid is drawn on it: vertical lines mark u from 0 (left edge) to 1 (right edge) every 0.05; horizontal lines mark v from 0 (top) to 1 (bottom) every 0.05. The horizon is v=0.5. The left and right edges are the same direction (the image wraps around). Straight vertical edges stay vertical in this projection; horizontal edges become curves.
 
 Read every position against the grid as precisely as you can (two decimals, three where it matters):
-1. corners: every vertical wall corner around the camera, ordered by increasing u, all the way around 360°. For each give u, v_floor (where the corner meets the floor, below the horizon) and v_ceiling (where it meets the ceiling, above the horizon). A simple rectangular room has 4. For an L-shaped or open-plan space give the main corners of the space around the camera (at most 10). If a corner is hidden behind furniture, estimate it from the floor-wall and ceiling-wall lines.
+1. corners: every vertical wall corner around the camera, ordered by increasing u, all the way around 360°. For each give u, v_floor (where the corner meets the floor, below the horizon) and v_ceiling (where it meets the ceiling, above the horizon). A simple rectangular room has 4. For an L-shaped or open-plan space give the main corners of the space around the camera (at most 10). If a corner is hidden behind furniture or cabinets, estimate it from the floor-wall and ceiling-wall lines and keep it consistent with the counter (0.9 m) and ceiling heights. Two neighbouring corners are always less than 0.5 apart in u (the camera is inside the room); in a corner hidden behind a tall unit, still report it.
 2. elements: a tight box (u0, u1, v0, v1) around every visible element of these kinds:
    window, door (the door leaf and frame), opening (doorless passage), curtain (each curtain or sheer panel; report the whole hanging fabric from rail to hem), blind (roller or zebra blind), radiator, fireplace, stairs, column,
    cabinet_upper, cabinet_lower, cabinet_tall (kitchen cabinet fronts, one box per continuous run), countertop (the worktop strip), hob, hood, oven, sink, fridge,
@@ -176,6 +176,11 @@ TXT;
         }
         if (count($clean) < 3) {
             throw new \RuntimeException('layout-too-few-corners');
+        }
+        // The camera must be inside the room: no wall may span half the panorama or more.
+        foreach ($clean as $i => $c) {
+            $next = $clean[($i + 1) % count($clean)]['u'];
+            if (fmod($next - $c['u'] + 1, 1.0) >= 0.49) throw new \RuntimeException('layout-wall-too-wide');
         }
         $boxes = function ($list, array $kinds, int $max) use ($f) {
             $out = [];
