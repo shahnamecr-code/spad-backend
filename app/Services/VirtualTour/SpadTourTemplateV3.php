@@ -35,6 +35,14 @@ final class SpadTourTemplateV3
             return $source;
         }
 
+        if ($asset === 'styles.css' && str_contains($source, '.sceneInfo') && str_contains($source, '.dpad')
+            && str_contains($source, '#topbar') && !str_contains($source, 'SPAD_TOUR_FRAME_V5')) {
+            // Player layout: chip, spaces button, rotation pad, scenes and
+            // toolbar each get one fixed place. Inert until app.js marks the
+            // page (html.spadFrame), so a failed script keeps the old layout.
+            $source .= "\n" . self::frameStyles();
+        }
+
         if ($asset === 'styles.css' && str_contains($source, '.welcome-box')) {
             // The ready-made ZIP has no bundled site webfont. The sandboxed
             // player needs an explicit @font-face, including on iOS/Android.
@@ -65,7 +73,11 @@ final class SpadTourTemplateV3
                 $js = str_replace($before, $after, $js);
             }
         }
-        return self::patchIosStability($js);
+        $js = self::patchIosStability($js);
+        if (str_contains($js, '$(\'sceneCount\')')) {
+            if (!str_contains($js, 'SPAD_TOUR_FRAME_V5')) $js .= "\n" . self::frameScript();
+        }
+        return $js;
     }
 
     /**
@@ -239,5 +251,138 @@ CSS;
  .welcome-box small{margin-top:4px}
 }
 CSS;
+    }
+
+    /**
+     * Player chrome, v5 (SPAD_TOUR_FRAME_V5): the room chip top right, the
+     * spaces button top left, and one stack at the bottom: rotation pad and
+     * room strip, then a single toolbar. Nothing overlaps; the property page's
+     * own controls live outside the frame. Every rule is scoped to
+     * html.spadFrame, which only the script below sets.
+     */
+    private static function frameStyles(): string
+    {
+        return <<<'CSS'
+/* SPAD_TOUR_FRAME_V5 */
+html.spadFrame #watermark,html.spadFrame .brand{display:none!important}
+html.spadFrame #topbar{position:fixed!important;top:max(10px,env(safe-area-inset-top))!important;left:10px!important;right:10px!important;bottom:auto!important;display:flex!important;flex-direction:row!important;justify-content:space-between!important;align-items:flex-start!important;gap:8px!important;z-index:14!important;pointer-events:none!important}
+html.spadFrame #topbar>*{pointer-events:auto}
+html.spadFrame #sceneInfo{position:static!important;inset:auto!important;transform:none!important;margin:0!important;min-width:0!important;max-width:min(300px,62vw)!important;display:flex!important;align-items:center!important;gap:9px!important;padding:5px 5px 5px 13px!important;border-radius:13px!important;background:rgba(5,24,44,.72)!important;border:1px solid rgba(255,255,255,.14)!important;box-shadow:none!important;pointer-events:none!important}
+html.spadFrame #sceneInfo.hidden{display:none!important}
+html.spadFrame #sceneInfo .sceneCounter,html.spadFrame #sceneInfo .sceneHeadingThumb{display:none!important}
+html.spadFrame #sceneInfo>div{min-width:0}
+html.spadFrame #sceneInfo b{display:block!important;font-size:12.5px!important;font-weight:500!important;line-height:1.6!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+html.spadFrame #sceneInfo small{display:block!important;margin:0!important;font-size:10.5px!important;color:#a9c6e2!important;white-space:nowrap}
+html.spadFrame .spadChipImg{flex:none;width:34px;height:34px;border-radius:9px;object-fit:cover;border:1px solid rgba(255,255,255,.35)}
+html.spadFrame .topActions{display:flex!important;gap:6px!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+html.spadFrame .topActions .iconBtn{width:44px!important;min-width:44px!important;height:44px!important;padding:0!important;border-radius:13px!important;border:1px solid rgba(255,255,255,.14)!important;background:rgba(5,24,44,.72)!important;color:#fff!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:7px!important}
+html.spadFrame .topActions .spadSpaces{width:auto!important;padding:0 13px!important}
+html.spadFrame .topActions .spadSpaces b{font-size:12px!important;font-weight:400!important}
+html.spadFrame .topActions svg{width:16px!important;height:16px!important}
+html.spadFrame.spadEmbedded #topFullscreen{display:none!important}
+html.spadFrame .bottomBar{position:fixed!important;top:auto!important;left:10px!important;right:10px!important;bottom:max(10px,env(safe-area-inset-bottom))!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px!important;z-index:9!important;pointer-events:none!important}
+html.spadFrame .bottomBar>*,html.spadFrame .spadUpper>*{pointer-events:auto}
+html.spadFrame .spadUpper{display:flex;align-items:flex-end;gap:8px;width:100%;min-width:0;pointer-events:none}
+html.spadFrame #filmstrip{flex:1 1 auto!important;min-width:0!important;width:auto!important;height:auto!important;margin:0!important;padding:6px!important;gap:6px!important;border-radius:13px!important;background:rgba(5,24,44,.72)!important;border:1px solid rgba(255,255,255,.14)!important}
+html.spadFrame .sceneCard{width:112px!important;min-width:112px!important;height:auto!important;padding:0!important;gap:0!important;border-radius:9px!important;background:#0b2a48!important;border:1px solid rgba(255,255,255,.12)!important;overflow:hidden!important}
+html.spadFrame .sceneCard.active{border-color:#38a8ff!important;box-shadow:0 0 0 1px #38a8ff!important}
+html.spadFrame .sceneCard img{height:58px!important;border-radius:0!important}
+html.spadFrame .sceneCard span{font-size:10.5px!important;line-height:1.5!important;padding:3px 7px!important;text-align:right!important;color:#d6e6f5!important}
+html.spadFrame .dpad{position:relative!important;inset:auto!important;transform:none!important;flex:none!important;margin:0 auto 0 0!important;width:92px!important;height:92px!important;padding:7px!important;gap:2px!important;border-radius:50%!important;opacity:1!important;display:grid!important;grid-template:repeat(3,minmax(0,1fr))/repeat(3,minmax(0,1fr))!important;background:rgba(5,24,44,.72)!important;border:1px solid rgba(255,255,255,.14)!important;box-shadow:none!important}
+html.spadFrame .dpad .iconBtn{width:100%!important;height:100%!important;min-width:0!important;min-height:0!important;padding:0!important;border:0!important;border-radius:50%!important;background:rgba(255,255,255,.08)!important}
+html.spadFrame .dpad .iconBtn svg{width:14px!important;height:14px!important}
+html.spadFrame .dpad .center{display:grid!important;place-items:center!important}
+html.spadFrame .dpad .center svg{display:none!important}
+html.spadFrame .dpad .center:after{content:"";width:12px;height:12px;border-radius:50%;background:#0984e3}
+html.spadFrame .toolbar{position:relative!important;width:100%!important;margin:0!important;min-height:0!important;padding:5px!important;border-radius:14px!important;display:flex!important;flex-wrap:nowrap!important;justify-content:space-between!important;align-items:center!important;gap:6px!important;overflow:visible!important;background:rgba(5,24,44,.72)!important;border:1px solid rgba(255,255,255,.14)!important}
+html.spadFrame .toolbar .toolGroup{display:flex!important;align-items:center!important;gap:4px!important;flex:none!important}
+html.spadFrame .toolbar .iconBtn,html.spadFrame .toolbar .toolWithText{width:auto!important;min-width:36px!important;height:36px!important;padding:0 9px!important;border-radius:10px!important;border:0!important;background:rgba(255,255,255,.07)!important;color:#e6f1fb!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:6px!important}
+html.spadFrame .toolbar .iconBtn.active{background:rgba(56,168,255,.24)!important;color:#9fd6ff!important}
+html.spadFrame .toolbar #nextScene{background:linear-gradient(135deg,#0984e3,#0569c7)!important;color:#fff!important}
+html.spadFrame .toolbar svg{width:16px!important;height:16px!important;flex:none}
+html.spadFrame .toolbar b,html.spadFrame .spadLabelWide,html.spadFrame .spadLabelMenu{font-size:12px!important;font-weight:400!important;white-space:nowrap}
+html.spadFrame .spadLabelMenu{display:none}
+html.spadFrame .spadCount{padding:0 4px;color:#a9c6e2;font-size:11.5px;white-space:nowrap}
+html.spadFrame .spadExtra{display:contents}
+html.spadFrame .toolbar .spadMoreBtn{display:none!important}
+@media(max-width:700px){
+html.spadFrame #topbar{left:8px!important;right:8px!important;top:max(8px,env(safe-area-inset-top))!important}
+html.spadFrame .bottomBar{left:8px!important;right:8px!important;bottom:max(8px,env(safe-area-inset-bottom))!important;gap:6px!important}
+html.spadFrame #sceneInfo{max-width:calc(100vw - 132px)!important}
+html.spadFrame .topActions .iconBtn{height:42px!important;width:42px!important;min-width:42px!important}
+html.spadFrame .topActions .spadSpaces{width:auto!important;padding:0 12px!important}
+html.spadFrame .sceneCard{width:88px!important;min-width:88px!important}
+html.spadFrame .sceneCard img{height:44px!important}
+html.spadFrame .dpad{width:80px!important;height:80px!important;padding:6px!important}
+html.spadFrame .toolbar{padding:4px!important;gap:4px!important}
+html.spadFrame .toolbar .toolGroup{gap:3px!important}
+html.spadFrame .toolbar .iconBtn,html.spadFrame .toolbar .toolWithText{width:34px!important;min-width:34px!important;height:34px!important;padding:0!important}
+html.spadFrame .toolbar b,html.spadFrame .spadLabelWide{display:none!important}
+html.spadFrame .toolbar .spadMoreBtn{display:inline-flex!important}
+html.spadFrame .spadExtra{display:none;position:absolute;left:4px;bottom:calc(100% + 8px);z-index:20;min-width:176px;flex-direction:column;gap:3px;padding:6px;border-radius:13px;background:rgba(5,24,44,.94);border:1px solid rgba(255,255,255,.14)}
+html.spadFrame .spadExtra.open{display:flex}
+html.spadFrame .spadExtra .iconBtn{width:100%!important;min-width:0!important;height:38px!important;padding:0 10px!important;justify-content:flex-start!important;gap:9px!important}
+html.spadFrame .spadExtra .spadLabelMenu{display:inline!important}
+}
+@media(max-width:360px){html.spadFrame .spadCount{display:none}}
+@media(max-height:519px){html.spadFrame #filmstrip{display:none!important}}
+@media(max-height:329px){html.spadFrame .dpad{display:none!important}}
+CSS;
+    }
+
+    private static function frameScript(): string
+    {
+        return <<<'JS'
+/* SPAD_TOUR_FRAME_V5: one fixed place per control (see styles.css). */
+(()=>{try{
+  const $=id=>document.getElementById(id),root=document.documentElement;
+  const top=$('topbar'),info=$('sceneInfo'),bottom=$('bottom'),strip=$('filmstrip'),counter=$('sceneCount');
+  const pad=document.querySelector('.dpad'),bar=document.querySelector('#bottom .toolbar');
+  if(!top||!info||!bottom||!strip||!counter||!pad||!bar)return;
+  // Inside the property page (page > tour route > this player), the page
+  // already offers full screen and sharing, so the player hides its copies.
+  let embedded=false;try{embedded=window.parent!==window&&window.parent.parent!==window.parent}catch(_){}
+  const icon=d=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const el=(tag,cls)=>{const n=document.createElement(tag);if(cls)n.className=cls;return n};
+  const chipImg=el('img','spadChipImg');chipImg.alt='';chipImg.decoding='async';
+  info.insertBefore(chipImg,info.firstChild);
+  top.insertBefore(info,top.firstChild);
+  const spaces=$('openManager');
+  if(spaces){spaces.classList.add('spadSpaces');spaces.title='فهرست فضاها';spaces.setAttribute('aria-label','فهرست فضاها');
+    spaces.innerHTML=icon('<rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/>')+'<b>فضاها</b>'}
+  const upper=el('div','spadUpper');upper.append(strip,pad);bottom.insertBefore(upper,bottom.firstChild);
+  const label=(n,text,cls)=>{if(!n)return;const s=el('span',cls);s.textContent=text;n.appendChild(s)};
+  const nav=el('div','toolGroup spadNav'),zoom=el('div','toolGroup spadZoom'),modes=el('div','toolGroup spadModes');
+  const count=el('span','spadCount');count.setAttribute('aria-hidden','true');
+  [$('previousScene'),count,$('nextScene')].forEach(n=>n&&nav.appendChild(n));
+  [$('zoomOut'),$('zoomIn')].forEach(n=>n&&zoom.appendChild(n));
+  label($('spinButton'),'چرخش خودکار','spadLabelWide');label($('tourAuto'),'بازدید خودکار','spadLabelWide');
+  const extra=el('div','spadExtra');extra.id='spadExtra';
+  [['resetView','نمای اولیه'],['musicButton','موسیقی ملایم'],['takePhoto','ثبت عکس'],['shareTour','اشتراک‌گذاری']].forEach(([id,text])=>{
+    const n=$(id);if(!n)return;if(id==='shareTour'&&embedded)n.style.setProperty('display','none','important');label(n,text,'spadLabelMenu');extra.appendChild(n)});
+  const more=el('button','iconBtn spadMoreBtn');more.type='button';more.title='ابزارهای بیشتر';
+  more.setAttribute('aria-label','ابزارهای بیشتر');more.setAttribute('aria-expanded','false');more.setAttribute('aria-controls','spadExtra');
+  more.innerHTML=icon('<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>');
+  const closeMore=()=>{extra.classList.remove('open');more.setAttribute('aria-expanded','false')};
+  more.onclick=e=>{e.stopPropagation();const open=!extra.classList.contains('open');extra.classList.toggle('open',open);more.setAttribute('aria-expanded',String(open))};
+  extra.addEventListener('click',()=>setTimeout(closeMore,0));
+  document.addEventListener('pointerdown',e=>{if(!extra.contains(e.target)&&!more.contains(e.target))closeMore()},true);
+  [$('spinButton'),$('tourAuto'),extra,more,$('openEdit')].forEach(n=>n&&modes.appendChild(n));
+  bar.replaceChildren(nav,zoom,modes);
+  const small=info.querySelector('small');
+  const sync=()=>{
+    const parts=(counter.textContent||'').split('/').map(x=>x.trim());
+    if(parts.length===2&&parts[0]){count.textContent=`${parts[0]} / ${parts[1]}`;if(small)small.textContent=`فضای ${parts[0]} از ${parts[1]}`}
+    const active=strip.querySelector('.sceneCard.active img'),src=active&&active.getAttribute('src');
+    if(src&&chipImg.getAttribute('src')!==src)chipImg.src=src;
+    chipImg.style.display=chipImg.getAttribute('src')?'':'none';
+  };
+  const watch=new MutationObserver(()=>requestAnimationFrame(sync));
+  watch.observe(counter,{childList:true,characterData:true,subtree:true});
+  watch.observe(strip,{childList:true,subtree:true,attributes:true,attributeFilter:['class']});
+  root.classList.add('spadFrame');if(embedded)root.classList.add('spadEmbedded');
+  sync();
+}catch(_){document.documentElement.classList.remove('spadFrame')}})();
+JS;
     }
 }
