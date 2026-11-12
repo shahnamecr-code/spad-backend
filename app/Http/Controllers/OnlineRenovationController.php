@@ -275,7 +275,7 @@ class OnlineRenovationController extends Controller {
  private function assetFields(Request $r){
   $d=$r->validate([
    'title'=>'required|string|min:2|max:150',
-   'category'=>'required|in:cabinet,hob,hood,chandelier,ceiling,led,sink,paint,wallpaper,curtain',
+   'category'=>['required','string','max:40','regex:/^[a-z][a-z0-9-]{1,39}$/'],
    'category_title'=>'required|string|max:100',
    'room_scope'=>'required|in:kitchen,living,all',
    'color_hex'=>'required|regex:/^#[a-fA-F0-9]{6}$/',
