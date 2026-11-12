@@ -69,7 +69,7 @@ class SpadMobileAppTest extends TestCase
             $t->timestamps();
         });
 
-        (require base_path('database/migrations/2026_11_13_000000_create_spad_mobile_app.php'));
+        require_once base_path('database/migrations/2026_11_13_000000_create_spad_mobile_app.php');
         (new \CreateSpadMobileApp())->up();
     }
 
