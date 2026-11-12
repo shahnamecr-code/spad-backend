@@ -55,6 +55,8 @@ jobs:
           done
       - name: Install PHP packages
         run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Prepare Laravel's writable folders
+        run: mkdir -p storage/framework/{cache/data,sessions,views,testing} storage/logs storage/app/public bootstrap/cache
       - name: Run the app settings and notification tests
         env:
           APP_ENV: testing
