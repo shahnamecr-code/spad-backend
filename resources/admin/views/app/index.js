@@ -80,6 +80,7 @@ const PropertyAffairsAdmin = React.lazy(() => import("./property-affairs"));
 const RenovationAdmin = React.lazy(() => import("./renovation"));
 const WebServicesAdmin = React.lazy(() => import("./web-services"));
 const AiAssistantAdmin = React.lazy(() => import("./ai-assistant/AssistantSettings"));
+const MobileAppAdmin = React.lazy(() => import(/* webpackChunkName: "spad-mobile-app" */ "./mobile-app"));
 const PropertyAcceptanceAdmin = React.lazy(() => import(/* webpackChunkName: "spad-property-acceptance" */ "./property-acceptance"));
 const WhatsAppMarketAdmin = React.lazy(() => import(/* webpackChunkName: "spad-whatsapp-market" */ "./whatsapp-market"));
 class CommunityPageErrorBoundary extends React.Component {
@@ -197,6 +198,7 @@ const App = ({ match, step, location }) => {
                 <Route path={`${match.url}/mortgage`} render={(props) => <MortgageAdmin {...props} />} />
                 <Route path={`${match.url}/material-prices`} render={(props) => <MaterialsAdmin {...props} />} />
                 <Route path={`${match.url}/ai-assistant`} render={(props) => <AiAssistantAdmin {...props} />} />
+                <Route path={`${match.url}/mobile-app`} render={(props) => <MobileAppAdmin {...props} />} />
                 <Route path={`${match.url}/building-management`} render={(props) => <CommunityAdmin {...props} mode="buildings" />} />
                 <Route path={`${match.url}/top-builders`} render={(props) => <CommunityAdmin {...props} mode="builders" />} />
                 <Route path={`${match.url}/property-auctions`} render={(props) => <CommunityPageErrorBoundary><CommunityAdmin {...props} mode="auctions" /></CommunityPageErrorBoundary>} />

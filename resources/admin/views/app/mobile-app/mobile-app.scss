@@ -1,0 +1,47 @@
+.spad-app-admin{direction:rtl;font-family:IRANSans,sans-serif;max-width:1450px;margin:0 auto 60px;color:#254a69}
+.spad-app-admin *{box-sizing:border-box}
+.spad-app-admin-hero{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;padding:26px 29px;margin-bottom:16px;border-radius:20px;color:#fff;background:linear-gradient(120deg,#06376f,#0b84cb);box-shadow:0 14px 38px #085a9330}
+.spad-app-admin-hero span{font-size:10px;letter-spacing:1.3px;color:#b4eaff}
+.spad-app-admin-hero h1{font-size:23px;margin:9px 0;color:#fff;font-weight:600}
+.spad-app-admin-hero p{color:#e1f2ff;margin:0;line-height:2;font-size:12px}
+.spad-app-admin-hero button{padding:10px 14px;background:#ffffff27;border:1px solid #ffffff50;color:#fff;border-radius:10px;cursor:pointer;font-family:inherit}
+.spad-app-admin-stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.spad-app-admin-stats div{background:#fff;border:1px solid #dbe9f4;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px}
+.spad-app-admin-stats b{font-size:19px;color:#0877c0;font-weight:700}
+.spad-app-admin-stats span{font-size:11px;color:#6d8aa0}
+.spad-app-admin-tabs{display:flex;gap:8px;margin-bottom:14px}
+.spad-app-admin-tabs button{padding:9px 20px;border-radius:11px;border:1px solid #d5e7f4;background:#fff;color:#2a5c80;cursor:pointer;font-family:inherit;font-size:13px}
+.spad-app-admin-tabs button.active{background:#087bcc;border-color:#087bcc;color:#fff}
+.spad-app-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;align-items:start}
+.spad-app-admin-card{padding:22px;border:1px solid #dbe9f4;border-radius:17px;background:#fff;box-shadow:0 8px 25px #114e800c}
+.spad-app-admin-card h2{margin:0 0 15px;padding-bottom:10px;border-bottom:1px solid #edf3f8;color:#174a75;font-size:16px;font-weight:600}
+.spad-app-admin-card label{display:flex;flex-direction:column;gap:7px;margin:14px 0;color:#315f7e;font-size:12px}
+.spad-app-admin-card input:not([type=checkbox]):not([type=radio]),.spad-app-admin-card textarea{width:100%;min-height:43px;padding:10px 12px;border:1px solid #d5e7f4;border-radius:10px;color:#204d70;background:#f9fcff;outline:0;font-family:inherit;font-size:12px}
+.spad-app-admin-card textarea{resize:vertical}
+.spad-app-admin-card p{color:#7592a7;font-size:11px;line-height:2;margin:12px 0}
+.spad-app-admin-card code{background:#eef6fc;color:#0b6aa8;padding:1px 6px;border-radius:6px;font-size:11px}
+.spad-app-admin-card .spad-app-admin-toggle{flex-direction:row;align-items:center;gap:10px;font-size:13px}
+.spad-app-admin-toggle input{width:20px;height:20px;accent-color:#0786ce}
+.spad-app-admin-audience{display:flex;gap:18px;flex-wrap:wrap}
+.spad-app-admin-card .spad-app-admin-audience label{flex-direction:row;align-items:center;gap:6px;margin:4px 0;font-size:13px}
+.spad-app-admin-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.spad-app-admin-list li{border:1px solid #e3eef7;border-radius:12px;padding:12px 14px;background:#fbfdff}
+.spad-app-admin-list .head{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.spad-app-admin-list .head b{font-size:13px;color:#174a75;font-weight:600}
+.spad-app-admin-list .tag{font-size:10px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.spad-app-admin-list .tag.all{background:#e4f3ff;color:#0a6fb3}.spad-app-admin-list .tag.user{background:#fff3e0;color:#a35c00}
+.spad-app-admin-list p{margin:6px 0;color:#4d6f86;font-size:12px;white-space:pre-wrap}
+.spad-app-admin-list .meta{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:10px;color:#89a0b2}
+.spad-app-admin-list .meta button{margin-inline-start:auto;border:1px solid #f2c9d0;background:#fff;color:#b23a50;border-radius:8px;padding:3px 12px;cursor:pointer;font-family:inherit;font-size:11px}
+.spad-app-admin-pager{display:flex;gap:10px;align-items:center;justify-content:center;margin-top:12px;font-size:12px}
+.spad-app-admin-pager button{border:1px solid #d5e7f4;background:#fff;border-radius:8px;padding:5px 12px;cursor:pointer;font-family:inherit}
+.spad-app-admin-actions{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:14px}
+footer.spad-app-admin-actions{margin-top:18px;padding:16px 0}
+.spad-app-admin-actions button{min-height:45px;padding:9px 22px;background:#087bcc;color:#fff;border:0;font-size:12px;font-family:inherit;border-radius:11px;cursor:pointer}
+.spad-app-admin-actions button:disabled{opacity:.6}
+.spad-app-admin-actions span{color:#8396a7;font-size:11px}
+.spad-app-admin-alert,.spad-app-admin-ok{padding:12px 14px;margin-bottom:14px;border-radius:10px;font-size:12px}
+.spad-app-admin-alert{background:#fff0f2;color:#ae394e}.spad-app-admin-ok{background:#e7f7f0;color:#15805a}
+.spad-app-admin-loading{padding:20px;color:#6d8aa0}
+@media(max-width:1100px){.spad-app-admin-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:830px){.spad-app-admin-grid{grid-template-columns:1fr}.spad-app-admin-hero{padding:18px}.spad-app-admin-hero h1{font-size:19px}.spad-app-admin-card{padding:15px}.spad-app-admin-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
