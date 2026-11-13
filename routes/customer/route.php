@@ -119,4 +119,4 @@ require_once __DIR__ . '/renovation.php';
 require_once __DIR__ . '/renovation-studio.php';
 
 // Settings and notifications of the Android/iPhone app.
-require_once __DIR__ . '/mobile-app.php';
+require __DIR__ . '/mobile-app.php';
