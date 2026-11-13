@@ -162,6 +162,7 @@ class SpadMobileAppTest extends TestCase
         $this->actingAs($operator, 'admin')
             ->postJson('/api/admin/mobile-app/notifications', ['title' => 'x', 'body' => 'y', 'audience' => 'all'])
             ->assertStatus(403);
+        $this->app['auth']->forgetGuards();
         $this->getJson('/api/admin/mobile-app/settings')->assertStatus(401);
     }
 
