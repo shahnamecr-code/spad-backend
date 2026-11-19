@@ -11,6 +11,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
+/**
+ * The application includes its route files once per PHP process.
+ *
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
+ */
 class SpadPortfolioSaleTest extends TestCase
 {
     private const CONSENT = ['owner_confirmed' => true, 'contact_consent' => true];
