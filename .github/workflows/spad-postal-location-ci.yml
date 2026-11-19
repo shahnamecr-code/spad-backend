@@ -1,0 +1,27 @@
+name: SPAD postal address normalization
+on:
+  push:
+    branches: [codex/spad-postal-location-20261119]
+permissions:
+  contents: read
+jobs:
+  php:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        php: ['7.4', '8.3']
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mbstring
+          tools: phpunit:9.6
+      - name: Test normalization and confirm controller syntax
+        run: |
+          php -l app/Http/Controllers/PropertyValuationController.php
+          php -l app/Services/PostalCodeAddress.php
+          phpunit --bootstrap app/Services/PostalCodeAddress.php tests/Unit/PostalCodeAddressTest.php

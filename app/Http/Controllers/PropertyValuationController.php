@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\ApiIrClient;
 use App\Services\NemudaPropertyMarket;
+use App\Services\PostalCodeAddress;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
@@ -67,28 +68,17 @@ class PropertyValuationController extends Controller
         RateLimiter::hit($budgetKey, 3600);
 
         try {
-            $address = $api->execute('property-apiir-postal-code-pro', ['postalCode' => $postal], $user);
-            if (!is_array($address)) throw new RuntimeException('پاسخ کدپستی معتبر نیست.', 502);
-            $province = trim((string) ($address['province'] ?? ''));
-            $city = trim((string) ($address['city'] ?? ''));
-            if (!$province || !$city) throw new RuntimeException('استان و شهر در پاسخ کدپستی مشخص نبود.', 422);
-
-            // Never return arbitrary third-party fields, national identifiers or
-            // raw response metadata; the minimum address required for review only.
-            $details = [];
-            foreach (['province', 'city', 'town', 'district', 'street', 'street2',
-                      'number', 'floor', 'sideFloor', 'buildingName', 'address'] as $field) {
-                if (isset($address[$field]) && is_scalar($address[$field]))
-                    $details[$field] = mb_substr(trim((string) $address[$field]), 0, 240);
-            }
-            if (isset($address['lat']) && is_numeric($address['lat']) &&
-                isset($address['long']) && is_numeric($address['long'])) {
-                $lat = (float) $address['lat'];
-                $long = (float) $address['long'];
-                if ($lat >= 24 && $lat <= 40 && $long >= 43 && $long <= 64) {
-                    $details['lat'] = $lat;
-                    $details['long'] = $long;
-                }
+            $details = PostalCodeAddress::normalize(
+                $api->execute('property-apiir-postal-code-pro', ['postalCode' => $postal], $user)
+            );
+            $province = $details['province'] ?? null;
+            $city = $details['city'] ?? null;
+            if ($province === null || $city === null) {
+                return response()->json([
+                    'status' => false,
+                    'code' => 'postal_location_missing',
+                    'message' => 'سرویس کدپستی استان یا شهر نشانی را مشخص نکرد.',
+                ], 422)->header('Cache-Control', 'private, no-store');
             }
 
             $token = Str::random(48);
