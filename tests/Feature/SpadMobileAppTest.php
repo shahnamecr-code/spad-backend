@@ -77,7 +77,9 @@ class SpadMobileAppTest extends TestCase
 
     private function superAdmin(): Admin
     {
-        $admin = Admin::query()->forceCreate(['first_name' => 'مدیر', 'last_name' => 'اصلی', 'username' => 'root']);
+        $admin = Admin::query()->forceCreate([
+            'first_name' => 'مدیر', 'last_name' => 'اصلی', 'username' => 'root', 'status' => Admin::APPROVED,
+        ]);
         $roleId = DB::table('roles')->insertGetId(['name' => 'Super Admin', 'guard_name' => 'admin']);
         DB::table('model_has_roles')->insert(['role_id' => $roleId, 'model_type' => Admin::class, 'model_id' => $admin->id]);
         return $admin;
@@ -85,7 +87,9 @@ class SpadMobileAppTest extends TestCase
 
     private function operator(): Admin
     {
-        return Admin::query()->forceCreate(['first_name' => 'اپراتور', 'last_name' => 'ساده', 'username' => 'op']);
+        return Admin::query()->forceCreate([
+            'first_name' => 'اپراتور', 'last_name' => 'ساده', 'username' => 'op', 'status' => Admin::APPROVED,
+        ]);
     }
 
     private function user(string $mobile = '09120000001'): User
