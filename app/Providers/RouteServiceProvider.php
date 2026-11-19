@@ -57,6 +57,13 @@ class RouteServiceProvider extends ServiceProvider
     protected function configureRateLimiting()
     {
         RateLimiter::for('api', function (Request $request) {
+            // Login has its own traffic and account limits. Browsing the app
+            // or sharing a carrier IP must not consume the sign-in allowance.
+            $route = $request->route();
+            if ($route && in_array('throttle:spad-login-traffic', $route->middleware(), true)) {
+                return Limit::none();
+            }
+
             // The approved WhatsApp poster preview is a READ-ONLY and already
             // authenticated Super Admin endpoint. It must not consume the
             // shared 60/minute IP bucket of every other SPAD admin API call.
@@ -103,6 +110,18 @@ class RouteServiceProvider extends ServiceProvider
                 return Limit::perMinute(600)->by('spad-tour-assets-ip:' . $request->ip());
             }
             return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+        });
+
+        RateLimiter::for('spad-login-traffic', function (Request $request) {
+            return Limit::perMinute(120)
+                ->by($request->path() . '|' . $request->ip())
+                ->response(static function (Request $request, array $headers) {
+                    return response()->json([
+                        'status' => false,
+                        'code' => 'auth_traffic_throttled',
+                        'message' => 'درخواست‌های ورود زیادی از این اتصال ارسال شده است. کمی بعد دوباره تلاش کنید.',
+                    ], 429, $headers);
+                });
         });
 
         // Separate preview quota: keyed by the authenticated Super Admin

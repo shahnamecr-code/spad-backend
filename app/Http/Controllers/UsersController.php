@@ -16,6 +16,8 @@ use App\Models\ExpertRequest;
 use App\Models\Favorite;
 use App\Models\LoginRequest;
 use App\Models\User;
+use App\Services\SpadLoginOtp;
+use App\Services\SpadLoginRateLimits;
 use App\Support\SpadLocation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -105,13 +107,12 @@ class UsersController extends Controller
         if(!preg_match('/^09[0-9]{9}$/D',$mobile))
             return response()->json(['status'=>false,'message'=>'شماره همراه نامعتبر است.'],422);
         if(!User::where('mobile',$mobile)->exists())
-            return response()->json(['status'=>false,'message'=>'برای ورود ابتدا ثبت‌نام کنید.'],422);
-        try {
-            app(\App\Services\SpadLoginOtp::class)->send($mobile,$request);
-        }catch(\RuntimeException $e){
-            return response()->json(['status'=>false,'message'=>$e->getMessage()],429);
-        }
-        return response()->json(['status'=>true,'message'=>'کد ورود ارسال شد.']);
+            return response()->json(['status'=>false,'code'=>'account_not_registered','message'=>'برای ورود ابتدا ثبت‌نام کنید.'],422);
+        app(SpadLoginOtp::class)->send($mobile, $request);
+        return response()->json([
+            'status' => true, 'message' => 'کد ورود ارسال شد.',
+            'resend_after' => SpadLoginOtp::RESEND_SECONDS,
+        ]);
     }
 
     /**
@@ -149,7 +150,7 @@ class UsersController extends Controller
     public function login(Request $request)
     {
         $data = $this->validate($request, [
-            'mobile' => 'required',
+            'mobile' => 'required|string|max:20',
             'code' => 'required',
         ]);
         $data['mobile'] = fix_mobile($data['mobile']);
@@ -160,8 +161,8 @@ class UsersController extends Controller
                 'message' => 'برای ورود به سایت ابتدا باید ثبت نام کنید'
             ]);
         }
-        if(!app(\App\Services\SpadLoginOtp::class)->consume($data['mobile'],(string)$data['code'],$request))
-            return response()->json(['status'=>false,'message'=>'کد ورود نامعتبر یا منقضی است.'],422);
+        if (!is_scalar($data['code']) || !app(SpadLoginOtp::class)->consume($data['mobile'], (string) $data['code'], $request))
+            return response()->json(['status'=>false,'code'=>'otp_invalid','message'=>'کد ورود نامعتبر یا منقضی است.'],422);
         if(is_null($user->phone_verified_at))$user->update(['phone_verified_at'=>now()]);
         $token=$user->createToken('token')->plainTextToken;
         return response()->json([
@@ -207,12 +208,15 @@ class UsersController extends Controller
     public function loginWithPhoneAndPass(Request $request)
     {
         $data=$this->validate($request,[
-            'mobile'=>'required',
-            'password'=>'required'
+            'mobile'=>'required|string|max:20',
+            'password'=>'required|string'
         ]);
 
-        $user=User::query()->firstWhere('mobile',fix_mobile($data['mobile']));
+        $mobile = fix_mobile($data['mobile']);
+        $passwordAttempt = SpadLoginRateLimits::attempt('password', $mobile);
+        $user=User::query()->firstWhere('mobile', $mobile);
         if ($user && Hash::check($data['password'],$user->password)){
+            SpadLoginRateLimits::clear($passwordAttempt);
             if (is_null($user->phone_verified_at)){
                 return response()->json([
                     'status'=>false,

@@ -1,0 +1,33 @@
+name: SPAD login and resend checks
+on:
+  push:
+    branches: [codex/spad-login-throttle-1-0-5]
+permissions:
+  contents: read
+jobs:
+  login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, intl, zip, bcmath, exif
+          coverage: none
+      - run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Test token flow, rate limits, and simulated SMS
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: |
+          mkdir -p storage/framework/{cache/data,sessions,views,testing} storage/logs storage/app/public bootstrap/cache
+          touch .env
+          export APP_KEY="$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
+          vendor/bin/phpunit --testdox tests/Feature/SpadLoginThrottleTest.php

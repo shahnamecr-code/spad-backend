@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\LoginRequest;
 use App\Models\PartnerPanel;
 use App\Models\User;
+use App\Services\SpadLoginOtp;
+use App\Services\SpadLoginRateLimits;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 
 class PartnerAuthController extends Controller
@@ -83,7 +83,7 @@ class PartnerAuthController extends Controller
     public function sendLoginCode(Request $request)
     {
         $data = $this->validate($request, [
-            'mobile' => ['required'],
+            'mobile' => ['required', 'string', 'max:20'],
             'panel_type' => $this->panelTypeRules(),
         ]);
 
@@ -96,23 +96,17 @@ class PartnerAuthController extends Controller
             ]);
         }
 
-        $mobile=fix_mobile($data['mobile']);
-        try {
-            app(\App\Services\SpadLoginOtp::class)->send($mobile,$request,function($code)use($mobile){
-                return sms()->send('hi',function($sms)use($mobile,$code){
-                    $sms->to([$mobile]);$sms->template(config('sms.login_template'),['code'=>$code]);
-                });
-            });
-        }catch(\RuntimeException $e){
-            return response()->json(['status'=>false,'message'=>$e->getMessage()],429);
-        }
-        return response()->json(['status'=>true,'message'=>'کد ورود پنل همکاری ارسال شد.']);
+        app(SpadLoginOtp::class)->send(fix_mobile($data['mobile']), $request);
+        return response()->json([
+            'status' => true, 'message' => 'کد ورود پنل همکاری ارسال شد.',
+            'resend_after' => SpadLoginOtp::RESEND_SECONDS,
+        ]);
     }
 
     public function login(Request $request)
     {
         $data = $this->validate($request, [
-            'mobile' => ['required'],
+            'mobile' => ['required', 'string', 'max:20'],
             'code' => ['required'],
             'panel_type' => $this->panelTypeRules(),
         ]);
@@ -127,8 +121,8 @@ class PartnerAuthController extends Controller
             ]);
         }
 
-        if(!app(\App\Services\SpadLoginOtp::class)->consume($mobile,(string)$data['code'],$request))
-            return response()->json(['status'=>false,'message'=>'کد ورود نامعتبر یا منقضی است.'],422);
+        if (!is_scalar($data['code']) || !app(SpadLoginOtp::class)->consume($mobile, (string) $data['code'], $request))
+            return response()->json(['status'=>false,'code'=>'otp_invalid','message'=>'کد ورود نامعتبر یا منقضی است.'],422);
         if(is_null($user->phone_verified_at))$user->update(['phone_verified_at'=>now()]);
         return $this->success($user->fresh(), $panelType);
     }
@@ -136,19 +130,22 @@ class PartnerAuthController extends Controller
     public function loginWithPassword(Request $request)
     {
         $data = $this->validate($request, [
-            'mobile' => ['required'],
-            'password' => ['required'],
+            'mobile' => ['required', 'string', 'max:20'],
+            'password' => ['required', 'string'],
             'panel_type' => $this->panelTypeRules(),
         ]);
 
         $panelType = $data['panel_type'] ?? null;
-        $user = $this->findPartnerUser($data['mobile'], $panelType);
+        $mobile = fix_mobile($data['mobile']);
+        $passwordAttempt = SpadLoginRateLimits::attempt('password', $mobile);
+        $user = $this->findPartnerUser($mobile, $panelType);
         if (!$user || !Hash::check($data['password'], $user->password)) {
             return response()->json([
                 'status' => false,
                 'message' => 'اطلاعات ورود پنل همکاری نامعتبر است.',
             ]);
         }
+        SpadLoginRateLimits::clear($passwordAttempt);
 
         if (is_null($user->phone_verified_at)) {
             return response()->json([

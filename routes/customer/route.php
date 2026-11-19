@@ -2,17 +2,17 @@
 
 use Illuminate\Http\Request;
 
-Route::post('/sendLoginCode', [\App\Http\Controllers\UsersController::class,'sendLoginCode'])->middleware('throttle:15,1440');
-Route::post('/login', [\App\Http\Controllers\UsersController::class,'login'])->middleware('throttle:15,1');
-Route::post('/loginWithPass', [\App\Http\Controllers\UsersController::class,'loginWithPhoneAndPass'])->middleware('throttle:12,1');
+Route::post('/sendLoginCode', [\App\Http\Controllers\UsersController::class,'sendLoginCode'])->middleware('throttle:spad-login-traffic');
+Route::post('/login', [\App\Http\Controllers\UsersController::class,'login'])->middleware('throttle:spad-login-traffic');
+Route::post('/loginWithPass', [\App\Http\Controllers\UsersController::class,'loginWithPhoneAndPass'])->middleware('throttle:spad-login-traffic');
 Route::post('/register', [\App\Http\Controllers\UsersController::class,'register'])->middleware('throttle:6,1440');
 Route::post('/password-recovery/request', [\App\Http\Controllers\SpadPasswordRecoveryController::class,'requestCode'])->middleware('throttle:10,60');
 Route::post('/password-recovery/confirm', [\App\Http\Controllers\SpadPasswordRecoveryController::class,'confirm'])->middleware('throttle:15,60');
 
 
-Route::prefix('partner-auth')->group(function () {
-    Route::post('/send-login-code', [\App\Http\Controllers\PartnerAuthController::class, 'sendLoginCode'])->middleware('throttle:15,1440');
-    Route::post('/login', [\App\Http\Controllers\PartnerAuthController::class, 'login'])->middleware('throttle:15,1');
+Route::prefix('partner-auth')->middleware('throttle:spad-login-traffic')->group(function () {
+    Route::post('/send-login-code', [\App\Http\Controllers\PartnerAuthController::class, 'sendLoginCode']);
+    Route::post('/login', [\App\Http\Controllers\PartnerAuthController::class, 'login']);
     Route::post('/login-with-pass', [\App\Http\Controllers\PartnerAuthController::class, 'loginWithPassword']);
 });
 
