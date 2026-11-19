@@ -49,6 +49,7 @@ class SpadLoginThrottleTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('user_id');
             $table->string('status');
+            $table->softDeletes();
         });
         Schema::create('personal_access_tokens', function (Blueprint $table) {
             $table->id();
