@@ -35,5 +35,5 @@ include_once __DIR__ . '/crm-pro.php';
 include_once __DIR__ . '/property-acceptance.php';
 
 // «تنظیمات اپلیکیشن»: settings and notifications of the Android/iPhone app.
-require_once __DIR__ . '/mobile-app.php';
+require __DIR__ . '/mobile-app.php';
 
