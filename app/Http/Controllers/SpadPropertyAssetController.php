@@ -41,8 +41,9 @@ class SpadPropertyAssetController extends Controller
             ->where('user_id', $userId)->orderByDesc('id')
             ->limit(SpadPropertyPortfolio::MAX_ASSETS)->get();
 
-        $values = $assets->map(function ($asset) use ($service) {
-            return $service->present($asset);
+        $saleRequests = $service->saleRequests($userId, $assets->pluck('id')->all());
+        $values = $assets->map(function ($asset) use ($service, $saleRequests) {
+            return $service->present($asset, $saleRequests);
         });
         $total = $values->sum(function ($asset) {
             return $asset['estimated_total_toman'] ?? 0;

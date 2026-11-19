@@ -6,6 +6,8 @@ Route::prefix('my-property-assets')->middleware('auth:sanctum')->group(function 
     Route::post('/', [\App\Http\Controllers\SpadPropertyAssetController::class, 'store'])->middleware('throttle:10,60');
     Route::post('{id}/refresh', [\App\Http\Controllers\SpadPropertyAssetController::class, 'refresh'])
         ->whereNumber('id')->middleware('throttle:8,60');
+    Route::post('{id}/sale-request', [\App\Http\Controllers\PropertyAcceptanceController::class, 'storeFromPortfolio'])
+        ->where('id', '[0-9]+')->middleware('throttle:spad-property-acceptance-submit');
     Route::patch('{id}', [\App\Http\Controllers\SpadPropertyAssetController::class, 'rename'])
         ->whereNumber('id')->middleware('throttle:15,1');
     Route::delete('{id}', [\App\Http\Controllers\SpadPropertyAssetController::class, 'destroy'])

@@ -133,6 +133,9 @@ export default function PropertyAcceptanceAdmin(){
           <div><small>نوع / متراژ</small><strong>{kind[selected.property_kind]} / {selected.area_m2} متر</strong></div>
           <div><small>شهر / استان</small><strong>{selected.city} / {selected.province}</strong></div>
           <div><small>قیمت برآوردی</small><strong>{toman(selected.estimated_total_toman)}</strong></div>
+          {selected.valuation?.origin === "portfolio" && <div><small>مبدأ درخواست</small><strong>پرتفوی املاک کاربر</strong></div>}
+          {selected.valuation?.origin === "portfolio" && selected.valuation.asset_nickname &&
+            <div><small>عنوان ملک در پرتفوی</small><strong>{selected.valuation.asset_nickname}</strong></div>}
         </div>
         <div className="spad-accept-admin__address"><small>نشانی استعلام‌شده</small>
           <p>{selected.address?.address||[selected.address?.street,selected.address?.number,selected.address?.floor,selected.address?.sideFloor].filter(Boolean).join("، ")||"اطلاعات نشانی تکمیلی موجود نیست."}</p>

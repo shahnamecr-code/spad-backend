@@ -1,0 +1,71 @@
+name: SPAD Portfolio Sale Checks
+
+on:
+  push:
+    branches: [codex/spad-portfolio-sale-1-0-4]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spad-portfolio-sale-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, intl, zip, bcmath, exif
+          coverage: none
+      - name: Lint the portfolio and acceptance files
+        run: |
+          set -euo pipefail
+          for file in app/Http/Controllers/PropertyAcceptanceController.php \
+                      app/Http/Controllers/SpadPropertyAssetController.php \
+                      app/Services/SpadPropertyPortfolio.php \
+                      routes/customer/property-assets.php \
+                      tests/Feature/SpadPortfolioSaleTest.php; do
+            php -l "$file"
+          done
+      - run: composer install --no-interaction --no-progress --prefer-dist --no-scripts
+      - name: Verify owner privacy, duplicate protection, and admin case flow
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+          CACHE_DRIVER: array
+          SESSION_DRIVER: array
+          QUEUE_CONNECTION: sync
+        run: |
+          mkdir -p storage/framework/{cache/data,sessions,views,testing} storage/logs storage/app/public bootstrap/cache
+          touch .env
+          export APP_KEY="$(php -r 'echo "base64:".base64_encode(random_bytes(32));')"
+          vendor/bin/phpunit --testdox tests/Feature/SpadPortfolioSaleTest.php
+
+  admin-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci --legacy-peer-deps --no-audit --no-fund
+      - name: Build the admin panel and verify the acceptance bundle
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider --max-old-space-size=4096
+        run: |
+          npm run production
+          find public -type f -name '*property-acceptance*.js' -exec grep -Fl -- 'asset_nickname' {} + > /tmp/spad-portfolio-sale-admin-chunk.txt
+          test -s /tmp/spad-portfolio-sale-admin-chunk.txt

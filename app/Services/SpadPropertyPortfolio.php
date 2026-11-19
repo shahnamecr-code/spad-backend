@@ -5,11 +5,46 @@ namespace App\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SpadPropertyPortfolio
 {
     public const MAX_ASSETS = 30;
     public const REFRESH_HOURS = 6;
+
+    public static function saleRequestHash(int $userId, int $assetId): string
+    {
+        return hash_hmac('sha256', 'portfolio-sale|' . $userId . '|' . $assetId, (string) config('app.key'));
+    }
+
+    public static function saleRequestStatus(int $id, string $status): array
+    {
+        $labels = [
+            'new' => 'در انتظار بررسی', 'contacted' => 'تماس انجام شد',
+            'visit_scheduled' => 'بازدید هماهنگ شد', 'under_review' => 'در حال کارشناسی',
+            'accepted' => 'پذیرفته‌شده', 'declined' => 'انصراف / عدم پذیرش', 'closed' => 'مختومه',
+        ];
+        return ['id' => $id, 'status' => $status, 'status_label' => $labels[$status] ?? $status];
+    }
+
+    /** Fetch all sale cases shown on one owner's portfolio screen in one query. */
+    public function saleRequests(int $userId, array $assetIds): array
+    {
+        if (!$assetIds || !Schema::hasTable('spad_property_acceptance_requests')) return [];
+        $assetByHash = [];
+        foreach ($assetIds as $assetId) {
+            $assetByHash[self::saleRequestHash($userId, (int) $assetId)] = (int) $assetId;
+        }
+
+        $matches = DB::table('spad_property_acceptance_requests')
+            ->where('user_id', $userId)->whereIn('quote_hash', array_keys($assetByHash))
+            ->get(['id', 'quote_hash', 'status']);
+        $statuses = [];
+        foreach ($matches as $match) {
+            $statuses[$assetByHash[$match->quote_hash]] = self::saleRequestStatus((int) $match->id, $match->status);
+        }
+        return $statuses;
+    }
 
     public function save(array $quote, int $userId, string $nickname): array
     {
@@ -169,8 +204,9 @@ class SpadPropertyPortfolio
         }
     }
 
-    public function present($asset): array
+    public function present($asset, ?array $saleRequests = null): array
     {
+        $saleRequests = $saleRequests ?? $this->saleRequests((int) $asset->user_id, [(int) $asset->id]);
         $address = [];
         try {
             $address = json_decode(Crypt::decryptString($asset->address_cipher), true) ?: [];
@@ -222,6 +258,7 @@ class SpadPropertyPortfolio
             })->all(),
             'created_at' => $asset->created_at,
             'ownership_verified' => false,
+            'sale_request' => $saleRequests[(int) $asset->id] ?? null,
         ];
     }
 }
