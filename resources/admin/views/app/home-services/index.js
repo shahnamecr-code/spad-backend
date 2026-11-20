@@ -26,9 +26,45 @@ const metrics = [
 ];
 
 const actionNames = {
-  GET: "خواندن", POST: "ثبت", PUT: "ویرایش کامل", PATCH: "ویرایش", DELETE: "حذف",
-  index: "فهرست", store: "ثبت", update: "ویرایش", show: "مشاهده", destroy: "حذف",
+  read: "مشاهده و دریافت اطلاعات",
+  write: "ثبت یا تغییر اطلاعات",
+  analysis: "درخواست تحلیل",
+  vote: "ثبت رأی",
+  report: "ثبت گزارش",
+  comments: "ثبت دیدگاه",
+  entries: "ارسال اثر",
+  feedback: "ثبت بازخورد",
 };
+
+const scanMetrics = [
+  ["projects", "پروژه‌های ذخیره‌شده"],
+  ["rooms", "فضاهای ثبت‌شده"],
+  ["photos", "عکس‌های ذخیره‌شده"],
+  ["photo_bytes", "حجم ثبت‌شدهٔ عکس‌ها (بایت)"],
+  ["linked_renovations", "نقشه‌های پیوندخورده به بازسازی"],
+];
+
+function ScanMetrics({ summary }) {
+  return (
+    <section className="card mb-3">
+      <div className="card-body">
+        <h2 className="h5">آمار پروژه‌های اسپاد اسکن</h2>
+        {summary ? (
+          <dl className="row mb-0">
+            {scanMetrics.map(([name, title]) => (
+              <div className="col-6 col-md-4 col-lg mb-2" key={name}>
+                <div className="border rounded h-100 p-2">
+                  <dt className="small">{title}</dt>
+                  <dd className="mb-0 font-weight-bold">{number(summary[name])}</dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+        ) : <p className="mb-0">آمار پروژه‌های ذخیره‌شده در دسترس نیست.</p>}
+      </div>
+    </section>
+  );
+}
 
 function ServiceMetrics({ settings }) {
   const completed = Object.entries(settings.completed_actions || {});
@@ -185,6 +221,7 @@ export default function HomeServicesAdmin({ match }) {
       {error && <p role="alert" className="alert alert-danger">{error}</p>}
       {!loading && !error && !settings && <p className="alert alert-warning">تنظیمات این سرویس در دسترس نیست.</p>}
       {settings && <ServiceMetrics settings={settings} />}
+      {settings && service.id === "scan" && <ScanMetrics summary={settings.scan_summary} />}
       {settings && <ServiceSettings key={service.id} settings={settings} onSaved={setRecords} />}
       {Panel && <Panel key={service.id} request={request} assistantUrl={endpoints.assistant} />}
     </div>

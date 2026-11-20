@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SpadHomeServicesController extends Controller
 {
@@ -26,7 +27,7 @@ class SpadHomeServicesController extends Controller
 
         $settings = DB::table('spad_home_service_settings')->orderBy('service')->get()->map(function ($row) use ($monthly, $daily, $errors, $counts) {
             $stats = $monthly->get($row->service);
-            return [
+            $result = [
                 'service' => $row->service,
                 'enabled' => (bool) $row->enabled,
                 'writes_enabled' => (bool) $row->writes_enabled,
@@ -39,6 +40,11 @@ class SpadHomeServicesController extends Controller
                 'errors_last_30_days' => (int) $errors->get($row->service, 0),
                 'completed_actions' => $counts->get($row->service, collect())->pluck('amount', 'event'),
             ];
+
+            if ($row->service === 'scan') {
+                $result['scan_summary'] = $this->scanSummary();
+            }
+            return $result;
         });
         return response()->json(['data' => $settings])->header('Cache-Control', 'private, no-store');
     }
@@ -64,5 +70,27 @@ class SpadHomeServicesController extends Controller
             ]);
         });
         return $this->index();
+    }
+
+    private function scanSummary(): ?array
+    {
+        if (!Schema::hasTable('spad_scans') || !Schema::hasTable('spad_scan_photos')) {
+            return null;
+        }
+
+        $scans = DB::table('spad_scans')->selectRaw(
+            'COUNT(*) AS projects, COALESCE(SUM(room_count), 0) AS rooms, COUNT(renovation_project_id) AS linked_renovations'
+        )->first();
+        $photos = DB::table('spad_scan_photos')->selectRaw(
+            'COUNT(*) AS photos, COALESCE(SUM(size_bytes), 0) AS photo_bytes'
+        )->first();
+
+        return [
+            'projects' => (int) $scans->projects,
+            'rooms' => (int) $scans->rooms,
+            'linked_renovations' => (int) $scans->linked_renovations,
+            'photos' => (int) $photos->photos,
+            'photo_bytes' => (int) $photos->photo_bytes,
+        ];
     }
 }

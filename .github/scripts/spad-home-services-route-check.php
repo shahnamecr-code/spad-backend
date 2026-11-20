@@ -19,7 +19,7 @@ foreach ($policies as [$method, $uri, $service, $authenticated]) {
     $route = $routes->match($request);
     $middleware = $route->gatherMiddleware();
     $labels = array_values(array_filter($middleware, static function ($name) {
-        return strpos($name, 'auth:') === 0;
+        return is_string($name) && ($name === 'auth' || strpos($name, 'auth:') === 0);
     }));
     if (!in_array(App\Http\Middleware\SpadHomeService::class . ':' . $service, $middleware, true) ||
         ($authenticated ? !in_array('auth:sanctum', $labels, true) : $labels !== [])) {

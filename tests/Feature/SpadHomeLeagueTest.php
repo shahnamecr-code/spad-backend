@@ -111,11 +111,11 @@ class SpadHomeLeagueTest extends TestCase
         $this->deleteJson($publicEntry)->assertNotFound();
 
         $this->asCustomer(10);
-        $this->getJson($mine)->assertOk()
+        $details = $this->getJson($mine)->assertOk()
             ->assertJsonPath('data.entry.status', 'pending')
-            ->assertJsonPath('data.entry.photos.0.id', $photo)
-            ->assertJsonMissingPath('data.entry.photos.0.path')
-            ->assertJsonMissingPath('data.entry.user_id');
+            ->assertJsonPath('data.entry.photos.0.id', $photo);
+        $this->assertArrayNotHasKey('path', $details->json('data.entry.photos.0'));
+        $this->assertArrayNotHasKey('user_id', $details->json('data.entry'));
         $this->getJson($publicPhoto)->assertNotFound();
         $image = $this->get($ownerPhoto)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
         $this->assertStringContainsString('no-store', $image->headers->get('Cache-Control'));
