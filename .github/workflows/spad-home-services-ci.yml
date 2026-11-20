@@ -37,8 +37,11 @@ jobs:
       - name: Exercise house service contracts
         run: |
           mapfile -t cases < <(git diff --name-only --diff-filter=AM FETCH_HEAD HEAD -- 'tests/*.php')
-          for test in "${cases[@]}"; do vendor/bin/phpunit --testdox "$test"; done
-          php .github/scripts/spad-home-services-route-check.php
+          test "${#cases[@]}" -ge 4
+          failed=0
+          for test in "${cases[@]}"; do vendor/bin/phpunit --testdox "$test" || failed=1; done
+          php .github/scripts/spad-home-services-route-check.php || failed=1
+          exit "$failed"
 
   administration:
     runs-on: ubuntu-latest
