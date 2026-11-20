@@ -4,9 +4,9 @@
 // postal lookup and valuation are strictly authenticated, and rate-limited.
 Route::prefix('property-market')->group(function () {
     Route::get('summary', [\App\Http\Controllers\PropertyValuationController::class, 'summary'])
-        ->middleware('throttle:40,1');
+        ->middleware('throttle:spad-property-market');
     Route::get('places/{placeId}/children', [\App\Http\Controllers\PropertyValuationController::class, 'children'])
-        ->whereNumber('placeId')->middleware('throttle:40,1');
+        ->whereNumber('placeId')->middleware('throttle:spad-property-market');
 });
 
 Route::prefix('property-valuation')->middleware('auth:sanctum')->group(function () {

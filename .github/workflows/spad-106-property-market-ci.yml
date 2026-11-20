@@ -1,0 +1,38 @@
+name: SPAD public property market request policy
+
+on:
+  push:
+    branches: [codex/spad-106-property-market-ci-20261120]
+
+permissions:
+  contents: read
+
+jobs:
+  market:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      CACHE_DRIVER: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, intl, zip, bcmath, exif
+          coverage: none
+      - name: Check route sources and composer dependencies
+        run: |
+          php -l app/Providers/RouteServiceProvider.php
+          php -l routes/customer/property-valuation.php
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          mkdir -p storage/framework/{cache/data,sessions,views,testing} storage/logs storage/app/public bootstrap/cache
+          touch .env
+      - name: Verify the registered rate limiters and route scopes
+        run: php .github/scripts/spad-106-property-market-ci.php

@@ -64,6 +64,12 @@ class RouteServiceProvider extends ServiceProvider
                 return Limit::none();
             }
 
+            // Public market reads have a dedicated allowance so unrelated
+            // requests from a shared carrier IP cannot close the market board.
+            if ($route && in_array('throttle:spad-property-market', $route->middleware(), true)) {
+                return Limit::none();
+            }
+
             // The approved WhatsApp poster preview is a READ-ONLY and already
             // authenticated Super Admin endpoint. It must not consume the
             // shared 60/minute IP bucket of every other SPAD admin API call.
@@ -110,6 +116,18 @@ class RouteServiceProvider extends ServiceProvider
                 return Limit::perMinute(600)->by('spad-tour-assets-ip:' . $request->ip());
             }
             return Limit::perMinute(60)->by(optional($request->user())->id ?: $request->ip());
+        });
+
+        RateLimiter::for('spad-property-market', function (Request $request) {
+            return Limit::perMinute(180)
+                ->by($request->route()->uri() . '|' . $request->ip())
+                ->response(static function (Request $request, array $headers) {
+                    return response()->json([
+                        'status' => false,
+                        'code' => 'property_market_busy',
+                        'message' => 'دریافت نرخ‌های تازه موقتاً محدود شده است. کمی بعد دوباره تلاش کنید.',
+                    ], 429, $headers);
+                });
         });
 
         RateLimiter::for('spad-login-traffic', function (Request $request) {
