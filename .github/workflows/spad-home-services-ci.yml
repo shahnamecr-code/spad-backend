@@ -1,0 +1,59 @@
+name: SPAD home services Laravel verification
+on:
+  push:
+    branches: [codex/spad-four-services-20261120]
+permissions:
+  contents: read
+jobs:
+  laravel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      APP_ENV: testing
+      DB_CONNECTION: sqlite
+      DB_DATABASE: ':memory:'
+      CACHE_DRIVER: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          extensions: pdo_sqlite, sqlite3, mbstring, gd, exif, intl, zip, bcmath
+          coverage: none
+      - name: Validate new and modified PHP sources
+        run: |
+          git fetch --no-tags --depth=1 origin 7d582e939f4471e6c780c79910ef7dfaff715a4e
+          git diff --name-only -z FETCH_HEAD HEAD -- '*.php' | xargs -0 -r -n 1 php -l
+      - name: Install Laravel dependencies
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist --no-scripts
+          mkdir -p storage/framework/{cache/data,sessions,views,testing} storage/logs storage/app/public bootstrap/cache
+          touch .env
+          echo "APP_KEY=base64:$(openssl rand -base64 32)" >> "$GITHUB_ENV"
+      - name: Exercise house service contracts
+        run: |
+          mapfile -t cases < <(git diff --name-only --diff-filter=AM FETCH_HEAD HEAD -- 'tests/*.php')
+          for test in "${cases[@]}"; do vendor/bin/phpunit --testdox "$test"; done
+          php .github/scripts/spad-home-services-route-check.php
+
+  administration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Build the current React administration
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider --max-old-space-size=4096
+        run: |
+          npm ci --legacy-peer-deps --no-audit --no-fund
+          npm run production

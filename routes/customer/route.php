@@ -117,3 +117,13 @@ require_once __DIR__ . '/property-assets.php';
 require_once __DIR__ . '/seo-public.php';
 require_once __DIR__ . '/renovation.php';
 require_once __DIR__ . '/renovation-studio.php';
+
+foreach ([
+    'scan' => 'spad-scan.php',
+    'doctor' => 'spad-home-doctor.php',
+    'neighbors' => 'spad-neighbors.php',
+    'league' => 'spad-home-league.php',
+] as $spadHomeService => $spadHomeRoutes) {
+    Route::middleware(\App\Http\Middleware\SpadHomeService::class . ':' . $spadHomeService)
+        ->group(__DIR__ . '/' . $spadHomeRoutes);
+}
