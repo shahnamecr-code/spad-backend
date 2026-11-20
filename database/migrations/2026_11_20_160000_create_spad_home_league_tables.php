@@ -34,6 +34,7 @@ class CreateSpadHomeLeagueTables extends Migration
             $table->string('city', 85)->nullable();
             $table->boolean('ai_disclosed');
             $table->dateTime('attested_at');
+            $table->unsignedInteger('revision')->default(1);
             $table->string('status', 20)->default('pending');
             $table->text('review_reason')->nullable();
             $table->unsignedBigInteger('reviewed_by')->nullable();

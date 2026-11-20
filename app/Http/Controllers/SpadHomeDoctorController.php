@@ -155,7 +155,7 @@ class SpadHomeDoctorController extends Controller
         });
 
         if ($attempt !== null) {
-            $this->dispatch($record, $attempt);
+            $this->queueAssessment($record, $attempt);
         }
         return $this->json($this->detail($record->refresh()));
     }
@@ -191,7 +191,7 @@ class SpadHomeDoctorController extends Controller
             ])];
         });
         if ($followUp->status === 'queued') {
-            $this->dispatch($record, $followUp->id, $followUp->id);
+            $this->queueAssessment($record, $followUp->id, $followUp->id);
         }
         return $this->json($this->detail($record->refresh()), 201);
     }
@@ -222,7 +222,7 @@ class SpadHomeDoctorController extends Controller
         return response()->noContent()->header('Cache-Control', 'private, no-store');
     }
 
-    private function dispatch(SpadHomeDoctorCase $record, string $attempt, ?string $followUp = null): void
+    private function queueAssessment(SpadHomeDoctorCase $record, string $attempt, ?string $followUp = null): void
     {
         $job = new AssessSpadHomeDoctorCase($record->id, $attempt, $followUp);
         try {
@@ -250,6 +250,8 @@ class SpadHomeDoctorController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
+        $accessToken = $user->currentAccessToken();
+        abort_if(($accessToken->name ?? null) === 'partner-token', 403, 'با حساب عمومی اسپاد وارد شوید.');
         return $user;
     }
 

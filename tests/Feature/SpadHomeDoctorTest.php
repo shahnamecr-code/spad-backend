@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\PersonalAccessToken;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -80,6 +81,9 @@ class SpadHomeDoctorTest extends TestCase
         $this->getJson(self::ROOT . '/cases')->assertOk()->assertJsonCount(0, 'data');
 
         Sanctum::actingAs($owner);
+        $owner->withAccessToken(new PersonalAccessToken(['name' => 'partner-token']));
+        $this->getJson($case)->assertForbidden();
+        Sanctum::actingAs($owner);
         $this->deleteJson($case)->assertNoContent();
         $this->getJson($case)->assertNotFound();
     }
@@ -129,7 +133,7 @@ class SpadHomeDoctorTest extends TestCase
         ])]);
 
         $case = $this->draft('روی دیوار لکهٔ آب دیده می‌شود. شماره تماس 09123456789');
-        $this->postJson($case . '/analysis', ['answers' => []])->assertUnprocessable();
+        $this->postJson($case . '/analysis', ['answers' => []])->assertStatus(422);
         Http::assertNothingSent();
         $this->postJson($case . '/analysis', ['consent' => true, 'answers' => ['symptom' => 'بعد از بارندگی بیشتر می‌شود.']])
             ->assertOk()->assertJsonPath('data.status', 'analyzed')->assertJsonPath('data.result.source', 'ai')
@@ -150,6 +154,7 @@ class SpadHomeDoctorTest extends TestCase
             ->assertCreated()->assertJsonPath('data.follow_ups.0.status', 'analyzed');
         $this->postJson($case . '/follow-ups', ['question' => 'حالا از پریز جرقه زده است.', 'consent' => true])
             ->assertCreated()->assertJsonPath('data.follow_ups.1.status', 'referral');
+        $this->postJson($case . '/follow-ups', ['question' => 'حالا چه کار کنم؟', 'consent' => true])->assertStatus(409);
         Http::assertSentCount(2);
         $this->putJson($case . '/feedback', ['rating' => 4, 'comment' => 'ثبت بازخورد'])
             ->assertOk()->assertJsonPath('data.feedback.rating', 4);
@@ -178,15 +183,20 @@ class SpadHomeDoctorTest extends TestCase
         $owner = $this->login();
         $case = $this->draft();
         $image = UploadedFile::fake()->image('original.jpg', 70, 50);
-        $this->post($case . '/media', ['image' => $image], ['Accept' => 'application/json'])
-            ->assertCreated()->assertJsonPath('data.media.0.width', 70)
-            ->assertJsonMissingPath('data.media.0.path');
+        $marker = 'private-original-photo-metadata';
+        $bytes = file_get_contents($image->getRealPath());
+        file_put_contents($image->getRealPath(), substr($bytes, 0, 2) . "\xff\xfe" .
+            pack('n', strlen($marker) + 2) . $marker . substr($bytes, 2));
+        $response = $this->post($case . '/media', ['image' => $image], ['Accept' => 'application/json'])
+            ->assertCreated()->assertJsonPath('data.media.0.width', 70);
+        $this->assertArrayNotHasKey('path', $response->json('data.media.0'));
         $media = $this->getJson($case)->json('data.media.0.id');
         $private = $case . '/media/' . $media;
         $this->get($private)->assertOk()->assertHeader('Content-Type', 'image/jpeg')
             ->assertHeader('Cache-Control', 'no-store, private');
         $file = DB::table('spad_home_doctor_media')->where('id', $media)->value('path');
         Storage::disk('local')->assertExists($file);
+        $this->assertStringNotContainsString($marker, Storage::disk('local')->get($file));
 
         $this->login();
         $this->getJson($private)->assertNotFound();

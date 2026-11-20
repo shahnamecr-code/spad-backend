@@ -66,25 +66,16 @@ class SpadNeighborsController extends Controller
     {
         $this->visiblePost($id);
         $cursor = $request->validate(['before_id' => ['nullable', 'integer', 'min:1']]);
-        $rows = DB::table('spad_neighbor_comments as comment')
-            ->join('users as author', 'author.id', '=', 'comment.author_id')
-            ->where('comment.post_id', $id)->where('comment.status', 'published')
-            ->whereNull('author.deleted_at')->where('author.status', User::APPROVED)
-            ->where(function ($query) {
-                $query->whereNull('comment.parent_id')->orWhereExists(function ($parent) {
-                    $parent->selectRaw('1')->from('spad_neighbor_comments as parent')
-                        ->whereColumn('parent.id', 'comment.parent_id')->where('parent.status', 'published');
-                });
-            })
+        $rows = $this->publishedComments()->where('comment.post_id', $id)
             ->when(isset($cursor['before_id']), function ($query) use ($cursor) {
                 $query->where('comment.id', '<', $cursor['before_id']);
             })->orderByDesc('comment.id')->limit(self::PAGE + 1)
             ->get(['comment.id', 'comment.parent_id', 'comment.post_id', 'comment.author_id',
-                'comment.body', 'comment.created_at', 'author.first_name']);
+                'comment.body', 'comment.created_at', 'comment_author.first_name']);
         $viewer = $this->viewer($request);
         return $this->page($rows, function ($row) use ($viewer) {
             return ['id' => $row->id, 'parent_id' => $row->parent_id, 'body' => $row->body,
-                'author' => $this->displayName($row->first_name), 'own' => $viewer && $viewer->id == $row->author_id,
+                'author' => $this->displayName($row->first_name), 'own' => (bool) ($viewer && $viewer->id == $row->author_id),
                 'created_at' => $row->created_at];
         });
     }
@@ -177,29 +168,43 @@ class SpadNeighborsController extends Controller
         }), $user);
     }
 
-    public function save(Request $request, int $id = null)
+    public function save(Request $request, ?int $id = null)
     {
         $user = $this->writer($request);
         $data = $request->validate([
             'region_id' => ['required', 'integer', 'min:1'],
             'title' => ['required', 'string', 'max:120'],
             'body' => ['required', 'string', 'max:3000'],
+            'client_key' => ['nullable', 'string', 'max:60', 'regex:/^[a-z0-9-]+$/D'],
             'category' => ['required', Rule::in(array_keys(Neighbors::CATEGORIES))],
             'lost_status' => [Rule::requiredIf($request->input('category') === 'lost-found'), 'nullable', Rule::in(['lost', 'found', 'resolved'])],
-            'event_at' => [Rule::requiredIf($request->input('category') === 'events'), 'nullable', 'date'],
+            'event_at' => [Rule::requiredIf($request->input('category') === 'events'), 'nullable', 'date_format:Y-m-d\TH:i'],
         ]);
         Neighbors::region((int) $data['region_id']);
         Neighbors::preventPrivateContact($data['title'], 'title');
         Neighbors::preventPrivateContact($data['body'], 'body');
         $data['lost_status'] = $data['category'] === 'lost-found' ? $data['lost_status'] : null;
-        $data['event_at'] = $data['category'] === 'events' ? date('Y-m-d H:i:s', strtotime($data['event_at'])) : null;
+        $data['event_at'] = $data['category'] === 'events' ? str_replace('T', ' ', $data['event_at']).':00' : null;
         $data['status'] = 'pending';
         $data['updated_at'] = now();
         if ($id === null) {
-            $id = DB::table('spad_neighbor_posts')->insertGetId($data + ['author_id' => $user->id, 'created_at' => now()]);
+            $posts = DB::table('spad_neighbor_posts');
+            $values = $data + ['author_id' => $user->id, 'created_at' => now()];
+            if (empty($data['client_key'])) {
+                $id = $posts->insertGetId($values);
+            } else {
+                $posts->insertOrIgnore($values);
+                $saved = $posts->where('author_id', $user->id)->where('client_key', $data['client_key'])->first(['id', 'status']);
+                abort_unless($saved, 503, 'ذخیرهٔ نوشته انجام نشد.');
+                return $this->privateResponse(['data' => ['id' => $saved->id, 'status' => $saved->status]]);
+            }
         } else {
-            $this->ownerPost($id, $user);
-            DB::table('spad_neighbor_posts')->where('id', $id)->where('author_id', $user->id)->where('status', '<>', 'deleted')->update($data);
+            unset($data['client_key']);
+            DB::transaction(function () use ($id, $user, $data) {
+                $post = DB::table('spad_neighbor_posts')->where('id', $id)->where('author_id', $user->id)->lockForUpdate()->first();
+                abort_unless($post && $post->status !== 'deleted', 404);
+                DB::table('spad_neighbor_posts')->where('id', $id)->update($data);
+            }, 3);
         }
         return $this->privateResponse(['data' => ['id' => $id, 'status' => 'pending']]);
     }
@@ -208,7 +213,7 @@ class SpadNeighborsController extends Controller
     {
         $user = Neighbors::account($request->user());
         $this->ownerPost($id, $user);
-        DB::table('spad_neighbor_posts')->where('id', $id)->where('author_id', $user->id)
+        DB::table('spad_neighbor_posts')->where('id', $id)->where('author_id', $user->id)->where('status', '<>', 'deleted')
             ->update(['status' => 'deleted', 'updated_at' => now()]);
         return $this->privateResponse(['status' => true]);
     }
@@ -218,7 +223,7 @@ class SpadNeighborsController extends Controller
         $user = Neighbors::account($request->user());
         $post = $this->ownerPost($id, $user);
         abort_unless($post->category === 'lost-found', 422);
-        DB::table('spad_neighbor_posts')->where('id', $id)->where('author_id', $user->id)
+        DB::table('spad_neighbor_posts')->where('id', $id)->where('author_id', $user->id)->where('status', '<>', 'deleted')
             ->update(['lost_status' => 'resolved', 'updated_at' => now()]);
         return $this->privateResponse(['status' => true]);
     }
@@ -230,8 +235,8 @@ class SpadNeighborsController extends Controller
         $data = $request->validate(['body' => ['required', 'string', 'max:1200'], 'parent_id' => ['nullable', 'integer', 'min:1']]);
         Neighbors::preventPrivateContact($data['body'], 'body');
         if (isset($data['parent_id'])) {
-            abort_unless(DB::table('spad_neighbor_comments')->where('id', $data['parent_id'])
-                ->where('post_id', $id)->where('status', 'published')->exists(), 404);
+            abort_unless($this->publishedComments()->where('comment.id', $data['parent_id'])
+                ->where('comment.post_id', $id)->whereNull('comment.parent_id')->exists(), 404);
         }
         $comment = DB::table('spad_neighbor_comments')->insertGetId($data + [
             'post_id' => $id, 'author_id' => $user->id, 'status' => 'pending',
@@ -267,7 +272,12 @@ class SpadNeighborsController extends Controller
         $user = $this->writer($request);
         $row = $this->content($type, $id);
         abort_unless($row && $row->status === 'published', 404);
-        if ($type === 'comment') $this->visiblePost($row->post_id);
+        if ($type === 'comment') {
+            $this->visiblePost($row->post_id);
+            abort_unless($this->publishedComments()->where('comment.id', $id)->exists(), 404);
+        } else {
+            $this->visiblePost($id);
+        }
         return $this->submitReview($request, 'reports', $user, $type, $id);
     }
 
@@ -378,10 +388,15 @@ class SpadNeighborsController extends Controller
     private function submitReview(Request $request, string $table, User $user, string $type, int $id)
     {
         $data = $request->validate(['reason' => ['required', 'string', 'max:500']]);
-        DB::table('spad_neighbor_'.$table)->insertOrIgnore([
-            'user_id' => $user->id, 'target_type' => $type, 'target_id' => $id, 'reason' => $data['reason'],
+        $review = DB::table('spad_neighbor_'.$table);
+        $identity = ['user_id' => $user->id, 'target_type' => $type, 'target_id' => $id];
+        $inserted = $review->insertOrIgnore($identity + [
+            'reason' => $data['reason'],
             'status' => 'open', 'created_at' => now(), 'updated_at' => now(),
         ]);
+        if (!$inserted) {
+            abort_unless($review->where($identity)->where('status', 'open')->exists(), 422, 'این درخواست قبلاً بررسی شده است.');
+        }
         return $this->privateResponse(['status' => true]);
     }
 
@@ -422,7 +437,7 @@ class SpadNeighborsController extends Controller
                 'region_id' => $row->region_id, 'region' => $row->region_name,
                 'author' => $this->displayName($row->first_name), 'resident_verified' => (bool) $row->resident_verified,
                 'status' => $row->status, 'lost_status' => $row->lost_status, 'event_at' => $row->event_at,
-                'created_at' => $row->created_at, 'published_at' => $row->published_at, 'own' => $own,
+                'created_at' => $row->created_at, 'published_at' => $row->published_at, 'own' => (bool) $own,
                 'likes' => (int) $row->likes, 'comments' => (int) $row->comments,
                 'liked' => $actions->get($row->id, collect())->contains('kind', 'like'),
                 'bookmarked' => $actions->get($row->id, collect())->contains('kind', 'bookmark'),
@@ -446,9 +461,24 @@ class SpadNeighborsController extends Controller
             ->select(['post.*', 'region.name as region_name', 'author.first_name', 'residency.id as resident_verified'])
             ->selectSub(function ($query) {
                 $query->from('spad_neighbor_interactions')->selectRaw('count(*)')->whereColumn('post_id', 'post.id')->where('kind', 'like');
-            }, 'likes')->selectSub(function ($query) {
-                $query->from('spad_neighbor_comments')->selectRaw('count(*)')->whereColumn('post_id', 'post.id')->where('status', 'published');
-            }, 'comments');
+            }, 'likes')->selectSub($this->publishedComments()->selectRaw('count(*)')->whereColumn('comment.post_id', 'post.id'), 'comments');
+    }
+
+    private function publishedComments()
+    {
+        return DB::table('spad_neighbor_comments as comment')
+            ->join('users as comment_author', 'comment_author.id', '=', 'comment.author_id')
+            ->where('comment.status', 'published')->whereNull('comment_author.deleted_at')
+            ->where('comment_author.status', User::APPROVED)
+            ->where(function ($query) {
+                $query->whereNull('comment.parent_id')->orWhereExists(function ($parent) {
+                    $parent->selectRaw('1')->from('spad_neighbor_comments as parent')
+                        ->join('users as parent_author', 'parent_author.id', '=', 'parent.author_id')
+                        ->whereColumn('parent.id', 'comment.parent_id')->whereColumn('parent.post_id', 'comment.post_id')
+                        ->where('parent.status', 'published')->where('parent_author.status', User::APPROVED)
+                        ->whereNull('parent_author.deleted_at');
+                });
+            });
     }
 
     private function published()

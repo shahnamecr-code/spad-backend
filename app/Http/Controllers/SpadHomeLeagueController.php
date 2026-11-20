@@ -184,9 +184,9 @@ class SpadHomeLeagueController extends Controller
                         'contest_id' => $contest->id, 'user_id' => $userId, 'created_at' => $now,
                     ]);
                 } else {
-                    $this->editableEntry($locked, $id, $userId);
+                    $previousEntry = $this->editableEntry($locked, $id, $userId);
                     $entryId = $id;
-                    DB::table(self::ENTRIES)->where('id', $entryId)->update($values);
+                    DB::table(self::ENTRIES)->where('id', $entryId)->update($values + ['revision' => (int) $previousEntry->revision + 1]);
                     if ($paths) {
                         $oldPaths = DB::table(self::PHOTOS)->where('entry_id', $entryId)->pluck('path')->all();
                         DB::table(self::PHOTOS)->where('entry_id', $entryId)->delete();
@@ -335,12 +335,14 @@ class SpadHomeLeagueController extends Controller
         $data = $request->validate([
             'status' => ['required', Rule::in(['approved', 'rejected'])],
             'reason' => 'required_if:status,rejected|nullable|string|max:1000',
+            'revision' => 'required|integer|min:1',
         ]);
         $entry = $this->entryById($id);
         DB::transaction(function () use ($entry, $data, $adminId) {
             $contest = $this->contestById($entry->contest_id, true);
             $fresh = $this->contestEntry($contest, $entry->id);
             abort_if($contest->frozen_at || $fresh->status === 'withdrawn', 422, 'تغییر این اثر ممکن نیست.');
+            abort_unless((int) $fresh->revision === (int) $data['revision'], 409, 'اثر پس از باز کردن بررسی تغییر کرده است. نسخهٔ تازه را بررسی کنید.');
             abort_if($data['status'] === 'approved' && !DB::table(self::PHOTOS)->where('entry_id', $entry->id)->exists(), 422, 'اثر بدون تصویر قابل تأیید نیست.');
             $now = $this->now();
             DB::table(self::ENTRIES)->where('id', $entry->id)->update([
@@ -500,6 +502,7 @@ class SpadHomeLeagueController extends Controller
         }
         if ($scope === 'admin') {
             $data['user_id'] = (int) $entry->user_id;
+            $data['revision'] = (int) $entry->revision;
         }
         return $data;
     }

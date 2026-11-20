@@ -12,6 +12,11 @@ class SpadHomeService
 {
     public function handle(Request $request, Closure $next, string $service)
     {
+        $personalData = '~^api/(?:home-doctor/cases/[a-f0-9-]{36}(?:/media/[a-f0-9-]{36})?|online-renovation/scans/[0-9]+(?:/photos/[0-9]+)?)$~Di';
+        if ($request->isMethod('DELETE') && preg_match($personalData, $request->path())) {
+            return $next($request);
+        }
+
         $settings = DB::table('spad_home_service_settings')->where('service', $service)->first();
         if (!$settings || !$settings->enabled) {
             return response()->json(['message' => 'این خدمت موقتاً در دسترس نیست.'], 503);

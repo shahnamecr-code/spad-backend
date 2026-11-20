@@ -1,4 +1,5 @@
 import { adminRoot, UserRole } from "./defaultValues";
+import { homeServices } from "./homeServices";
 
 const data = [
   {
@@ -362,6 +363,19 @@ const data = [
     label: "دستیار هوشمند ملکی",
     to: `${adminRoot}/ai-assistant`,
     roles: [UserRole.Admin],
+  },
+  {
+    id: "home-services",
+    icon: "simple-icon-home",
+    label: "خدمات خانه اسپاد",
+    to: `${adminRoot}/home-services/scan`,
+    roles: [UserRole.Admin],
+    subs: homeServices.map(({ title, id, icon }) => ({
+      icon,
+      label: title,
+      to: `${adminRoot}/home-services/${id}`,
+      roles: [UserRole.Admin],
+    })),
   },
   {
     id: "web-services",

@@ -34,13 +34,15 @@ class CreateSpadNeighbors extends Migration
             $table->id();
             $table->unsignedBigInteger('author_id')->index();
             $table->unsignedBigInteger('region_id');
+            $table->string('client_key', 60)->nullable();
             $table->string('category', 32);
             $table->string('title', 120);
             $table->text('body');
             $table->string('status', 16)->default('pending')->index();
             $table->string('lost_status', 16)->nullable();
-            $table->timestamp('event_at')->nullable();
+            $table->dateTime('event_at')->nullable();
             $table->timestamp('published_at')->nullable();
+            $table->unique(['author_id', 'client_key']);
             $table->index(['region_id', 'status', 'id']);
             $table->timestamps();
         });

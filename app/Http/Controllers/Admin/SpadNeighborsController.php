@@ -84,12 +84,18 @@ class SpadNeighborsController extends Controller
         if ($status === 'published') {
             if ($group === 'posts') {
                 $title = 'یک مطلب تازه در محلهٔ دنبال‌شده منتشر شد.';
+                Neighbors::region((int) $record->region_id);
                 Neighbors::preventPrivateContact($record->title, 'title');
                 Neighbors::preventPrivateContact($record->body, 'body');
                 $attributes['published_at'] = $record->published_at ?? $now;
             } elseif ($group === 'comments') {
                 Neighbors::preventPrivateContact($record->body, 'body');
                 abort_unless(DB::table('spad_neighbor_posts')->where('id', $record->post_id)->where('status', 'published')->exists(), 422, 'ابتدا مطلب اصلی را منتشر کنید.');
+                if ($record->parent_id) {
+                    $parentVisible = DB::table('spad_neighbor_comments')->where('id', $record->parent_id)
+                        ->where('post_id', $record->post_id)->where('status', 'published')->whereNull('parent_id')->exists();
+                    abort_unless($parentVisible, 422, 'ابتدا دیدگاه اصلی را منتشر کنید.');
+                }
             }
         }
         if ($group === 'appeals' && $status === 'accepted') {

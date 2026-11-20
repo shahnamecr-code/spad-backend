@@ -15,7 +15,7 @@ class PrivatePhoto
 
     public static function process(UploadedFile $photo): array
     {
-        if (!function_exists('imagecreatefromstring')) {
+        if (!function_exists('imagecreatefromstring') || !function_exists('imagejpeg')) {
             abort(503, 'پردازش امن عکس موقتاً در دسترس نیست. می‌توانید درخواست متنی ثبت کنید.');
         }
 
@@ -32,24 +32,44 @@ class PrivatePhoto
             throw ValidationException::withMessages(['image' => 'خواندن این عکس ممکن نبود. فایل دیگری انتخاب کنید.']);
         }
 
-        // Re-encoding removes EXIF, GPS and arbitrary extra data from the input file.
-        // Bound the size of the retained image and the provider request.
-        $scale = min(1, 1440 / max($size[0], $size[1]));
-        $width = max(1, (int) round($size[0] * $scale));
-        $height = max(1, (int) round($size[1] * $scale));
-        $resized = imagecreatetruecolor($width, $height);
-        imagefill($resized, 0, 0, imagecolorallocate($resized, 255, 255, 255));
-        imagecopyresampled($resized, $image, 0, 0, 0, 0, $width, $height, $size[0], $size[1]);
-        ob_start();
         try {
-            $saved = imagejpeg($resized, null, 84);
-            $jpeg = ob_get_contents();
+            // Preserve the visual orientation while re-encoding away EXIF and GPS.
+            $orientation = $size['mime'] === 'image/jpeg' && function_exists('exif_read_data')
+                ? (int) (@exif_read_data($source)['Orientation'] ?? 1)
+                : 1;
+            if (in_array($orientation, [2, 4, 5, 7], true)) {
+                imageflip($image, in_array($orientation, [4, 5], true) ? IMG_FLIP_VERTICAL : IMG_FLIP_HORIZONTAL);
+            }
+            $angle = [3 => 180, 5 => 270, 6 => 270, 7 => 90, 8 => 90][$orientation] ?? 0;
+            if ($angle && ($rotated = imagerotate($image, $angle, 0))) {
+                imagedestroy($image);
+                $image = $rotated;
+            }
+
+            $sourceWidth = imagesx($image);
+            $sourceHeight = imagesy($image);
+            $scale = min(1, 1440 / max($sourceWidth, $sourceHeight));
+            $width = max(1, (int) round($sourceWidth * $scale));
+            $height = max(1, (int) round($sourceHeight * $scale));
+            $resized = imagecreatetruecolor($width, $height);
+            abort_unless($resized, 503, 'آماده‌سازی عکس انجام نشد.');
+            try {
+                imagefill($resized, 0, 0, imagecolorallocate($resized, 255, 255, 255));
+                imagecopyresampled($resized, $image, 0, 0, 0, 0, $width, $height, $sourceWidth, $sourceHeight);
+                ob_start();
+                try {
+                    $saved = imagejpeg($resized, null, 84);
+                    $jpeg = ob_get_contents();
+                } finally {
+                    ob_end_clean();
+                }
+            } finally {
+                imagedestroy($resized);
+            }
+            abort_unless($saved && is_string($jpeg) && $jpeg !== '', 503, 'آماده‌سازی عکس انجام نشد.');
+            return [$jpeg, $width, $height];
         } finally {
-            ob_end_clean();
-            imagedestroy($resized);
             imagedestroy($image);
         }
-        abort_unless($saved && is_string($jpeg) && $jpeg !== '', 503, 'آماده‌سازی عکس انجام نشد.');
-        return [$jpeg, $width, $height];
     }
 }
