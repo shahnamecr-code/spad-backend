@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Services\HomeDoctor\OpenAiProvider;
+use App\Services\SpadHouseholdVision;
 use App\Services\HomeEnergy\UtilityCapabilities;
 use App\Services\SpadSmartHome\GatewayRegistry;
 use Illuminate\Http\Request;
@@ -64,7 +64,7 @@ class SpadHomeServicesController extends Controller
                     }
                 }
             }
-            if (in_array($row->service, ['garden', 'energy', 'smart'], true)) {
+            if (in_array($row->service, ['garden', 'book', 'energy', 'smart'], true)) {
                 try {
                     $result['provider_status'] = $this->providerStatus($row->service);
                 } catch (\Throwable $error) {
@@ -123,9 +123,9 @@ class SpadHomeServicesController extends Controller
 
     private function providerStatus(string $service): array
     {
-        if ($service === 'garden') {
+        if (in_array($service, ['garden', 'book'], true)) {
             $status = Schema::hasTable('spad_ai_assistant_settings')
-                ? app(OpenAiProvider::class)->status()
+                ? app(SpadHouseholdVision::class)->status()
                 : ['state' => 'not_configured'];
             $state = $status['state'] ?? 'unknown';
             $states = ['not_configured', 'configured_unchecked', 'responding', 'quota_exhausted',

@@ -109,6 +109,7 @@ function HouseholdInventory({ counts }) {
 
 const providerTitles = {
   garden: "تشخیص گونهٔ گیاه",
+  book: "خواندن برچسب دستگاه",
   energy: "ارائه‌دهندهٔ استعلام قبض",
   smart: "درگاه‌های خانهٔ هوشمند",
 };
@@ -131,7 +132,7 @@ const readiness = (value) => value === true ? "در دسترس" : value === fals
 function ProviderStatus({ service, details }) {
   const rows = [];
   let settingsLink = null;
-  if (service === "garden") {
+  if (service === "garden" || service === "book") {
     rows.push(["آماده‌سازی امن عکس", readiness(details.image_preparation_ready)]);
     if (details.last_observed_at) {
       const observed = new Date(details.last_observed_at);

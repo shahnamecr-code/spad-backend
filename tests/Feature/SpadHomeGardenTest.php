@@ -91,6 +91,7 @@ class SpadHomeGardenTest extends TestCase
         $photoResponse = $this->getJson($route)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
         $this->assertSame('private-photo', $photoResponse->getContent());
         $this->postJson($route.'/identify', ['consent' => false])->assertUnprocessable();
+        $this->postJson($route.'/identify', ['consent' => true])->assertOk()->assertJsonPath('data.status', 'unavailable');
         $this->putJson($path.'/species', ['species' => 'پتوس'])->assertUnprocessable();
         $this->putJson($path.'/species', ['species' => 'پتوس', 'confirmation' => true])->assertOk()->assertJsonPath('data.species_confirmed', true);
         Sanctum::actingAs($other);

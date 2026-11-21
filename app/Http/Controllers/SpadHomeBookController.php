@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\HomeDoctor\OpenAiProvider;
+use App\Services\SpadHouseholdVision;
 use App\Services\HomeDoctor\PrivatePhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
@@ -223,7 +223,7 @@ class SpadHomeBookController extends Controller
         return $this->json($this->detail($owner, $device));
     }
 
-    public function readLabel(Request $request, OpenAiProvider $provider)
+    public function readLabel(Request $request, SpadHouseholdVision $provider)
     {
         $this->owner($request);
         $data = $request->validate(['consent' => 'accepted', 'image' => 'required|file|mimetypes:image/jpeg,image/png,image/webp|max:5120']);

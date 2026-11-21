@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Services\HomeDoctor\OpenAiProvider;
+use App\Services\SpadHouseholdVision;
 use App\Services\HomeDoctor\PrivatePhoto;
 use App\Services\SpadHouseholdReminders;
 use Illuminate\Http\Request;
@@ -221,7 +221,7 @@ class SpadHomeGardenController extends Controller
         abort_unless($disk->exists($record->path), 404);
         $jpeg = $disk->get($record->path);
         abort_unless(is_string($jpeg) && $jpeg !== '', 404);
-        $provider = new OpenAiProvider();
+        $provider = new SpadHouseholdVision();
         $fields = [
             'name' => ['type' => 'string'],
             'scientific_name' => ['type' => 'string'],
