@@ -42,6 +42,8 @@ class Kernel extends ConsoleKernel
         // Independent opt-in self-chat only, disabled before user QR pairing.
         $schedule->command('spad:wa-personal-dispatch')
             ->name('spad-whatsapp-personal-self')->everyMinute()->withoutOverlapping();
+        $schedule->call([\App\Services\SpadHouseholdReminders::class, 'deliverDue'])
+            ->name('spad-household-reminders')->everyMinute()->withoutOverlapping();
     }
 
     /**

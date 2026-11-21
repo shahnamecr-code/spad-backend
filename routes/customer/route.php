@@ -118,11 +118,23 @@ require_once __DIR__ . '/seo-public.php';
 require_once __DIR__ . '/renovation.php';
 require_once __DIR__ . '/renovation-studio.php';
 
+Route::middleware(['auth:sanctum', 'throttle:30,1,spad-household-reminders'])->group(function () {
+    Route::get('household/reminders', [\App\Http\Controllers\SpadHouseholdReminderController::class, 'index']);
+    Route::post('household/reminders', [\App\Http\Controllers\SpadHouseholdReminderController::class, 'store']);
+    Route::delete('household/reminders/{id}', [\App\Http\Controllers\SpadHouseholdReminderController::class, 'destroy'])->whereNumber('id');
+});
+
 foreach ([
     'scan' => 'spad-scan.php',
     'doctor' => 'spad-home-doctor.php',
     'neighbors' => 'spad-neighbors.php',
     'league' => 'spad-home-league.php',
+    'energy' => 'spad-home-energy.php',
+    'book' => 'spad-home-book.php',
+    'planner' => 'spad-home-planner.php',
+    'sunlight' => 'spad-home-sunlight.php',
+    'garden' => 'spad-home-garden.php',
+    'smart' => 'spad-smart-home.php',
 ] as $spadHomeService => $spadHomeRoutes) {
     Route::middleware(\App\Http\Middleware\SpadHomeService::class . ':' . $spadHomeService)
         ->group(__DIR__ . '/' . $spadHomeRoutes);

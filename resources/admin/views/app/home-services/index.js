@@ -66,6 +66,116 @@ function ScanMetrics({ summary }) {
   );
 }
 
+const householdMetrics = {
+  locations: "محل‌های مصرف",
+  accounts: "شناسه‌های قبض",
+  bills: "دوره‌های قبض",
+  homes: "خانه‌های ثبت‌شده",
+  devices: "وسایل ثبت‌شده",
+  documents: "مدارک خصوصی",
+  groups: "گروه‌های خانه",
+  tasks: "وظایف تعریف‌شده",
+  members: "عضویت‌ها",
+  projects: "پروژه‌های نور",
+  plants: "گیاهان ثبت‌شده",
+  photos: "عکس‌های خصوصی",
+  care_logs: "فعالیت‌های نگهداری",
+  connections: "اتصال‌های خانه هوشمند",
+  actions: "رخدادهای ثبت‌شده",
+};
+
+function HouseholdInventory({ counts }) {
+  const rows = Object.entries(counts);
+  return (
+    <section className="card mb-3">
+      <div className="card-body">
+        <h2 className="h5">آمار داده‌های ثبت‌شده</h2>
+        {rows.length > 0 ? (
+          <dl className="row mb-0">
+            {rows.map(([key, count]) => (
+              <div className="col-6 col-md-4 mb-2" key={key}>
+                <div className="border rounded h-100 p-2">
+                  <dt className="small">{householdMetrics[key]}</dt>
+                  <dd className="mb-0">{number(count)}</dd>
+                </div>
+              </div>
+            ))}
+          </dl>
+        ) : <p className="mb-0">آمار داده‌های سرویس در دسترس نیست.</p>}
+      </div>
+    </section>
+  );
+}
+
+const providerTitles = {
+  garden: "تشخیص گونهٔ گیاه",
+  energy: "ارائه‌دهندهٔ استعلام قبض",
+  smart: "درگاه‌های خانهٔ هوشمند",
+};
+const providerStates = {
+  not_configured: "پیکربندی نشده",
+  configured_unchecked: "پیکربندی شده؛ نتیجهٔ درخواست ثبت نشده است",
+  responding: "آخرین درخواست ثبت‌شده پاسخ گرفته است",
+  quota_exhausted: "سهمیه در آخرین درخواست کافی نبوده است",
+  rate_limited: "آخرین درخواست با محدودیت نرخ روبه‌رو شده است",
+  auth_error: "احراز هویت ارائه‌دهنده در آخرین درخواست ناموفق بوده است",
+  unavailable: "آخرین درخواست کامل نشده است",
+  invalid_response: "پاسخ آخرین درخواست معتبر نبوده است",
+  configuration_ready: "پیکربندی معتبر است؛ اتصال زنده بررسی نشده است",
+  configuration_incomplete: "پیکربندی کامل یا معتبر نیست",
+  unknown: "وضعیت پیکربندی در دسترس نیست",
+};
+const utilityNames = { water: "آب", electricity: "برق", gas: "گاز" };
+const readiness = (value) => value === true ? "در دسترس" : value === false ? "در دسترس نیست" : "نامشخص";
+
+function ProviderStatus({ service, details }) {
+  const rows = [];
+  let settingsLink = null;
+  if (service === "garden") {
+    rows.push(["آماده‌سازی امن عکس", readiness(details.image_preparation_ready)]);
+    if (details.last_observed_at) {
+      const observed = new Date(details.last_observed_at);
+      if (Number.isFinite(observed.getTime())) {
+        rows.push(["آخرین نتیجهٔ ثبت‌شده", observed.toLocaleString("fa-IR", { timeZone: "Asia/Tehran" })]);
+      }
+    }
+    settingsLink = <Link to={endpoints.assistant}>تنظیمات دستیار هوشمند</Link>;
+  } else if (service === "energy") {
+    const enabled = (details.inquiry_services || []).map((id) => utilityNames[id]).filter(Boolean);
+    rows.push(
+      ["استعلام‌های مجاز در پیکربندی", details.state === "unknown" ? "نامشخص" : (enabled.join("، ") || "هیچ‌کدام")],
+      ["پرداخت قبض", readiness(details.payment_enabled)],
+      ["تشخیص متن قبض", readiness(details.ocr_enabled)],
+      ["ذخیرهٔ عکس رسید", readiness(details.receipt_images_ready)],
+    );
+    settingsLink = <Link to={`${adminRoot}/web-services`}>تنظیمات اتصال سرویس‌ها</Link>;
+  } else {
+    rows.push(
+      ["درگاه‌های مجاز در پیکربندی", number(details.gateway_count)],
+      ["چراغ‌های مجاز برای مشاهده", number(details.light_count)],
+      ["چراغ‌های دارای مجوز کنترل", number(details.control_allowed_count)],
+    );
+  }
+  return (
+    <section className="card mb-3">
+      <div className="card-body">
+        <h2 className="h5">{providerTitles[service]}</h2>
+        <p role="status">{providerStates[details.state] || providerStates.unknown}</p>
+        <dl className="row mb-0">
+          {rows.map(([title, value]) => (
+            <div className="col-12 col-md-6 col-lg-4 mb-2" key={title}>
+              <div className="border rounded p-2 h-100">
+                <dt className="small">{title}</dt><dd className="mb-0">{value}</dd>
+              </div>
+            </div>
+          ))}
+        </dl>
+        {settingsLink}
+      </div>
+    </section>
+  );
+}
+
 function ServiceMetrics({ settings }) {
   const completed = Object.entries(settings.completed_actions || {});
   return (
@@ -222,6 +332,8 @@ export default function HomeServicesAdmin({ match }) {
       {!loading && !error && !settings && <p className="alert alert-warning">تنظیمات این سرویس در دسترس نیست.</p>}
       {settings && <ServiceMetrics settings={settings} />}
       {settings && service.id === "scan" && <ScanMetrics summary={settings.scan_summary} />}
+      {settings?.household_inventory && <HouseholdInventory counts={settings.household_inventory} />}
+      {settings?.provider_status && providerTitles[service.id] && <ProviderStatus service={service.id} details={settings.provider_status} />}
       {settings && <ServiceSettings key={service.id} settings={settings} onSaved={setRecords} />}
       {Panel && <Panel key={service.id} request={request} assistantUrl={endpoints.assistant} />}
     </div>

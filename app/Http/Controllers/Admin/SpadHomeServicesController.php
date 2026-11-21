@@ -3,12 +3,24 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Services\HomeDoctor\OpenAiProvider;
+use App\Services\HomeEnergy\UtilityCapabilities;
+use App\Services\SpadSmartHome\GatewayRegistry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class SpadHomeServicesController extends Controller
 {
+    private const HOUSEHOLD = [
+        'energy' => ['locations' => 'spad_home_energy_locations', 'accounts' => 'spad_home_energy_accounts', 'bills' => 'spad_home_energy_bills'],
+        'book' => ['homes' => 'spad_homebook_homes', 'devices' => 'spad_homebook_devices', 'documents' => 'spad_homebook_documents'],
+        'planner' => ['groups' => 'spad_home_planner_groups', 'tasks' => 'spad_home_planner_tasks', 'members' => 'spad_home_planner_members'],
+        'sunlight' => ['projects' => 'spad_sunlight_projects'],
+        'garden' => ['plants' => 'spad_garden_plants', 'photos' => 'spad_garden_photos', 'care_logs' => 'spad_garden_activity'],
+        'smart' => ['connections' => 'spad_smart_home_connections', 'actions' => 'spad_smart_home_audit'],
+    ];
+
     public function index()
     {
         $iran = now('Asia/Tehran');
@@ -44,6 +56,21 @@ class SpadHomeServicesController extends Controller
             if ($row->service === 'scan') {
                 $result['scan_summary'] = $this->scanSummary();
             }
+            if (isset(self::HOUSEHOLD[$row->service])) {
+                $result['household_inventory'] = [];
+                foreach (self::HOUSEHOLD[$row->service] as $key => $table) {
+                    if (Schema::hasTable($table)) {
+                        $result['household_inventory'][$key] = DB::table($table)->count();
+                    }
+                }
+            }
+            if (in_array($row->service, ['garden', 'energy', 'smart'], true)) {
+                try {
+                    $result['provider_status'] = $this->providerStatus($row->service);
+                } catch (\Throwable $error) {
+                    $result['provider_status'] = ['state' => 'unknown'];
+                }
+            }
             return $result;
         });
         return response()->json(['data' => $settings])->header('Cache-Control', 'private, no-store');
@@ -51,7 +78,7 @@ class SpadHomeServicesController extends Controller
 
     public function update(Request $request, string $service)
     {
-        abort_unless(in_array($service, ['scan', 'doctor', 'neighbors', 'league'], true), 404);
+        abort_unless(isset(self::HOUSEHOLD[$service]) || in_array($service, ['scan', 'doctor', 'neighbors', 'league'], true), 404);
         $data = $request->validate([
             'enabled' => 'required|boolean',
             'writes_enabled' => 'required|boolean',
@@ -91,6 +118,62 @@ class SpadHomeServicesController extends Controller
             'linked_renovations' => (int) $scans->linked_renovations,
             'photos' => (int) $photos->photos,
             'photo_bytes' => (int) $photos->photo_bytes,
+        ];
+    }
+
+    private function providerStatus(string $service): array
+    {
+        if ($service === 'garden') {
+            $status = Schema::hasTable('spad_ai_assistant_settings')
+                ? app(OpenAiProvider::class)->status()
+                : ['state' => 'not_configured'];
+            $state = $status['state'] ?? 'unknown';
+            $states = ['not_configured', 'configured_unchecked', 'responding', 'quota_exhausted',
+                'rate_limited', 'auth_error', 'unavailable', 'invalid_response'];
+            $checked = $status['checked_at'] ?? null;
+            return [
+                'state' => in_array($state, $states, true) ? $state : 'unknown',
+                'last_observed_at' => is_string($checked) && preg_match('/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z\z/', $checked) ? $checked : null,
+                'image_preparation_ready' => function_exists('imagecreatefromstring') && function_exists('imagejpeg'),
+            ];
+        }
+
+        if ($service === 'energy') {
+            $capabilities = app(UtilityCapabilities::class)->read();
+            $available = array_intersect(['water', 'electricity', 'gas'], array_keys((array) $capabilities['inquiry_services']));
+            return [
+                'state' => !$capabilities['inquiry_configured'] ? 'not_configured' : ($available ? 'configuration_ready' : 'configuration_incomplete'),
+                'inquiry_services' => array_values($available),
+                'payment_enabled' => (bool) $capabilities['payment_enabled'],
+                'ocr_enabled' => (bool) $capabilities['ocr_enabled'],
+                'receipt_images_ready' => (bool) $capabilities['receipt_images_enabled'],
+            ];
+        }
+
+        $configured = config('spad_smart_home.gateways', []);
+        $configured = is_array($configured) ? $configured : [];
+        $owners = [];
+        foreach ($configured as $item) {
+            if (is_array($item) && is_int($item['owner_id'] ?? null)) $owners[$item['owner_id']] = true;
+        }
+        $gatewayCount = 0;
+        $lightCount = 0;
+        $controlledCount = 0;
+        $registry = app(GatewayRegistry::class);
+        foreach (array_keys($owners) as $owner) {
+            foreach ($registry->forOwner($owner) as $gateway) {
+                $gatewayCount++;
+                foreach ($gateway['lights'] as $light) {
+                    $lightCount++;
+                    if ($light['control']) $controlledCount++;
+                }
+            }
+        }
+        return [
+            'state' => $gatewayCount ? 'configuration_ready' : ($configured ? 'configuration_incomplete' : 'not_configured'),
+            'gateway_count' => $gatewayCount,
+            'light_count' => $lightCount,
+            'control_allowed_count' => $controlledCount,
         ];
     }
 }

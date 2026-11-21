@@ -10,4 +10,6 @@ Route::middleware(SpadHomeServiceAdministrator::class)->group(function () {
     require __DIR__ . '/spad-neighbors.php';
     require __DIR__ . '/spad-home-doctor.php';
     require __DIR__ . '/spad-home-league.php';
+    require __DIR__ . '/spad-home-energy.php';
+    require __DIR__ . '/spad-home-planner.php';
 });

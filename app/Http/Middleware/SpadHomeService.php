@@ -12,7 +12,13 @@ class SpadHomeService
 {
     public function handle(Request $request, Closure $next, string $service)
     {
-        $personalData = '~^api/(?:home-doctor/cases/[a-f0-9-]{36}(?:/media/[a-f0-9-]{36})?|online-renovation/scans/[0-9]+(?:/photos/[0-9]+)?)$~Di';
+        $personalData = '~^api/(?:home-doctor/cases/[a-f0-9-]{36}(?:/media/[a-f0-9-]{36})?'
+            . '|online-renovation/scans/[0-9]+(?:/photos/[0-9]+)?'
+            . '|home-energy/(?:locations|accounts|bills)/[0-9]+(?:/receipt)?'
+            . '|home-sunlight/projects/[0-9]+'
+            . '|home-book/(?:homes|devices)/[0-9]+(?:/(?:documents|maintenance)/[0-9]+)?'
+            . '|home-garden/plants/[a-f0-9-]{36}/photos/[a-f0-9-]{36}'
+            . '|smart-home/connection)$~Di';
         if ($request->isMethod('DELETE') && preg_match($personalData, $request->path())) {
             return $next($request);
         }
