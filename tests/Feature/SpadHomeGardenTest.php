@@ -88,7 +88,8 @@ class SpadHomeGardenTest extends TestCase
             'id' => $photo, 'plant_id' => $id, 'stage' => 'start', 'path' => $storage, 'created_at' => now('UTC'),
         ]);
         $route = $path.'/photos/'.$photo;
-        $this->getJson($route)->assertOk()->assertHeader('Content-Type', 'image/jpeg')->assertContent('private-photo');
+        $photoResponse = $this->getJson($route)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        $this->assertSame('private-photo', $photoResponse->getContent());
         $this->postJson($route.'/identify', ['consent' => false])->assertUnprocessable();
         $this->putJson($path.'/species', ['species' => 'پتوس'])->assertUnprocessable();
         $this->putJson($path.'/species', ['species' => 'پتوس', 'confirmation' => true])->assertOk()->assertJsonPath('data.species_confirmed', true);

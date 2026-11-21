@@ -48,7 +48,7 @@ class SpadHouseholdRemindersTest extends TestCase
         ];
         $id = $this->postJson($route, $payload)->assertCreated()->json('data.id');
         $this->postJson($route, $payload)->assertOk()->assertJsonPath('data.id', $id);
-        $this->postJson($route, array_replace($payload, ['title' => 'دوم']))->assertConflict();
+        $this->postJson($route, array_replace($payload, ['title' => 'دوم']))->assertStatus(409);
         Sanctum::actingAs($other);
         $this->getJson($route)->assertOk()->assertJsonCount(0, 'data');
         $this->deleteJson($route.'/'.$id)->assertNoContent();

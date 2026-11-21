@@ -20,6 +20,10 @@ class SpadHomeEnergyTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        require_once database_path('migrations/2026_11_20_160001_create_spad_home_service_operations.php');
+        require_once database_path('migrations/2026_11_21_190000_add_spad_household_services_settings.php');
+        (new \CreateSpadHomeServiceOperations())->up();
+        (new \AddSpadHouseholdServicesSettings())->up();
         Carbon::setTestNow(Carbon::parse('2026-11-21 12:00:00', 'Asia/Tehran'));
         Schema::create('users', function (Blueprint $table) {
             $table->id();

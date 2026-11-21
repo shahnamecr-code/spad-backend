@@ -40,8 +40,9 @@ class SpadSunlightPrivacyTest extends TestCase
         $api = '/api/home-sunlight';
         $input = SpadSunlight::example();
         $this->getJson($api . '/example')->assertOk()->assertJsonPath('data.educational', true);
-        $this->postJson($api . '/analyze', $input)->assertOk()->assertJsonMissingPath('data.export.latitude')
-            ->assertJsonMissingPath('data.export.solar');
+        $public = $this->postJson($api . '/analyze', $input)->assertOk()->json('data.export');
+        $this->assertArrayNotHasKey('latitude', $public);
+        $this->assertArrayNotHasKey('solar', $public);
         $this->assertSame(0, DB::table('spad_sunlight_projects')->count());
         $this->getJson($api . '/projects')->assertUnauthorized();
 
@@ -57,8 +58,9 @@ class SpadSunlightPrivacyTest extends TestCase
             'name' => 'اتاق نمونه', 'height' => 3, 'points' => [['x' => 0, 'y' => 0], ['x' => 4, 'y' => 0], ['x' => 4, 'y' => 3], ['x' => 0, 'y' => 3]],
             'openings' => [['type' => 'window', 'wall_index' => 2, 'offset' => 1, 'width' => .8, 'sill' => 1, 'height' => 1]],
         ]])]);
-        $this->getJson($api . '/scan/' . $scan)->assertOk()->assertJsonPath('data.rooms.0.windows.0.wall', 'back')
-            ->assertJsonPath('data.rooms.0.orientation_required', true)->assertJsonMissingPath('data.rooms.0.room.orientation_deg');
+        $imported = $this->getJson($api . '/scan/' . $scan)->assertOk()->assertJsonPath('data.rooms.0.windows.0.wall', 'back')
+            ->assertJsonPath('data.rooms.0.orientation_required', true);
+        $this->assertArrayNotHasKey('orientation_deg', $imported->json('data.rooms.0.room'));
 
         Sanctum::actingAs($other);
         $this->getJson($root)->assertNotFound();

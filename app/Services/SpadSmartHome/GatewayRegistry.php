@@ -48,7 +48,7 @@ class GatewayRegistry
 
     private function validLabel($value): bool
     {
-        return is_string($value) && preg_match('/\A[^\p{C}]{1,90}\z/u', $value) === 1 && trim($value) !== '';
+        return is_string($value) && preg_match('/\A(?:[^\p{C}]|\x{200C}|\x{200D}){1,90}\z/u', $value) === 1 && trim($value) !== '';
     }
 
     private function validHost($host): bool
