@@ -3,8 +3,6 @@
 // National aggregates are public, like the existing market board; personal
 // postal lookup and valuation are strictly authenticated, and rate-limited.
 Route::prefix('property-market')->group(function () {
-    Route::get('rent/{placeId}', [\App\Http\Controllers\PropertyValuationController::class, 'rent'])
-        ->whereNumber('placeId')->middleware('throttle:30,1');
     Route::get('summary', [\App\Http\Controllers\PropertyValuationController::class, 'summary'])
         ->middleware('throttle:40,1');
     Route::get('places/{placeId}/children', [\App\Http\Controllers\PropertyValuationController::class, 'children'])
