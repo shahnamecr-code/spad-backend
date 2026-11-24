@@ -193,6 +193,7 @@ class SpadPropertyPortfolio
             'address' => is_array($address) ? ($address['address'] ?? implode('، ', array_filter([
                 $asset->province, $asset->city, $address['street'] ?? '', $address['number'] ?? ''
             ]))) : '',
+            'place_id' => (int) $asset->place_id,
             'place_name' => $asset->place_name,
             'match_level' => $asset->match_level,
             'property_kind' => $asset->property_kind,

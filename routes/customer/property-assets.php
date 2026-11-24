@@ -4,6 +4,8 @@
 Route::prefix('my-property-assets')->middleware('auth:sanctum')->group(function () {
     Route::get('/', [\App\Http\Controllers\SpadPropertyAssetController::class, 'index'])->middleware('throttle:20,1');
     Route::post('/', [\App\Http\Controllers\SpadPropertyAssetController::class, 'store'])->middleware('throttle:10,60');
+    Route::post('{id}/acceptance', [\App\Http\Controllers\PropertyAcceptanceController::class, 'fromAsset'])
+        ->whereNumber('id')->middleware('throttle:5,60');
     Route::post('{id}/refresh', [\App\Http\Controllers\SpadPropertyAssetController::class, 'refresh'])
         ->whereNumber('id')->middleware('throttle:8,60');
     Route::patch('{id}', [\App\Http\Controllers\SpadPropertyAssetController::class, 'rename'])
