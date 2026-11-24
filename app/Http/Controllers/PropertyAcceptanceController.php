@@ -156,7 +156,8 @@ class PropertyAcceptanceController extends Controller
             DB::table('spad_property_acceptance_activity')->insert(['request_id'=>$requestId,'admin_id'=>null,'action'=>'submitted','from_status'=>null,'to_status'=>'new','created_at'=>now()]);
             return $requestId;
         },3);
-        return response()->json(['status'=>true,'data'=>['id'=>$requestId,'deal_type'=>$type],
+        $status = DB::table('spad_property_acceptance_requests')->where('id',$requestId)->where('user_id',$user->id)->value('status');
+        return response()->json(['status'=>true,'data'=>['id'=>$requestId,'deal_type'=>$type,'status'=>$status],
             'message'=>'درخواست '.($type==='rent'?'اجاره':'فروش').' ملک ثبت شد. کارشناسان اسپاد با شما تماس می‌گیرند.'])->header('Cache-Control','private, no-store');
     }
 

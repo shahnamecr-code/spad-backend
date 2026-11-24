@@ -1,0 +1,20 @@
+name: SPAD backend feature syntax verification
+on:
+  push:
+    branches: [feature/spad-services-20261124]
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: PHP syntax checks
+        run: |
+          set -e
+          php -v
+          php -l app/Http/Controllers/PropertyAcceptanceController.php
+          php -l app/Http/Controllers/PropertyValuationController.php
+          php -l app/Services/NemudaPropertyMarket.php
+          php -l app/Services/SpadPropertyPortfolio.php
+          php -l routes/customer/property-assets.php
+          php -l routes/customer/property-valuation.php
+          php -l database/migrations/2026_11_24_150000_add_deal_type_to_spad_property_acceptance.php

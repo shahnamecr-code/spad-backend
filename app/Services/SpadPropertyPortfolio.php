@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SpadPropertyPortfolio
 {
@@ -185,7 +186,17 @@ class SpadPropertyPortfolio
         $delta = $firstTotal !== null && $total > 0 ? $total - $firstTotal : null;
         $changePct = $firstTotal && $firstTotal > 0 && $delta !== null
             ? round($delta * 100 / $firstTotal, 2) : null;
+        $requests = [];
+        if (Schema::hasColumn('spad_property_acceptance_requests', 'deal_type')) {
+            foreach (['sell', 'rent'] as $type) {
+                $hash = hash_hmac('sha256', 'portfolio|'.$type.'|'.$asset->user_id.'|'.$asset->postal_hash, config('app.key'));
+                $lead = DB::table('spad_property_acceptance_requests')->where('user_id',$asset->user_id)->where('quote_hash',$hash)->first(['id','status']);
+                if ($lead) $requests[$type] = ['id'=>(int)$lead->id,'status'=>$lead->status,'deal_type'=>$type];
+            }
+        }
         return [
+            'sale_request' => $requests['sell'] ?? null,
+            'rent_request' => $requests['rent'] ?? null,
             'id' => (int) $asset->id,
             'nickname' => $asset->nickname,
             'province' => $asset->province,
