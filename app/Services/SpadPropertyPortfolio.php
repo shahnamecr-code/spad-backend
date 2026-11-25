@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class SpadPropertyPortfolio
 {
@@ -169,7 +170,53 @@ class SpadPropertyPortfolio
         }
     }
 
-    public function present($asset): array
+    public static function requestHashes($asset, string $type): array
+    {
+        $key = (string) config('app.key');
+        $postalHash = hash_hmac('sha256', 'portfolio|'.$type.'|'.$asset->user_id.'|'.$asset->postal_hash, $key);
+        if ($type === 'sell') {
+            return [self::saleRequestHash((int) $asset->user_id, (int) $asset->id), $postalHash];
+        }
+        return [$postalHash];
+    }
+
+    public static function saleRequestHash(int $userId, int $assetId): string
+    {
+        return hash_hmac('sha256', 'portfolio-sale|'.$userId.'|'.$assetId, (string) config('app.key'));
+    }
+
+    public static function saleRequestStatus(int $id, string $status): array
+    {
+        return self::requestStatus($id, $status, 'sell');
+    }
+
+    public function saleRequests(int $userId, array $assetIds): array
+    {
+        if (!$assetIds || !Schema::hasTable('spad_property_acceptance_requests')) return [];
+        $idsByHash = [];
+        foreach ($assetIds as $assetId) {
+            $idsByHash[self::saleRequestHash($userId, (int) $assetId)] = (int) $assetId;
+        }
+        $matches = DB::table('spad_property_acceptance_requests')->where('user_id', $userId)
+            ->whereIn('quote_hash', array_keys($idsByHash))->get(['id', 'quote_hash', 'status']);
+        $statuses = [];
+        foreach ($matches as $match) {
+            $statuses[$idsByHash[$match->quote_hash]] = self::saleRequestStatus((int) $match->id, $match->status);
+        }
+        return $statuses;
+    }
+
+    public static function requestStatus(int $id, string $status, string $type): array
+    {
+        $labels = [
+            'new' => 'در انتظار بررسی', 'contacted' => 'تماس انجام شد',
+            'visit_scheduled' => 'بازدید هماهنگ شد', 'under_review' => 'در حال کارشناسی',
+            'accepted' => 'پذیرفته‌شده', 'declined' => 'انصراف / عدم پذیرش', 'closed' => 'مختومه',
+        ];
+        return ['id' => $id, 'status' => $status, 'status_label' => $labels[$status] ?? 'ثبت شده', 'deal_type' => $type];
+    }
+
+    public function present($asset, ?array $saleRequests = null): array
     {
         $address = [];
         try {
@@ -185,7 +232,29 @@ class SpadPropertyPortfolio
         $delta = $firstTotal !== null && $total > 0 ? $total - $firstTotal : null;
         $changePct = $firstTotal && $firstTotal > 0 && $delta !== null
             ? round($delta * 100 / $firstTotal, 2) : null;
+        $saleRequests = $saleRequests ?? $this->saleRequests((int) $asset->user_id, [(int) $asset->id]);
+        $requests = ['sell' => $saleRequests[(int) $asset->id] ?? null];
+        $scenario = null;
+        if ($total > 0) {
+            $day = now('Asia/Tehran')->toDateString();
+            $seed = hash_hmac('sha256', $asset->id.'|'.$day, config('app.key'));
+            $change = ((int) hexdec(substr($seed, 0, 7)) % 401 - 200) * 100000;
+            $scenario = [
+                'date' => $day,
+                'change_toman' => max(1 - $total, $change),
+            ];
+        }
+        if (Schema::hasColumn('spad_property_acceptance_requests', 'deal_type')) {
+            foreach (['sell', 'rent'] as $type) {
+                if (!empty($requests[$type])) continue;
+                $lead = DB::table('spad_property_acceptance_requests')->where('user_id', $asset->user_id)
+                    ->whereIn('quote_hash', self::requestHashes($asset, $type))->orderBy('id')->first(['id', 'status']);
+                if ($lead) $requests[$type] = self::requestStatus((int) $lead->id, $lead->status, $type);
+            }
+        }
         return [
+            'sale_request' => $requests['sell'] ?? null,
+            'rent_request' => $requests['rent'] ?? null,
             'id' => (int) $asset->id,
             'nickname' => $asset->nickname,
             'province' => $asset->province,
@@ -193,12 +262,14 @@ class SpadPropertyPortfolio
             'address' => is_array($address) ? ($address['address'] ?? implode('، ', array_filter([
                 $asset->province, $asset->city, $address['street'] ?? '', $address['number'] ?? ''
             ]))) : '',
+            'place_id' => (int) $asset->place_id,
             'place_name' => $asset->place_name,
             'match_level' => $asset->match_level,
             'property_kind' => $asset->property_kind,
             'area_m2' => (float) $asset->area_m2,
             'price_per_m2_toman' => $asset->price_per_m2_toman !== null ? (int) $asset->price_per_m2_toman : null,
             'estimated_total_toman' => $asset->estimated_total_toman !== null ? $total : null,
+            'daily_scenario' => $scenario,
             'range_low_toman' => $asset->range_low_toman !== null ? (int) $asset->range_low_toman : null,
             'range_high_toman' => $asset->range_high_toman !== null ? (int) $asset->range_high_toman : null,
             'coverage' => $asset->coverage,
