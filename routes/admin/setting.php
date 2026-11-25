@@ -1,6 +1,7 @@
 <?php
 
 Route::prefix('settings')->group(function (){
+    Route::get('agent-pro', [\App\Http\Controllers\Admin\SpadAgentControlController::class, 'index'])->middleware('throttle:20,1');
     Route::get('sms', [\App\Http\Controllers\Admin\SpadSmsSettingsController::class, 'index']);
     Route::post('sms', [\App\Http\Controllers\Admin\SpadSmsSettingsController::class, 'save']);
     Route::post('sms/test', [\App\Http\Controllers\Admin\SpadSmsSettingsController::class, 'test']);
