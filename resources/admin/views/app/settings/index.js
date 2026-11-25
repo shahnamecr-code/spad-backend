@@ -17,6 +17,7 @@ const Sidebar = React.lazy(() =>
 );
 
 
+const AgentProSettings = React.lazy(() => import(/* webpackChunkName: 'spad-agent-pro' */ './agent-pro'));
 const SmsSettings = React.lazy(() => import(/* webpackChunkName: "spad-sms-settings" */ './sms'));
 const SmsSendCenter = React.lazy(() => import(/* webpackChunkName: "spad-sms-send" */ './sms-send'));
 
@@ -24,6 +25,7 @@ const Settings = ({match}) => {
   return (
     <Suspense fallback={<div className="loading"/>}>
       <Switch>
+        <Route exact path={`${match.url}/agent-pro`} component={AgentProSettings} />
         <Route exact path={`${match.url}/sms`} render={props => <SmsSettings {...props} />} />
         <Route exact path={`${match.url}/sms/send`} render={props => <SmsSendCenter {...props} />} />
         <Route

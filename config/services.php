@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'spad_agent' => ['control_key' => env('SPAD_AGENT_CONTROL_KEY')],
+
     'shiraz_zoning' => [
         'url' => env('SHIRAZ_ZONING_URL'),
         'token' => env('SHIRAZ_ZONING_TOKEN'),

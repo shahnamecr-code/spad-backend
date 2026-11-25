@@ -392,6 +392,12 @@ const data = [
     roles: [UserRole.Admin],
     subs: [
       {
+        icon: "simple-icon-briefcase",
+        label: "مدیریت پنل مشاورین املاک",
+        to: `${adminRoot}/settings/agent-pro`,
+        roles: [UserRole.Admin],
+      },
+      {
         icon: "simple-icon-envelope-letter",
         label: "تنظیمات پیامک ایران پیامک",
         to: `${adminRoot}/settings/sms`,
