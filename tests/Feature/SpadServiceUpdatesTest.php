@@ -112,6 +112,10 @@ class SpadServiceUpdatesTest extends TestCase
         $this->assertArrayNotHasKey('private_field', $result->json('data'));
     }
 
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_rent_estimates_use_rent_market_data_and_monthly_toman(): void
     {
         Http::fake([
@@ -203,6 +207,10 @@ class SpadServiceUpdatesTest extends TestCase
         $this->assertStringContainsString('no-store', (string) $result->headers->get('Cache-Control'));
     }
 
+    /**
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
     public function test_portfolio_preserves_old_sale_receipts_and_rent_is_idempotent(): void
     {
         require_once database_path('migrations/2026_11_05_160000_create_spad_user_property_portfolio_tables.php');
@@ -223,7 +231,7 @@ class SpadServiceUpdatesTest extends TestCase
         ]);
         $asset = DB::table('spad_user_property_assets')->where('id', $id)->first();
         $legacy = DB::table('spad_property_acceptance_requests')->insertGetId([
-            'user_id' => 17, 'quote_hash' => SpadPropertyPortfolio::requestHashes($asset, 'sell')[1],
+            'user_id' => 17, 'quote_hash' => SpadPropertyPortfolio::saleRequestHash(17, $id),
             'postal_code_encrypted' => $asset->postal_cipher, 'property_kind' => 'apartment', 'area_m2' => 90,
             'estimated_total_toman' => 9000000000, 'market_source' => 'نمودا',
             'valuation_snapshot_encrypted' => Crypt::encryptString('{}'), 'status' => 'under_review',

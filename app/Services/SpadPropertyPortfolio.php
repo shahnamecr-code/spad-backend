@@ -173,11 +173,37 @@ class SpadPropertyPortfolio
     public static function requestHashes($asset, string $type): array
     {
         $key = (string) config('app.key');
-        $hashes = [hash_hmac('sha256', 'portfolio|'.$type.'|'.$asset->user_id.'|'.$asset->postal_hash, $key)];
+        $postalHash = hash_hmac('sha256', 'portfolio|'.$type.'|'.$asset->user_id.'|'.$asset->postal_hash, $key);
         if ($type === 'sell') {
-            $hashes[] = hash_hmac('sha256', 'portfolio-sale|'.$asset->user_id.'|'.$asset->id, $key);
+            return [self::saleRequestHash((int) $asset->user_id, (int) $asset->id), $postalHash];
         }
-        return $hashes;
+        return [$postalHash];
+    }
+
+    public static function saleRequestHash(int $userId, int $assetId): string
+    {
+        return hash_hmac('sha256', 'portfolio-sale|'.$userId.'|'.$assetId, (string) config('app.key'));
+    }
+
+    public static function saleRequestStatus(int $id, string $status): array
+    {
+        return self::requestStatus($id, $status, 'sell');
+    }
+
+    public function saleRequests(int $userId, array $assetIds): array
+    {
+        if (!$assetIds || !Schema::hasTable('spad_property_acceptance_requests')) return [];
+        $idsByHash = [];
+        foreach ($assetIds as $assetId) {
+            $idsByHash[self::saleRequestHash($userId, (int) $assetId)] = (int) $assetId;
+        }
+        $matches = DB::table('spad_property_acceptance_requests')->where('user_id', $userId)
+            ->whereIn('quote_hash', array_keys($idsByHash))->get(['id', 'quote_hash', 'status']);
+        $statuses = [];
+        foreach ($matches as $match) {
+            $statuses[$idsByHash[$match->quote_hash]] = self::saleRequestStatus((int) $match->id, $match->status);
+        }
+        return $statuses;
     }
 
     public static function requestStatus(int $id, string $status, string $type): array
@@ -185,12 +211,12 @@ class SpadPropertyPortfolio
         $labels = [
             'new' => 'در انتظار بررسی', 'contacted' => 'تماس انجام شد',
             'visit_scheduled' => 'بازدید هماهنگ شد', 'under_review' => 'در حال کارشناسی',
-            'accepted' => 'پذیرفته‌شده', 'declined' => 'عدم پذیرش', 'closed' => 'مختومه',
+            'accepted' => 'پذیرفته‌شده', 'declined' => 'انصراف / عدم پذیرش', 'closed' => 'مختومه',
         ];
         return ['id' => $id, 'status' => $status, 'status_label' => $labels[$status] ?? 'ثبت شده', 'deal_type' => $type];
     }
 
-    public function present($asset): array
+    public function present($asset, ?array $saleRequests = null): array
     {
         $address = [];
         try {
@@ -206,7 +232,8 @@ class SpadPropertyPortfolio
         $delta = $firstTotal !== null && $total > 0 ? $total - $firstTotal : null;
         $changePct = $firstTotal && $firstTotal > 0 && $delta !== null
             ? round($delta * 100 / $firstTotal, 2) : null;
-        $requests = [];
+        $saleRequests = $saleRequests ?? $this->saleRequests((int) $asset->user_id, [(int) $asset->id]);
+        $requests = ['sell' => $saleRequests[(int) $asset->id] ?? null];
         $scenario = null;
         if ($total > 0) {
             $day = now('Asia/Tehran')->toDateString();
@@ -219,6 +246,7 @@ class SpadPropertyPortfolio
         }
         if (Schema::hasColumn('spad_property_acceptance_requests', 'deal_type')) {
             foreach (['sell', 'rent'] as $type) {
+                if (!empty($requests[$type])) continue;
                 $lead = DB::table('spad_property_acceptance_requests')->where('user_id', $asset->user_id)
                     ->whereIn('quote_hash', self::requestHashes($asset, $type))->orderBy('id')->first(['id', 'status']);
                 if ($lead) $requests[$type] = self::requestStatus((int) $lead->id, $lead->status, $type);
