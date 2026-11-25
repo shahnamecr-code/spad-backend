@@ -9,6 +9,10 @@ use RuntimeException;
 
 class SpadSmsService
 {
+    public const PREFERRED_SENDER = '90008242';
+    private const PATTERN_ENDPOINT = 'https://api.iranpayamak.com/ws/v1/sms/pattern';
+    private const SIMPLE_ENDPOINT = 'https://api.iranpayamak.com/ws/v1/sms/simple';
+
     // A single catalogue drives the admin switches, pattern IDs and
     // event dispatch. All notification categories are opt-in.
     public const EVENTS = [
@@ -66,6 +70,7 @@ class SpadSmsService
             'enabled' => (bool) ($row->enabled ?? false),
             'provider' => (string) ($row->provider ?? ''),
             'sender' => (string) ($row->sender ?? ''),
+            'preferred_sender' => self::PREFERRED_SENDER,
             'admin_mobile' => (string) ($row->admin_mobile ?? ''),
             'admin_notify_enabled' => (bool) ($row->admin_notify_enabled ?? false),
             'daily_limit' => max(10, (int) ($row->daily_limit ?? 300)),
@@ -99,6 +104,28 @@ class SpadSmsService
             throw new RuntimeException('شماره گیرنده پیامک معتبر نیست.');
         }
         return $phone;
+    }
+
+    public function testPreferredSender(string $apiKey, string $mobile, string $pattern, string $code): bool
+    {
+        try {
+            $response = $this->providerRequest($apiKey)->post(self::PATTERN_ENDPOINT, [
+                'code' => $pattern,
+                'attributes' => (object) ['code' => $code],
+                'recipient' => $this->normalizeMobile($mobile),
+                'line_number' => self::PREFERRED_SENDER,
+                'number_format' => 'english',
+            ]);
+            return self::providerAccepted($response->status(), $response->json());
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    private function providerRequest(string $key)
+    {
+        return Http::withHeaders(['Api-Key' => $key])
+            ->acceptJson()->asJson()->withOptions(['connect_timeout' => 3])->timeout(9);
     }
 
     /**
@@ -217,20 +244,18 @@ class SpadSmsService
                 'recipient'=>$mobile,'line_number'=>$settings['sender'],
                 'number_format'=>'english',
             ];
-            $endpoint='https://api.iranpayamak.com/ws/v1/sms/pattern';
+            $endpoint=self::PATTERN_ENDPOINT;
         } else {
             $payload = [
                 'text'=>$messageOverride !== null ? $messageOverride : $this->render($event,$params),
                 'line_number'=>$settings['sender'],'recipients'=>[$mobile],
                 'number_format'=>'english',
             ];
-            $endpoint='https://api.iranpayamak.com/ws/v1/sms/simple';
+            $endpoint=self::SIMPLE_ENDPOINT;
         }
 
         try {
-            $response = Http::withHeaders([
-                'Api-Key'=>$key,'Accept'=>'application/json',
-            ])->asJson()->timeout(9)->post($endpoint,$payload);
+            $response = $this->providerRequest($key)->post($endpoint,$payload);
         } catch (\Throwable $e) {
             // A network timeout can happen after provider acceptance: no automatic retry.
             DB::table('spad_sms_delivery_logs')->where('id',$id)->update([

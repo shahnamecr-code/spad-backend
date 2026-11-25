@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\NemudaPropertyMarket;
+use App\Services\SpadPropertyPortfolio;
 use App\Services\SpadSmsService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -118,6 +120,72 @@ class PropertyAcceptanceController extends Controller
         ], 201)->header('Cache-Control', 'private, no-store');
     }
 
+    public function fromAsset(Request $request, int $id, NemudaPropertyMarket $market)
+    {
+        $this->installed();
+        abort_unless(Schema::hasTable('spad_user_property_assets') &&
+            Schema::hasColumn('spad_property_acceptance_requests', 'deal_type'), 503, 'ثبت درخواست از پرتفوی هنوز فعال نشده است.');
+        if ($request->route('legacy_sale')) $request->merge(['deal_type' => 'sell']);
+        $data = $request->validate([
+            'deal_type'=>['required','in:sell,rent'],
+            'owner_confirmed'=>['required','accepted'],
+            'contact_consent'=>['required','accepted'],
+        ]);
+        $user = $request->user();
+        $type = $data['deal_type'];
+        $case = DB::transaction(function () use ($id, $user, $type, $market) {
+            $asset = DB::table('spad_user_property_assets')->where('user_id', $user->id)
+                ->where('id', $id)->lockForUpdate()->first();
+            abort_unless($asset, 404);
+            $hashes = SpadPropertyPortfolio::requestHashes($asset, $type);
+            $existing = DB::table('spad_property_acceptance_requests')->where('user_id', $user->id)
+                ->whereIn('quote_hash', $hashes)->orderBy('id')->first(['id', 'status']);
+            if ($existing) return ['id' => (int) $existing->id, 'status' => $existing->status, 'created' => false];
+
+            abort_unless($market->normalize($asset->city) === 'شیراز', 422, 'درخواست فروش و اجاره فعلاً فقط در شیراز فعال است.');
+            abort_if($type === 'rent' && $asset->property_kind === 'land', 422, 'درخواست اجاره برای این نوع ملک فعال نیست.');
+            abort_unless((int) $asset->estimated_total_toman > 0, 422, 'ابتدا برآورد قیمت ملک را به‌روزرسانی کنید.');
+            try {
+                $postal = Crypt::decryptString($asset->postal_cipher);
+            } catch (\Illuminate\Contracts\Encryption\DecryptException $e) {
+                abort(422, 'نشانی ثبت‌شدهٔ ملک قابل استفاده نیست.');
+            }
+            abort_unless(preg_match('/^[0-9]{10}$/D', $postal), 422, 'کد پستی ذخیره‌شده معتبر نیست.');
+            $snapshot = [
+                'origin' => 'portfolio',
+                'asset_id' => $id,
+                'deal_type' => $type,
+                'estimate' => [
+                    'estimated_total_toman' => (int) $asset->estimated_total_toman,
+                    'area_m2' => (float) $asset->area_m2,
+                    'source' => 'نمودا',
+                    'computed_at' => $asset->source_computed_at,
+                ],
+                'quoted_at' => now()->toIso8601String(),
+            ];
+            $requestId=DB::table('spad_property_acceptance_requests')->insertGetId([
+                'user_id'=>$user->id,'quote_hash'=>$hashes[0],'deal_type'=>$type,
+                'postal_code_encrypted'=>$asset->postal_cipher,'address_encrypted'=>$asset->address_cipher,
+                'province'=>$asset->province,'city'=>$asset->city,'property_kind'=>$asset->property_kind,
+                'area_m2'=>$asset->area_m2,'estimated_total_toman'=>$asset->estimated_total_toman,
+                'range_low_toman'=>$asset->range_low_toman,'range_high_toman'=>$asset->range_high_toman,
+                'market_source'=>'نمودا','coverage'=>$asset->coverage,
+                'valuation_snapshot_encrypted'=>Crypt::encryptString(json_encode($snapshot,JSON_UNESCAPED_UNICODE)),
+                'owner_confirmed'=>true,'contact_consent'=>true,'status'=>'new','created_at'=>now(),'updated_at'=>now(),
+            ]);
+            DB::table('spad_property_acceptance_activity')->insert(['request_id'=>$requestId,'admin_id'=>null,'action'=>'submitted','from_status'=>null,'to_status'=>'new','created_at'=>now()]);
+            return ['id' => $requestId, 'status' => 'new', 'created' => true];
+        }, 3);
+        return response()->json([
+            'status' => true,
+            'already_submitted' => !$case['created'],
+            'data' => SpadPropertyPortfolio::requestStatus($case['id'], $case['status'], $type),
+            'message' => $case['created']
+                ? 'درخواست '.($type === 'rent' ? 'اجاره' : 'فروش').' ملک ثبت شد. کارشناسان اسپاد با شما تماس می‌گیرند.'
+                : 'این درخواست قبلاً ثبت شده است.',
+        ], $case['created'] ? 201 : 200)->header('Cache-Control', 'private, no-store');
+    }
+
     public function mine(Request $request)
     {
         $this->installed();
@@ -125,7 +193,7 @@ class PropertyAcceptanceController extends Controller
             ->where('user_id', $request->user()->id)
             ->orderByDesc('id')
             ->limit(25)
-            ->get(['id','city','property_kind','area_m2','estimated_total_toman','status','created_at']);
+            ->get(['id','city','property_kind','area_m2','estimated_total_toman','deal_type','status','created_at']);
         return response()->json(['status' => true, 'data' => $items])
             ->header('Cache-Control', 'private, no-store');
     }
@@ -153,7 +221,7 @@ class PropertyAcceptanceController extends Controller
         $items = $q->orderByDesc('r.id')->paginate(20, [
             'r.id','r.user_id','u.first_name','u.last_name','u.mobile',
             'r.city','r.province','r.property_kind','r.area_m2','r.estimated_total_toman',
-            'r.status','r.assigned_admin_id','r.follow_up_at','r.created_at'
+            'r.deal_type','r.status','r.assigned_admin_id','r.follow_up_at','r.created_at'
         ]);
         $summary = DB::table('spad_property_acceptance_requests')
             ->select('status', DB::raw('COUNT(*) as count'))->groupBy('status')->pluck('count', 'status');
@@ -224,7 +292,7 @@ class PropertyAcceptanceController extends Controller
             }
             return ['id'=>$row->id,'status'=>$status,'prior'=>$row->status,'user_id'=>$row->user_id];
         }, 3);
-        if ($changed['status'] !== $changed['prior']) {
+        if ($changed['status'] !== $changed['prior'] && DB::table('spad_property_acceptance_requests')->where('id',$changed['id'])->value('deal_type') !== 'rent') {
             try {
                 $user = User::find($changed['user_id']);
                 if ($user && $user->mobile) app(SpadSmsService::class)->notify(

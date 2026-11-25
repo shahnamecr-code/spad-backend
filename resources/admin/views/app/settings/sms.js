@@ -14,9 +14,10 @@ export default function SmsSettings(){
  const [logs,setLogs]=useState([]),[loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false),[testing,setTesting]=useState(false);
  const [phone,setPhone]=useState(""),[error,setError]=useState("");
+ const [senderCode,setSenderCode]=useState(""),[senderTested,setSenderTested]=useState(false);
  const load=async()=>{
   setLoading(true);setError("");
-  try{const r=await axios.get(api);setData(r.data.data);setLogs(r.data.logs||[]);setKey("");}
+  try{const r=await axios.get(api);setData(r.data.data);setLogs(r.data.logs||[]);setKey("");setSenderCode("");setSenderTested(false);}
   catch(e){setError(e.response?.data?.message||"دریافت تنظیمات ممکن نشد.");}
   finally{setLoading(false);}
  };
@@ -30,7 +31,7 @@ export default function SmsSettings(){
    const events={};
    Object.keys(data.events||{}).forEach(k=>events[k]={enabled:!!data.events[k].enabled,pattern_code:String(data.events[k].pattern_code||"").trim()});
    await axios.post(api,{enabled:!!data.enabled,api_key:key||undefined,
-    sender:data.sender||"",daily_limit:Number(data.daily_limit||300),admin_mobile:data.admin_mobile||"",admin_notify_enabled:!!data.admin_notify_enabled,events});
+    sender:data.sender||"",sender_test_code:senderCode||undefined,daily_limit:Number(data.daily_limit||300),admin_mobile:data.admin_mobile||"",admin_notify_enabled:!!data.admin_notify_enabled,events});
    NotificationManager.success("تنظیمات پیامکی ذخیره شد.");await load();
   }catch(e){NotificationManager.error(e.response?.data?.message||"ذخیره تنظیمات ناموفق بود.");}
   finally{setBusy(false);}
@@ -43,6 +44,23 @@ export default function SmsSettings(){
    else NotificationManager.error(r.data.message);
    await load();
   }catch(e){NotificationManager.error(e.response?.data?.message||"آزمایش پیامک ناموفق بود.");}
+  finally{setTesting(false);}
+ };
+ const testPreferredSender=async()=>{
+  const pattern=data.events?.login_otp?.pattern_code?.trim();
+  if(!/^09[0-9]{9}$/.test(phone)||!pattern){
+   NotificationManager.error("شماره همراه و شناسه الگوی ورود را وارد کنید.");
+   return;
+  }
+  setSenderCode("");
+  setSenderTested(false);
+  setTesting(true);
+  try{
+   const r=await axios.post(api+"/test-preferred-sender",{mobile:phone,api_key:key||undefined,pattern_code:pattern});
+   field("sender",data.preferred_sender);
+   setSenderTested(true);
+   NotificationManager.success(r.data.message);
+  }catch(e){NotificationManager.error(e.response?.data?.message||"آزمایش خط جدید انجام نشد.");}
   finally{setTesting(false);}
  };
  return <section dir="rtl" style={{maxWidth:1280,margin:"0 auto",padding:"14px 16px 75px"}}>
@@ -65,7 +83,7 @@ export default function SmsSettings(){
        <Input type="password" autoComplete="new-password" placeholder={data.key_saved?"کلید ذخیره شده؛ برای تغییر وارد کنید":"کلید API را وارد کنید"} value={key} onChange={e=>setKey(e.target.value)}/>
        <small style={hint}>{data.key_saved?"کلید رمزگذاری شده است و دوباره نمایش داده نمی‌شود.":"هنوز کلید ثبت نشده است."}</small></Col>
       <Col md="6" style={{marginTop:15}}><Label style={label}>خط فرستنده</Label>
-       <Input dir="ltr" placeholder="5000..." value={data.sender||""} onChange={e=>field("sender",e.target.value)}/>
+       <Input dir="ltr" placeholder={data.preferred_sender||"5000..."} value={data.sender||""} onChange={e=>field("sender",e.target.value)}/>
        <small style={hint}>شماره خط فعال؛ در ارسال ساده و الگویی استفاده می‌شود.</small></Col>
       <Col md="6" style={{marginTop:15}}><Label style={label}>سقف روزانه</Label>
        <Input type="number" min={10} max={10000} value={data.daily_limit} onChange={e=>field("daily_limit",e.target.value)}/></Col>
@@ -84,6 +102,15 @@ export default function SmsSettings(){
      <Label style={label}>شماره دریافت‌کننده آزمایش</Label>
      <Input dir="ltr" type="tel" maxLength={11} placeholder="09123456789" value={phone} onChange={e=>setPhone(e.target.value.replace(/[^0-9]/g,""))}/>
      <Button type="button" color="primary" outline style={{marginTop:14,borderRadius:9}} onClick={test} disabled={busy||testing||!data.enabled}>{testing?"در حال ارسال...":"ارسال آزمایشی"}</Button>
+     {data.preferred_sender && <div style={{marginTop:18}}>
+      <h4 style={{fontSize:14}}>آزمایش خط جدید <bdi>{data.preferred_sender}</bdi></h4>
+      <p style={hint}>کد آزمایشی از خط جدید و با الگوی ورود ارسال می‌شود. پس از دریافت، آن را وارد کنید و تنظیمات را ذخیره کنید.</p>
+      <Button type="button" color="primary" outline onClick={testPreferredSender} disabled={busy||testing}>ارسال کد از خط جدید</Button>
+      {senderTested && <div style={{marginTop:12}}>
+       <Label for="spad-sms-sender-code" style={label}>کد دریافتی از خط جدید</Label>
+       <Input id="spad-sms-sender-code" dir="ltr" inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={senderCode} onChange={e=>setSenderCode(e.target.value.replace(/[^0-9]/g,""))}/>
+      </div>}
+     </div>}
     </CardBody></Card></Col>
    </Row>
    <Card style={card}><CardBody>

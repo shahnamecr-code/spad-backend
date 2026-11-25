@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\Route;
 
 require __DIR__ . "/customer/route.php";
 
+Route::post('construction-tools/zoning', [\App\Http\Controllers\ShirazZoningController::class, 'lookup'])
+    ->middleware('throttle:12,1');
+Route::get('account/service-results', \App\Http\Controllers\AccountServiceResultsController::class)
+    ->middleware(['auth:sanctum', 'throttle:30,1']);
+
 Route::group(['prefix' => 'admin'], function () {
     Route::post('login', [\App\Http\Controllers\Admin\Auth\LoginController::class, 'login']);
     Route::post('registerShop', [\App\Http\Controllers\Admin\Auth\RegisterShopController::class, 'register']);

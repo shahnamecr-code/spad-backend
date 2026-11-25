@@ -1,6 +1,10 @@
 <?php
 
 return [
+    'shiraz_zoning' => [
+        'url' => env('SHIRAZ_ZONING_URL'),
+        'token' => env('SHIRAZ_ZONING_TOKEN'),
+    ],
     'spad_renovation_ai' => [
         'enabled' => env('SPAD_RENOVATION_AI_ENABLED', false),
         'key' => env('SPAD_RENOVATION_AI_API_KEY', ''),

@@ -165,7 +165,7 @@ class InquiryService extends Model
             'description' => $this->description,
             'price' => (int) $this->price,
             'execution_type' => $this->execution_type,
-            'execution_type_text' => $this->execution_type === 'api' ? 'اتوماتیک از طریق API' : 'اپراتوری / ارجاع به همکار',
+            'execution_type_text' => $this->execution_type === 'api' ? 'سیستمی' : 'اپراتور اسپاد',
             'estimated_minutes' => $this->estimated_minutes,
             'form_schema' => array_map(function ($field) { unset($field['_legacy_key']); return $field; }, $this->normalizedFormSchema()),
             'featured' => (bool) $this->featured,

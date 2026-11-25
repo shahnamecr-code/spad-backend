@@ -76,7 +76,7 @@ export default function PropertyAcceptanceAdmin(){
  return <main className="spad-accept-admin" dir="rtl">
    <header className="spad-accept-admin__hero">
      <div><span>مرکز مدیریت درخواست‌های مالکان</span><h1>پذیرش هوشمند ملک</h1>
-       <p>سرنخ‌های فروش، برآوردهای ثبت‌شده، پیگیری کارشناسان و سوابق فعالیت را در یک صفحه مدیریت کنید.</p></div>
+       <p>درخواست‌های فروش و اجاره، برآوردهای ثبت‌شده، پیگیری کارشناسان و سوابق فعالیت را در یک صفحه مدیریت کنید.</p></div>
      <button type="button" onClick={load} disabled={loading}><i className="simple-icon-refresh"/> به‌روزرسانی</button>
    </header>
    <section className="spad-accept-admin__stats">
@@ -108,7 +108,7 @@ export default function PropertyAcceptanceAdmin(){
                <span className={"spad-accept-admin__status spad-accept-admin__status--"+item.status}>{labels[item.status]||item.status}</span>
              </div>
              <h3>{[item.first_name,item.last_name].filter(Boolean).join(" ")||"مالک اسپاد"}</h3>
-             <p>{item.city||"شهر نامشخص"} • {kind[item.property_kind]||item.property_kind} • {Number(item.area_m2).toLocaleString("fa-IR")} متر</p>
+             <p>{item.deal_type==='rent'?'اجاره':'فروش'} • {item.city||"شهر نامشخص"} • {kind[item.property_kind]||item.property_kind} • {Number(item.area_m2).toLocaleString("fa-IR")} متر</p>
              <div className="spad-accept-admin__case-bottom"><span>{toman(item.estimated_total_toman)}</span><small>{showDate(item.created_at)}</small></div>
            </button>)}
         </div>}
@@ -130,6 +130,7 @@ export default function PropertyAcceptanceAdmin(){
           <div><small>مالک</small><strong>{[selected.first_name,selected.last_name].filter(Boolean).join(" ")||"ثبت نشده"}</strong></div>
           <div><small>شماره تماس</small><a dir="ltr" href={"tel:"+selected.mobile}>{selected.mobile||"—"}</a></div>
           <div><small>کدپستی</small><strong dir="ltr">{selected.postal_code}</strong></div>
+          <div><small>نوع درخواست</small><strong>{selected.deal_type==='rent'?'اجاره':'فروش'}</strong></div>
           <div><small>نوع / متراژ</small><strong>{kind[selected.property_kind]} / {selected.area_m2} متر</strong></div>
           <div><small>شهر / استان</small><strong>{selected.city} / {selected.province}</strong></div>
           <div><small>قیمت برآوردی</small><strong>{toman(selected.estimated_total_toman)}</strong></div>

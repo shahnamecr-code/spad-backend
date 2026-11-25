@@ -57,6 +57,32 @@ class NemudaPropertyMarket
         return $this->fetch('places/' . $id, $filters);
     }
 
+    /** Monthly rent equivalent (including deposit conversion), never sale data. */
+    public function rentEstimate(int $placeId, string $kind, float $area, array $filters = []): ?array
+    {
+        if (!in_array($kind, ['apartment','house','shop','office'], true) || $area < 10 || $area > 10000) return null;
+        $filters['dealType'] = 'rent';
+        $filters['propertyKind'] = $kind;
+        try {
+            $prices = $this->priceDetails($this->place($placeId, $filters));
+            if (!$prices || !in_array($prices['coverage'], ['solid','limited'], true) ||
+                ($prices['data_points'] ?? 0) < 10 || !$prices['computed_at']) return null;
+            $base = $this->urlForPlace($placeId);
+            $path = substr($base, strlen('https://nemuda.com/'));
+            $source = 'https://nemuda.com/rent/' . ($kind === 'apartment' ? '' : $kind . '/') . $path;
+            return [
+                'monthly_equivalent_toman' => (int) round($prices['price_per_m2'] * $area),
+                'range_low_toman' => $prices['range_low'] ? (int) round($prices['range_low'] * $area) : null,
+                'range_high_toman' => $prices['range_high'] ? (int) round($prices['range_high'] * $area) : null,
+                'data_points' => $prices['data_points'],
+                'computed_at' => $prices['computed_at'],
+                'source_url' => $source,
+                'source' => 'نمودا',
+                'basis' => 'monthly_equivalent_including_deposit',
+            ];
+        } catch (\Throwable $e) { return null; }
+    }
+
     public function index(): array
     {
         if (is_array($this->placeIndexCache)) return $this->placeIndexCache;

@@ -31,6 +31,18 @@ class PropertyValuationController extends Controller
         }
     }
 
+    public function rent(Request $request, NemudaPropertyMarket $market, int $placeId)
+    {
+        $data = $request->validate([
+            'property_kind' => ['required','in:apartment,house,shop,office'],
+            'area_m2' => ['required','numeric','between:10,10000'],
+        ]);
+        $kind = $data['property_kind'];
+        $area = (float) $data['area_m2'];
+        return response()->json(['status'=>true,'data'=>$market->rentEstimate($placeId,$kind,$area,
+            ['area'=>$this->areaBucket($kind,$area)])]);
+    }
+
     /**
      * The only billable API.ir call in this flow. Authenticated users alone
      * can request their postal address; reuse a 15-minute per-user receipt.
