@@ -125,6 +125,52 @@ class SpadPublicSiteUserDirectoryTest extends TestCase
         $this->assertDatabaseHas('spad_public_site_page_views', ['user_id' => $user->id, 'property_id' => $property]);
     }
 
+    public function test_overview_counts_today_and_recent_distinct_accounts_across_tehran_midnight(): void
+    {
+        $old = $this->user('کاربر', 'قدیمی', '09120000001', now()->subDays(2));
+        $new = $this->user('کاربر', 'جدید', '09120000002', now()->subMinute());
+        $earlier = $this->user('کاربر', 'دیروز', '09120000003', now()->subDay());
+        $recent = $this->user('کاربر', 'اخیر', '09120000004', now()->subDay());
+        foreach ([
+            [$old, 1, null], [$old, 1, 71], [$new, 2, null], [$earlier, 8, null], [$recent, 3, null],
+        ] as [$user, $minutes, $propertyId]) {
+            DB::table('spad_public_site_page_views')->insert([
+                'user_id' => $user->id, 'event_key' => Str::uuid()->toString(),
+                'page' => $propertyId === null ? '/services' : '/property/[id]',
+                'property_id' => $propertyId, 'created_at' => now()->subMinutes($minutes),
+            ]);
+        }
+
+        $path = self::DIRECTORY . '/overview';
+        $this->getJson($path)->assertUnauthorized();
+        $this->admin(false);
+        $this->getJson($path)->assertForbidden();
+        $this->admin(true);
+        $this->getJson($path)->assertOk()->assertJsonPath('data.presence_minutes', 5)
+            ->assertJsonPath('data.summary.online', 3)
+            ->assertJsonPath('data.summary.registrations', 1)
+            ->assertJsonPath('data.summary.active_accounts', 2)
+            ->assertJsonPath('data.summary.page_views', 2)
+            ->assertJsonPath('data.summary.property_views', 1)
+            ->assertJsonCount(7, 'data.days')
+            ->assertJsonPath('data.days.0.active_accounts', null)
+            ->assertJsonPath('data.days.5.active_accounts', 2)
+            ->assertJsonPath('data.days.6.day', '2026-11-28')
+            ->assertJsonPath('data.days.6.registrations', 1);
+    }
+
+    public function test_overview_keeps_registrations_when_tracking_is_unavailable(): void
+    {
+        Schema::drop('spad_public_site_page_views');
+        $this->user('کاربر', 'جدید', '09120000001', now()->subMinute());
+        $this->admin(true);
+        $this->getJson(self::DIRECTORY . '/overview')->assertOk()
+            ->assertJsonPath('data.summary.registrations', 1)
+            ->assertJsonPath('data.summary.online', null)
+            ->assertJsonPath('data.summary.page_views', null)
+            ->assertJsonPath('data.days.6.active_accounts', null);
+    }
+
     public function test_profile_combines_recorded_views_and_historical_operations_and_filters_them(): void
     {
         $user = $this->user('مریم', 'رضایی', '09120000001', now()->subYear());

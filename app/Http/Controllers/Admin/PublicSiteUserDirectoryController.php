@@ -9,12 +9,14 @@ use App\Models\User;
 use App\Services\PublicSitePages;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class PublicSiteUserDirectoryController extends Controller
 {
     private const VIEWS = 'spad_public_site_page_views';
+    private const PRESENCE_MINUTES = 5;
     private const ACTIONS = PublicSiteUserStatsController::ACTIVITIES + [
         'users' => 'ایجاد حساب اسپاد',
         'meetings' => 'ثبت درخواست بازدید حضوری',
@@ -24,6 +26,55 @@ class PublicSiteUserDirectoryController extends Controller
         'id', 'first_name', 'last_name', 'mobile', 'email', 'status', 'created_at',
         'updated_at', 'deleted_at', 'phone_verified_at', 'email_verified_at',
     ];
+
+    public function overview(Request $request)
+    {
+        $this->authorizeSuperAdmin($request);
+        $now = now('Asia/Tehran');
+        $key = 'spad:public-user-overview:v1:' . $now->toDateString();
+
+        return $this->report(Cache::remember($key, 30, function () use ($now) {
+            $today = $now->copy()->startOfDay();
+            $start = $today->copy()->subDays(6);
+            $registrations = User::withTrashed()->whereBetween('created_at', [$start, $now])
+                ->selectRaw('DATE(created_at) AS day, COUNT(*) AS total')->groupByRaw('DATE(created_at)')
+                ->pluck('total', 'day');
+
+            $hasViews = Schema::hasTable(self::VIEWS);
+            $views = $hasViews ? DB::table(self::VIEWS) : null;
+            $activity = $hasViews ? (clone $views)->whereBetween('created_at', [$start, $now])
+                ->selectRaw('DATE(created_at) AS day, COUNT(DISTINCT user_id) AS accounts, COUNT(*) AS total, COUNT(property_id) AS properties')
+                ->groupByRaw('DATE(created_at)')->get()->keyBy('day') : collect();
+            $firstTrackedDay = $hasViews
+                ? substr((string) ((clone $views)->min('created_at') ?? $today->toDateString()), 0, 10) : null;
+
+            $days = [];
+            for ($day = $start->copy(); $day <= $today; $day->addDay()) {
+                $date = $day->toDateString();
+                $row = $activity->get($date);
+                $days[] = [
+                    'day' => $date,
+                    'registrations' => (int) $registrations->get($date, 0),
+                    'active_accounts' => $firstTrackedDay !== null && $date >= $firstTrackedDay ? (int) ($row->accounts ?? 0) : null,
+                ];
+            }
+
+            $row = $activity->get($today->toDateString());
+            return [
+                'generated_at' => $now->toIso8601String(),
+                'presence_minutes' => self::PRESENCE_MINUTES,
+                'summary' => [
+                    'registrations' => (int) $registrations->get($today->toDateString(), 0),
+                    'online' => $hasViews ? (clone $views)->whereBetween('created_at', [$now->copy()->subMinutes(self::PRESENCE_MINUTES), $now])
+                        ->distinct()->count('user_id') : null,
+                    'active_accounts' => $hasViews ? (int) ($row->accounts ?? 0) : null,
+                    'page_views' => $hasViews ? (int) ($row->total ?? 0) - (int) ($row->properties ?? 0) : null,
+                    'property_views' => $hasViews ? (int) ($row->properties ?? 0) : null,
+                ],
+                'days' => $days,
+            ];
+        }));
+    }
 
     public function index(Request $request)
     {

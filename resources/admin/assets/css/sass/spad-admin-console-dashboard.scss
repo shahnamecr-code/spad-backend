@@ -104,3 +104,11 @@
     .spad-v8-metric { padding: 10px; }
   }
 }
+
+.spad-v8-dashboard.spad-console-overview {
+  .spad-v8-metric-top { margin-bottom: 7px; }
+  .spad-v8-metric-icon { border-radius: 10px; }
+  .spad-v8-pane { padding: clamp(12px, 1.65vw, 21px); }
+  .spad-v8-pane-head { border-bottom: 1px solid var(--overview-line); padding-bottom: 10px; }
+  .spad-console-recent { margin-bottom: 13px; }
+}
