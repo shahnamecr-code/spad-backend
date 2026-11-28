@@ -3,9 +3,9 @@ import menuItems from '../../constants/menu';
 const sections = [
   { title: 'نمای کلی', ids: ['dashboards'] },
   { title: 'املاک و مشتریان', ids: ['advertisement', 'property-acceptance', 'crm', 'customers', 'customer-sms', 'partner-panels', 'forms'] },
-  { title: 'خدمات و تراکنش‌ها', ids: ['inquiries', 'property-affairs', 'building-management', 'property-auctions', 'wallets', 'online-renovation', 'top-builders', 'home-services', 'raffles', 'material-prices'] },
+  { title: 'خدمات و تراکنش‌ها', ids: ['inquiries', 'property-affairs', 'mortgage', 'building-management', 'property-auctions', 'wallets', 'online-renovation', 'top-builders', 'home-services', 'raffles', 'material-prices'] },
   { title: 'محتوا و ارتباطات', ids: ['blogs', 'media_management', 'whatsapp-market', 'ai-assistant'] },
-  { title: 'مدیریت سامانه', ids: ['settings', 'operators', 'advertisement-settings', 'web-services', 'license'] },
+  { title: 'مدیریت سامانه', ids: ['settings', 'operators', 'advertisement-settings', 'locations', 'web-services', 'license'] },
 ];
 
 export function canSeeAdminItem(item, user) {
@@ -26,10 +26,10 @@ export function adminSections(user) {
   const items = visibleItems(menuItems);
   const categorized = new Set(sections.flatMap(({ ids }) => ids));
   const menu = sections.map(({ title, ids }) => ({
-    title,
+    title, id: ids[0],
     items: ids.map((id) => items.find((item) => item.id === id)).filter(Boolean),
   }));
-  menu.push({ title: 'سایر بخش‌ها', items: items.filter((item) => !categorized.has(item.id)) });
+  menu.push({ title: 'سایر بخش‌ها', id: 'other', items: items.filter((item) => !categorized.has(item.id)) });
   return menu.filter((section) => section.items.length);
 }
 
@@ -58,15 +58,17 @@ export function activeAdminDestination(destinations, location) {
   let active = null;
   let best = -1;
   destinations.forEach((destination) => {
-    const { to, newWindow } = destination.item;
+    const { to, newWindow, matchPaths = [] } = destination.item;
     if (!to?.startsWith('/') || newWindow) return;
     const [path, query] = to.split('?');
     const exact = location.pathname === path;
-    if (!exact && !location.pathname.startsWith(path + '/')) return;
+    const naturalMatch = exact || location.pathname.startsWith(path + '/');
+    const alias = matchPaths.find((prefix) => location.pathname === prefix || location.pathname.startsWith(prefix + '/'));
+    if (!naturalMatch && !alias) return;
     if (query && (!exact || !Array.from(new URLSearchParams(query)).every(([key, value]) => (
       new URLSearchParams(location.search).get(key) === value
     )))) return;
-    const score = path.length * 4 + (exact ? 2 : 0) + (query ? 1 : 0);
+    const score = (naturalMatch ? path.length : alias.length) * 4 + (exact ? 2 : 0) + (query ? 1 : 0);
     if (score > best) {
       best = score;
       active = destination;

@@ -5,8 +5,11 @@ import TopNav from '../containers/navs/Topnav';
 import Sidebar from '../containers/navs/Sidebar';
 import Footer from '../containers/navs/Footer';
 import AdminMenuSearch from '../containers/navs/AdminMenuSearch';
+import AdminPageContext from '../containers/navs/AdminPageContext';
+import { adminRoot } from '../constants/defaultValues';
 import { activeAdminDestination, adminDestinations, adminSections } from '../containers/navs/adminNavigation';
 import '../assets/css/sass/spad-admin-console.scss';
+import '../assets/css/sass/spad-admin-workspace.scss';
 
 export default function AppLayout({ children }) {
   const { currentUser, step } = useSelector(({ authUser }) => authUser);
@@ -16,6 +19,7 @@ export default function AppLayout({ children }) {
   const destinations = useMemo(() => adminDestinations(sections), [sections]);
   const active = activeAdminDestination(destinations, location);
   const showNavigation = step == null;
+  const interior = showNavigation && location.pathname !== adminRoot && !location.pathname.startsWith(`${adminRoot}/dashboards`);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const closeMenu = useCallback(() => setMobileOpen(false), []);
@@ -54,9 +58,12 @@ export default function AppLayout({ children }) {
     <div id="app-container" className={showNavigation ? 'spad-admin-shell spad-console' : 'spad-admin-shell spad-console spad-console--standalone'} dir="rtl">
       <a className="spad-console-skip" href="#spad-console-main">رفتن به محتوای اصلی</a>
       <TopNav {...{ history, active, showNavigation, menuOpen: mobileOpen }} onMenu={() => setMobileOpen((open) => !open)} onSearch={openSearch} />
-      {showNavigation && <Sidebar sections={sections} active={active} open={mobileOpen} onClose={closeMenu} />}
+      {showNavigation && <Sidebar sections={sections} destinations={destinations} active={active} open={mobileOpen} onClose={closeMenu} />}
       <main id="spad-console-main" className="spad-console-main" tabIndex={-1}>
-        <div className="container-fluid spad-admin-content">{children}</div>
+        <div className={interior ? 'container-fluid spad-admin-content spad-work-pages' : 'container-fluid spad-admin-content'}>
+          {interior && <AdminPageContext active={active} destinations={destinations} pathname={location.pathname} />}
+          {children}
+        </div>
       </main>
       <Footer />
       {showNavigation && <AdminMenuSearch destinations={destinations} open={searchOpen} onClose={closeSearch} />}

@@ -19,20 +19,12 @@ const data = [
   {
     id: "blogs",
     icon: "iconsminds-digital-drawing",
-    label: "menu.blogs",
-    to: `${adminRoot}/blogs/posts/list`,
-    permission: [],
+    label: "مدیریت وبلاگ",
+    roles: [UserRole.Admin],
     subs: [
-      // {
-      //   icon: "simple-icon-user-following",
-      //   label: "menu.posts",
-      //   to: `${adminRoot}/blogs/posts/list`,
-      // },
-      // {
-      //   icon: "simple-icon-list",
-      //   label: "menu.blog.categories",
-      //   to: `${adminRoot}/blogs/categories/list`,
-      // },
+      { icon: "simple-icon-list", label: "فهرست نوشته‌ها", to: `${adminRoot}/blogs/posts/list`, matchPaths: [`${adminRoot}/blogs/posts/edit`] },
+      { icon: "simple-icon-plus", label: "افزودن نوشته", to: `${adminRoot}/blogs/posts/create` },
+      { icon: "simple-icon-layers", label: "دسته‌بندی نوشته‌ها", to: `${adminRoot}/blogs/categories/list` },
     ],
   },
   {
@@ -55,19 +47,16 @@ const data = [
       },
       {
         icon: "simple-icon-list",
-        label: "menu.advertisements.list",
+        label: "فهرست و ویرایش آگهی‌ها",
         to: `${adminRoot}/advertisements/adver-list`,
+        matchPaths: [`${adminRoot}/advertisements/edit`],
+        keywords: "مدیریت تور مجازی نصب بسته ZIP",
         // roles: [UserRole.Admin],
       },
       {
         icon: "simple-icon-clock",
         label: "menu.advertisements.unapproved",
         to: `${adminRoot}/advertisements/unapproved`,
-      },
-      {
-        icon: "simple-icon-pencil",
-        label: "menu.advertisements.edit",
-        to: `${adminRoot}/advertisements/edit`,
       },
       {
         icon: "simple-icon-location-pin",
@@ -104,10 +93,10 @@ const data = [
   {
     id: "inquiries",
     icon: "iconsminds-search-people",
-    label: "menu.inquiries",
+    label: "استعلامات ملکی",
     to: `${adminRoot}/inquiries/requests`,
     subs: [
-      { icon: "simple-icon-list", label: "menu.inquiries.requests", to: `${adminRoot}/inquiries/requests` },
+      { icon: "simple-icon-list", label: "سفارش‌های استعلام", to: `${adminRoot}/inquiries/requests`, shortcut: true, keywords: "سفارش های استعلام لیست درخواست استعلام سفارشات رهگیری" },
       { icon: "simple-icon-grid", label: "menu.inquiries.services", to: `${adminRoot}/inquiries/services`, roles: [UserRole.Admin] },
       { icon: "simple-icon-settings", label: "menu.inquiries.settings", to: `${adminRoot}/inquiries/settings`, roles: [UserRole.Admin] },
     ],
@@ -120,6 +109,7 @@ const data = [
     id: "whatsapp-market", icon: "simple-icon-picture",
     label: "انتشار قیمت‌ها در واتساپ", to: `${adminRoot}/whatsapp-market`, roles: [UserRole.Admin]
   },
+  {id:"mortgage",icon:"simple-icon-wallet",label:"وام مسکن و درخواست‌ها",to:`${adminRoot}/mortgage`,roles:[UserRole.Admin]},
   {id:"building-management",icon:"iconsminds-building",label:"menu.building-management",to:`${adminRoot}/building-management`,roles:[UserRole.Admin]},
   {id:"top-builders",icon:"iconsminds-business-man",label:"menu.top-builders",to:`${adminRoot}/top-builders`,roles:[UserRole.Admin]},
   {id:"property-auctions",icon:"iconsminds-gavel",label:"menu.property-auctions",to:`${adminRoot}/property-auctions`,roles:[UserRole.Admin]},
@@ -236,6 +226,7 @@ const data = [
         icon: "simple-icon-list",
         label: "menu.operators.list",
         to: `${adminRoot}/operators/list`,
+        matchPaths: [`${adminRoot}/operators/edit`, `${adminRoot}/operators/permission`],
         // roles: [UserRole.Admin],
         permission: ["operators.create", "operators.list", "operators.edit"],
       }
@@ -248,34 +239,19 @@ const data = [
     to: `${adminRoot}/advertisements`,
     roles: [UserRole.Admin],
     subs: [
-      /*      {
-        icon: 'iconsminds-coins-2',
-        label: 'menu.transactions',
-        to: `${adminRoot}/transactions/list`,
-        // roles: [UserRole.Admin],
-      },
-      {
-        icon: 'iconsminds-building',
-        label: 'menu.land-types',
-        to: `${adminRoot}/land-types/list`,
-        // roles: [UserRole.Admin],
-      },*/
-      // {
-      //   icon: "simple-icon-layers",
-      //   label: "menu.wrappers",
-      //   to: `${adminRoot}/advertisements/wrappers/list`,
-      //   // roles: [UserRole.Admin],
-      // },
+      { icon: "simple-icon-layers", label: "قالب‌های ویژگی ملک", to: `${adminRoot}/advertisements/wrappers/list`, matchPaths: [`${adminRoot}/advertisements/wrappers`] },
       {
         icon: "simple-icon-list",
         label: "menu.advertisement-category",
         to: `${adminRoot}/advertisements/categories/list`,
+        matchPaths: [`${adminRoot}/advertisements/categories`],
         // roles: [UserRole.Admin],
       },
       {
         icon: "simple-icon-check",
         label: "menu.properties",
         to: `${adminRoot}/advertisements/properties/list`,
+        matchPaths: [`${adminRoot}/advertisements/properties`],
         // roles: [UserRole.Admin],
       },
     ],
@@ -299,6 +275,7 @@ const data = [
         to: `${adminRoot}/partner-panels/broker-properties`,
         roles: [UserRole.Admin],
       },
+      { icon: "simple-icon-diamond", label: "فرصت‌های سرمایه‌گذاری", to: `${adminRoot}/partner-panels/investor-opportunities`, roles: [UserRole.Admin] },
     ],
   },
   {
@@ -422,19 +399,20 @@ const data = [
         to: `${adminRoot}/settings/user-statistics`,
         roles: ["Super Admin"],
       },
-/*
-      {
-        icon: "simple-icon-event",
-        id: "sidebar",
-        label: "menu.sidebar",
-        to: `${adminRoot}/settings/sidebar-list`,
-      },
-*/
-      /*      {
-              id: 'main-menus',
-              label: 'menu.menus',
-              to: `${adminRoot}/menus`,
-            }*/
+      { icon: "simple-icon-menu", label: "فهرست عناصر سایدبار سایت", to: `${adminRoot}/settings/sidebar-list` },
+      { icon: "simple-icon-plus", label: "افزودن عنصر سایدبار سایت", to: `${adminRoot}/settings/sidebar-post` },
+    ],
+  },
+  {
+    id: "locations",
+    icon: "simple-icon-location-pin",
+    label: "تقسیمات جغرافیایی",
+    roles: [UserRole.Admin],
+    subs: [
+      { icon: "simple-icon-map", label: "استان‌ها", to: `${adminRoot}/location/provinces/list`, matchPaths: [`${adminRoot}/location/provinces`] },
+      { icon: "simple-icon-plus", label: "افزودن استان", to: `${adminRoot}/location/provinces/create` },
+      { icon: "simple-icon-direction", label: "شهرها", to: `${adminRoot}/location/cities/list`, matchPaths: [`${adminRoot}/location/cities`] },
+      { icon: "simple-icon-location-pin", label: "مناطق", to: `${adminRoot}/location/regions/list`, matchPaths: [`${adminRoot}/location/regions`] },
     ],
   },
   {
