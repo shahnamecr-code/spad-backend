@@ -1,0 +1,335 @@
+.spad-admin-shell.spad-console {
+  --console-navy: #11263f;
+  --console-canvas: #f3f6fa;
+  --console-blue: #086ccb;
+  --console-ink: #152c46;
+  --console-muted: #51687e;
+  --console-line: #dbe5ef;
+  --console-side: 248px;
+  --console-top: 64px;
+  --console-gutter: clamp(14px, 2.25vw, 36px);
+  display: grid;
+  grid-template-columns: var(--console-side) minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "top top" "side content" "side footer";
+  min-height: 100vh;
+  background: var(--console-canvas);
+  color: var(--console-ink);
+
+  :is(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid #1b8de9;
+    outline-offset: 3px;
+  }
+}
+
+.spad-console.spad-console--standalone {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "top" "content" "footer";
+}
+
+.spad-console-topbar {
+  grid-area: top;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  height: var(--console-top);
+  padding-inline: var(--console-gutter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #fff;
+  border-bottom: 1px solid var(--console-line);
+}
+
+.spad-console :is(.spad-console-topbar-start, .spad-console-topbar-actions, .spad-console-topbar-shortcuts) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.spad-console-brand {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  color: var(--console-ink);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.2;
+
+  small { display: block; margin-top: 3px; color: var(--console-muted); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-align: right; }
+}
+
+.spad-console-brand-symbol, .spad-console-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #e8f2fc;
+  color: #075dac;
+  font: 800 19px/1 system-ui, sans-serif;
+
+  img { width: 100%; height: 100%; padding: 4px; object-fit: contain; }
+}
+
+.spad-console-location {
+  display: block;
+  padding-inline-start: 13px;
+  margin-inline-start: 7px;
+  border-inline-start: 1px solid var(--console-line);
+  color: var(--console-muted);
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 230px;
+}
+
+.spad-console :is(.spad-console-search-trigger, .spad-console-icon-button, .spad-console-primary, .spad-console-account-trigger, .spad-console-side-close) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--console-line);
+  color: var(--console-ink);
+  background: #fff;
+  cursor: pointer;
+  white-space: nowrap;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 10px;
+
+  i { font-size: 14px; }
+  &:hover { background: #eef5fc; color: #075dac; text-decoration: none; }
+}
+
+.spad-console .spad-console-primary {
+  border-color: var(--console-blue);
+  background: var(--console-blue);
+  color: #fff;
+  &:hover { background: #075cb0; color: #fff; }
+}
+
+.spad-console .spad-console-icon-button { inline-size: 36px; padding: 0; }
+.spad-console .spad-console-menu-trigger { display: none; }
+.spad-console .spad-console-search-trigger {
+  background: #f5f8fc;
+  color: var(--console-muted);
+  min-width: 152px;
+  justify-content: flex-start;
+  font-weight: 600;
+  kbd { margin-inline-start: auto; font: 600 10px/1.2 system-ui, sans-serif; background: #fff; color: #40576f; border: 1px solid var(--console-line); padding: 3px 4px; border-radius: 4px; }
+}
+.spad-console-account { flex: 0 0 auto; }
+.spad-console .spad-console-account-trigger {
+  padding: 2px 6px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+.spad-console-avatar { width: 30px; height: 30px; border-radius: 50%; }
+.spad-console-user-name { overflow: hidden; max-width: 120px; text-overflow: ellipsis; }
+.spad-console .spad-console-account-menu { min-width: 165px; margin-top: 7px; text-align: right; }
+.spad-console .spad-console-mobile-action { display: none; }
+
+.spad-console-sidebar {
+  grid-area: side;
+  position: sticky;
+  top: var(--console-top);
+  align-self: start;
+  height: calc(100vh - var(--console-top));
+  height: calc(100dvh - var(--console-top));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #466581 #11263f;
+  color: #c4d3e3;
+  background: linear-gradient(180deg, #122b47 0%, var(--console-navy) 310px);
+  padding: 14px 11px 26px;
+}
+
+.spad-console-side-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px 11px;
+  color: #fff;
+  font-weight: 750;
+  font-size: 14px;
+}
+.spad-console .spad-console-side-close { display: none; }
+.spad-console-nav-section {
+  margin-top: 10px;
+  border-top: 1px solid #324b65;
+  padding-top: 10px;
+
+  h2 {
+    margin: 0 0 5px;
+    padding: 2px 11px;
+    font-size: 11px;
+    color: #a9bfd5;
+    font-weight: 650;
+  }
+  ul { margin: 0; padding: 0; list-style: none; }
+  .spad-console-nav-children { margin: 2px 16px 5px 0; border-inline-start: 1px solid #466581; padding-inline-start: 6px; }
+}
+
+.spad-console-nav-item {
+  inline-size: 100%;
+  min-block-size: 36px;
+  padding: 7px 9px;
+  display: grid;
+  grid-template-columns: 19px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: #dfebf8;
+  font: inherit;
+  font-weight: 550;
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: start;
+  cursor: pointer;
+
+  > i:first-child { color: #9cc5ec; font-size: 15px; text-align: center; }
+  > i:last-child { font-size: 10px; }
+  &:hover { color: #fff; background: #203e5d; text-decoration: none; }
+  &.is-active { background: #203d60; border-color: #426d99; color: #fff; }
+  &[aria-current='page'] { border-inline-start: 3px solid #66b4ff; background: #245081; font-weight: 750; }
+  &.is-child { min-block-size: 32px; padding-block: 5px; }
+}
+
+.spad-console > .spad-console-main {
+  grid-area: content;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 22px var(--console-gutter) 28px !important;
+  scroll-margin-top: calc(var(--console-top) + 10px);
+
+  > .spad-admin-content { width: 100%; padding: 0 !important; }
+}
+.spad-console-footer {
+  grid-area: footer;
+  min-width: 0;
+  border-top: 1px solid var(--console-line);
+  margin: 0 var(--console-gutter);
+  padding-block: 13px;
+  color: var(--console-muted);
+  font-size: 11px;
+  background: transparent;
+}
+
+.spad-console .spad-console-skip {
+  position: fixed;
+  inset: 4px auto auto 12px;
+  transform: translateY(-140%);
+  z-index: 1100;
+  border-radius: 8px;
+  background: #fff;
+  color: #075dac;
+  padding: 8px 13px;
+
+  &:focus { transform: none; }
+}
+
+.spad-console-search-dialog {
+  max-height: min(580px, 85dvh);
+  width: min(590px, calc(100% - 26px));
+  top: 8vh;
+  margin: 0 auto;
+  padding: 0;
+  border: 1px solid var(--console-line);
+  border-radius: 16px;
+  color: var(--console-ink);
+  background: #fff;
+  overflow: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 24px 65px #11263f38;
+
+  &::backdrop { background: #11263f8f; }
+}
+
+.spad-console-search-body {
+  padding: 14px;
+  > header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  h2 { margin: 0; font-size: 16px; }
+  ul { margin: 10px 0 0; padding: 0; list-style: none; }
+  li a { display: flex; gap: 11px; align-items: center; color: var(--console-ink); padding: 8px; border-radius: 8px; }
+  li a:hover, li a:focus-visible { background: #edf5fe; }
+  li a > i { color: #22699e; }
+  li a > i:last-child { margin-inline-start: auto; }
+  li small { display: block; margin-top: 2px; color: var(--console-muted); }
+  > p { margin: 14px 4px 3px; color: var(--console-muted); }
+}
+
+.spad-console-search-field {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  border: 1px solid #b8cde1;
+  border-radius: 8px;
+  padding: 0 10px;
+  color: #275c89;
+
+  input { height: 42px; flex: 1; min-width: 0; border: 0; padding: 0; color: var(--console-ink); background: transparent; font: inherit; }
+  &:focus-within { border-color: #086ccb; box-shadow: 0 0 0 2px #086ccb2b; }
+  input:focus-visible { outline: none; }
+}
+
+.spad-console .spad-admin-legacy-theme {
+  .spad-v9-route-head { border-color: var(--console-line) !important; border-radius: 12px !important; }
+  .card, .table-responsive { border-radius: 11px !important; }
+}
+
+@media (max-width: 1170px) {
+  .spad-console-location { max-width: 125px; }
+}
+@media (max-width: 991px) {
+  .spad-admin-shell.spad-console {
+    --console-top: 58px;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "top" "content" "footer";
+  }
+  .spad-console .spad-console-menu-trigger, .spad-console .spad-console-side-close { display: inline-flex; }
+  .spad-console .spad-console-mobile-action { display: block; }
+  .spad-console .spad-console-topbar-shortcuts { display: none; }
+  .spad-console-sidebar {
+    position: fixed;
+    inset-block: 0;
+    inset-inline-start: 0;
+    width: min(320px, 88vw);
+    height: 100%;
+    z-index: 1041;
+    visibility: hidden;
+    transform: translateX(100%);
+    transition: transform .18s ease;
+
+    &.is-open { visibility: visible; transform: none; }
+  }
+  .spad-console-backdrop { position: fixed; inset: 0; z-index: 1040; background: #142c498a; }
+  .spad-console > .spad-console-main { padding-block-start: 15px !important; }
+}
+@media (max-width: 570px) {
+  .spad-console :is(.spad-console-location, .spad-console-user-name, .spad-console-search-trigger span, .spad-console-search-trigger kbd) { display: none; }
+  .spad-console .spad-console-search-trigger { min-width: 36px; padding: 0; justify-content: center; }
+  .spad-console .spad-console-topbar { gap: 6px; }
+  .spad-console .spad-console-brand { gap: 6px; font-size: 13px; }
+  .spad-console-account-trigger > i:last-child { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spad-console-sidebar { transition: none; }
+}
+@media print {
+  .spad-admin-shell.spad-console { display: block; background: #fff; }
+  .spad-console > :is(.spad-console-topbar, .spad-console-sidebar, .spad-console-footer) { display: none; }
+  .spad-console > .spad-console-main { padding: 0 !important; }
+}
