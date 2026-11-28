@@ -6,6 +6,8 @@ import {adminPathApi,adminRoot} from '../../../constants/defaultValues';
 import menuItems from '../../../constants/menu';
 import IntlMessages from '../../../helpers/IntlMessages';
 import '../../../assets/css/sass/spad-admin-workspace-all-links.scss';
+import '../../../assets/css/sass/spad-admin-console-dashboard.scss';
+import {canSeeAdminItem} from '../../../containers/navs/adminNavigation';
 const n=v=>Number(v||0).toLocaleString('fa-IR');
 const list=v=>Array.isArray(v)?v:[];
 const pct=(v,t)=>t>0?Math.min(100,Math.max(0,Number(v||0)/t*100)):0;
@@ -26,7 +28,7 @@ const paths={
 };
 const Stat=({title,value,icon,link,color})=><Link to={link} className={'spad-v8-metric '+(color||'')}>
  <div className="spad-v8-metric-top"><span className="spad-v8-metric-icon"><i className={icon}/></span><i className="simple-icon-arrow-left"/></div>
- <div className="spad-v8-metric-value">{n(value)}</div><div className="spad-v8-metric-title">{title}</div>
+ <div className="spad-v8-metric-value">{value == null ? '—' : n(value)}</div><div className="spad-v8-metric-title">{title}</div>
  </Link>;
 const Pane=({title,sub,children,action,klass=''})=><section className={'spad-v8-pane '+klass}>
  <div className="spad-v8-pane-head"><div><h2>{title}</h2>{sub&&<p>{sub}</p>}</div>{action}</div>{children}
@@ -199,10 +201,7 @@ const DashboardDefault=()=>{
  ];
  // Show every destination from the actual sidebar definition, not a manually
  // maintained subset. Keep the same role/permission visibility as the sidebar.
- const canSee=item=>superAdmin||(
-  (!item.roles||item.roles.some(role=>list(user?.roles).includes(role))) &&
-  (!item.permission||item.permission.some(permission=>list(user?.permissions).includes(permission)))
- );
+ const canSee=item=>canSeeAdminItem(item,user);
  const usedWorkspaceRoutes=new Set();
  const workspaceSections=menuItems.filter(canSee).map(section=>{
   const links=[];
@@ -227,34 +226,19 @@ const DashboardDefault=()=>{
   extraWorkspaceLinks.map(item=>({url:item.url,title:item.name,icon:item.icon,external:false,plainTitle:true}))
  );
  const workspaceCount=workspaceLinks.length;
- return <div className="spad-v8-dashboard" dir="rtl">
-  <header className="spad-v8-dash-hero spad-v12-command-hero" aria-label="مرکز فرماندهی هوشمند اسپاد">
-   <div className="spad-v12-command-hero__heading">
-    <span className="spad-v12-command-hero__label"><span className="spad-v8-live-dot" aria-hidden="true"/> مرکز فرماندهی هوشمند اسپاد</span>
-    <div className="spad-v12-command-hero__datetime" aria-label="تاریخ و ساعت به وقت ایران">
-     <span><i className="simple-icon-calendar" aria-hidden="true"/> {iranDate(clock)}</span>
-     <span><i className="simple-icon-clock" aria-hidden="true"/> {iranTime(clock)} <small>به وقت ایران</small></span>
-    </div>
+ return <div className="spad-v8-dashboard spad-console-overview" dir="rtl">
+  <header className="spad-console-overview-heading">
+   <div className="spad-console-hero-copy">
+    <h1>داشبورد مدیریت اسپاد</h1>
+    <p>مرور عملکرد آگهی‌ها، درخواست‌ها و سلامت سامانه</p>
    </div>
-   <ServerHealthPanel info={health} resources={resources} resourceError={resourceError} loadingResources={resourcesLoading} loading={healthLoading} error={healthError} onRefresh={reloadOperational} period={healthPeriod} onPeriod={setHealthPeriod}/>
+   <div className="spad-console-overview-clock" aria-label="تاریخ و ساعت به وقت ایران">
+    <i className="simple-icon-calendar" aria-hidden="true"/>
+    <div><strong>{iranDate(clock)}</strong><span>{iranTime(clock)} · به وقت تهران</span></div>
+   </div>
   </header>
-  {superAdmin&&<section className="spad-v8-settings-launcher" aria-labelledby="spad-v8-settings-title">
-   <div className="spad-v8-settings-launcher__heading">
-    <div><span className="spad-v8-settings-launcher__kicker"><i className="simple-icon-settings"/> SPAD SETTINGS HUB</span>
-     <h2 id="spad-v8-settings-title">دسترسی سریع به تمام تنظیمات اسپاد</h2>
-     <p>تمام بخش‌های مدیریتی و تنظیمات تخصصی، مستقیم و بدون جستجو در منو</p>
-    </div><span className="spad-v8-settings-launcher__total">{n(settingsLinks.length)} بخش مدیریتی</span>
-   </div>
-   <div className="spad-v8-settings-launcher__grid">
-    {settingsLinks.map(item=><Link className="spad-v8-settings-launcher__link" key={item.url} to={item.url} title={item.name}>
-     <span className="spad-v8-settings-launcher__icon"><i className={item.icon}/></span>
-     <span className="spad-v8-settings-launcher__name"><strong>{item.name}</strong><small>{item.sub}</small></span>
-     <i className="simple-icon-arrow-left spad-v8-settings-launcher__arrow" aria-hidden="true"/>
-    </Link>)}
-   </div>
-  </section>}
   {error&&<div className="spad-v8-alert" role="alert">{error} <button onClick={load} type="button">تلاش مجدد</button></div>}
-  <div className="spad-v8-section-heading"><div><span>OVERVIEW / مرور عملکرد</span><h2>وضعیت امروز کسب‌وکار</h2></div><button type="button" onClick={load} disabled={loading}><i className="simple-icon-refresh"/> {loading?'در حال دریافت':'به‌روزرسانی داده‌ها'}</button></div>
+  <div className="spad-v8-section-heading"><h2>شاخص‌های سامانه</h2><button type="button" onClick={load} disabled={loading}><i className="simple-icon-refresh"/> {loading?'در حال دریافت':'به‌روزرسانی داده‌ها'}</button></div>
   <div className="spad-v8-metrics" aria-busy={loading}>
    <Stat title="کل ملک‌های ثبت‌شده" value={dashboard?.all_ads_count} icon="iconsminds-building" link={paths.ads} color="blue"/>
    <Stat title="درخواست‌های CRM" value={dashboard?.crm_requests_count} icon="simple-icon-people" link={paths.crm} color="violet"/>
@@ -262,7 +246,7 @@ const DashboardDefault=()=>{
    <Stat title="در انتظار بررسی" value={states[2]} icon="simple-icon-clock" link={paths.approval} color="amber"/>
   </div>
   <div className="spad-v8-dash-grid">
-   <Pane title="ضربان ثبت ملک‌ها" sub="روند تعداد آگهی‌ها در بازه ثبت‌شده روی سرور" action={<span className="spad-v8-small-tag">SPAD LIVE DATA</span>}>
+   <Pane title="روند ثبت آگهی‌ها" sub="تعداد آگهی‌های ثبت‌شده در بازهٔ گزارش">
     {trend.length?<div className="spad-v8-trend" role="img" aria-label="نمودار تعداد ثبت آگهی‌ها">{trend.map((point,i)=><div key={i} className="spad-v8-trend-column"><small>{n(point.value)}</small><div className="spad-v8-trend-rail"><span style={{height:(Math.max(2,pct(point.value,max)))+'%'}}/></div><b>{point.name}</b></div>)}</div>:<div className="spad-v8-placeholder">{loading?'در حال دریافت نمودار…':'داده‌ای برای این بازه ثبت نشده است'}</div>}
    </Pane>
    <Pane title="وضعیت بررسی آگهی‌ها" sub="کنترل فرایند انتشار و کیفیت آگهی">
@@ -279,6 +263,21 @@ const DashboardDefault=()=>{
     {categories.length?<div className="spad-v8-category-bars">{categories.map((item,i)=><div key={i}><div><span>{item.name}</span><b>{n(item.value)}</b></div><div className="spad-v8-meter"><span style={{width:pct(item.value,maxCat)+'%'}}/></div></div>)}</div>:<div className="spad-v8-placeholder">هنوز داده‌ای ثبت نشده است.</div>}
    </Pane>
   </div>
+  <div className="spad-console-health">
+   <ServerHealthPanel info={health} resources={resources} resourceError={resourceError} loadingResources={resourcesLoading} loading={healthLoading} error={healthError} onRefresh={reloadOperational} period={healthPeriod} onPeriod={setHealthPeriod}/>
+  </div>
+  {superAdmin&&<section className="spad-v8-settings-launcher" aria-labelledby="spad-v8-settings-title">
+   <div className="spad-v8-settings-launcher__heading">
+    <h2 id="spad-v8-settings-title">دسترسی سریع به تنظیمات</h2><span className="spad-v8-settings-launcher__total">{n(settingsLinks.length)} بخش مدیریتی</span>
+   </div>
+   <div className="spad-v8-settings-launcher__grid">
+    {settingsLinks.map(item=><Link className="spad-v8-settings-launcher__link" key={item.url} to={item.url} title={item.name}>
+     <span className="spad-v8-settings-launcher__icon"><i className={item.icon}/></span>
+     <span className="spad-v8-settings-launcher__name"><strong>{item.name}</strong><small>{item.sub}</small></span>
+     <i className="simple-icon-arrow-left spad-v8-settings-launcher__arrow" aria-hidden="true"/>
+    </Link>)}
+   </div>
+  </section>}
   <Pane title="میز کار مدیر اسپاد" sub="دسترسی مستقیم به تمام صفحات مجاز پنل مدیریت" klass="spad-v8-workspace spad-workspace-all">
    <div className="spad-workspace-all__total">{n(workspaceCount)} مسیر مدیریتی در دسترس</div>
    <div className="spad-v8-action-grid">

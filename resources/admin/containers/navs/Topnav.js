@@ -1,140 +1,116 @@
-/* eslint-disable jsx-a11y/click-events-have-key-events */
-/* eslint-disable jsx-a11y/no-static-element-interactions */
-import React, {useEffect, useState} from 'react';
-import {DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown} from 'reactstrap';
-import {Link} from 'react-router-dom';
-import {connect} from 'react-redux';
+import React, { useEffect, useState } from 'react';
+import { DropdownItem, DropdownMenu, DropdownToggle, UncontrolledDropdown } from 'reactstrap';
+import { Link } from 'react-router-dom';
+import { useIntl } from 'react-intl';
+import { connect } from 'react-redux';
 import axios from 'axios';
+import { logoutUser } from '../../redux/actions';
+import { adminRoot } from '../../constants/defaultValues';
+import { adminLabel } from './adminNavigation';
 
-import {logoutUser} from '../../redux/actions';
-import {adminRoot} from '../../constants/defaultValues';
-import UserCan from '../../helpers/UserCan';
-
-const TopNav = ({history, logoutUserAction, user}) => {
-  const [globalSettings, setGlobalSettings] = useState({});
-  const [isInFullScreen, setIsInFullScreen] = useState(false);
+const TopNav = ({ history, logoutUserAction, user, active, showNavigation, menuOpen, onMenu, onSearch }) => {
+  const intl = useIntl();
+  const [panelLogo, setPanelLogo] = useState('');
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    axios
-      .get('/api/global-settings')
-      .then((res) => setGlobalSettings(res.data || {}))
-      .catch(() => {});
+    let activeRequest = true;
+    axios.get('/api/global-settings').then(({ data }) => {
+      if (activeRequest) setPanelLogo(data?.panel_logo || '');
+    }).catch(() => {});
+    const updateFullscreen = () => setFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
+    document.addEventListener('fullscreenchange', updateFullscreen);
+    document.addEventListener('webkitfullscreenchange', updateFullscreen);
+    return () => {
+      activeRequest = false;
+      document.removeEventListener('fullscreenchange', updateFullscreen);
+      document.removeEventListener('webkitfullscreenchange', updateFullscreen);
+    };
   }, []);
 
-  const toggleMenu = (e) => {
-    e.preventDefault();
-    window.dispatchEvent(new CustomEvent('spad-admin-menu-toggle'));
-  };
-
-  const toggleFullScreen = () => {
-    const doc = document;
-    const element = document.documentElement;
-    const active = !!(
-      doc.fullscreenElement ||
-      doc.webkitFullscreenElement ||
-      doc.mozFullScreenElement ||
-      doc.msFullscreenElement
-    );
-
-    if (!active) {
-      const request =
-        element.requestFullscreen ||
-        element.webkitRequestFullScreen ||
-        element.mozRequestFullScreen ||
-        element.msRequestFullscreen;
-      if (request) request.call(element);
-      setIsInFullScreen(true);
-    } else {
-      const exit =
-        doc.exitFullscreen ||
-        doc.webkitExitFullscreen ||
-        doc.mozCancelFullScreen ||
-        doc.msExitFullscreen;
-      if (exit) exit.call(doc);
-      setIsInFullScreen(false);
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        await (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+      } else {
+        const element = document.documentElement;
+        await (element.requestFullscreen || element.webkitRequestFullScreen)?.call(element);
+      }
+    } catch (_) {
+      // The browser may refuse fullscreen while another window is active.
     }
   };
-
-  const handleLogout = () => logoutUserAction(history);
-  const displayName = user?.title || user?.name || 'مدیر سیستم';
-  const panelLogo = globalSettings?.panel_logo || '';
+  const displayName = user?.title || user?.name || 'حساب مدیریت';
+  const superAdmin = (user?.roles || []).includes('Super Admin');
+  const breadcrumb = active && adminLabel(intl, active.item);
 
   return (
-    <nav className="spad-admin-topbar navbar fixed-top">
-      <div className="spad-admin-topbar__start">
-        <button
-          type="button"
-          className="spad-admin-menu-trigger"
-          onClick={toggleMenu}
-          aria-label="باز کردن منوی مدیریت"
-        >
-          <i className="simple-icon-menu"/>
-        </button>
-
-        <Link to={adminRoot} className="spad-admin-brand">
-          {panelLogo ? (
-            <img src={panelLogo} alt="SPAD"/>
-          ) : (
-            <span className="spad-admin-brand__mark">S</span>
-          )}
-          <span className="spad-admin-brand__copy">
-            <strong>مدیریت SPAD</strong>
-            <small>مرکز کنترل املاک</small>
-          </span>
+    <header className="spad-console-topbar">
+      <div className="spad-console-topbar-start">
+        {showNavigation && (
+          <button type="button" className="spad-console-icon-button spad-console-menu-trigger" onClick={onMenu}
+            aria-label="باز کردن منوی مدیریت" aria-expanded={menuOpen} aria-controls="spad-console-navigation">
+            <i className="simple-icon-menu" aria-hidden="true" />
+          </button>
+        )}
+        <Link to={adminRoot} className="spad-console-brand">
+          <span className="spad-console-brand-symbol">{panelLogo
+            ? <img src={panelLogo} alt="" onError={() => setPanelLogo('')} />
+            : <span aria-hidden="true">S</span>}</span>
+          <span>مدیریت اسپاد<small dir="ltr">SPAD</small></span>
         </Link>
+        {breadcrumb && <span className="spad-console-location" aria-label={`بخش جاری: ${breadcrumb}`}>{breadcrumb}</span>}
       </div>
-
-      <div className="spad-admin-topbar__actions">
-        <div className="spad-admin-quick-actions">
-          <Link to={`${adminRoot}/advertisements/add`} className="spad-admin-quick-btn spad-admin-quick-btn--primary">
-            <i className="simple-icon-plus"/>
-            <span>ثبت آگهی</span>
+      <div className="spad-console-topbar-actions">
+        {showNavigation && (
+          <button type="button" className="spad-console-search-trigger" onClick={onSearch}
+            aria-label="جست‌وجوی منوی مدیریت" aria-keyshortcuts="Control+k Meta+k">
+            <i className="simple-icon-magnifier" aria-hidden="true" />
+            <span>جست‌وجوی منو</span><kbd dir="ltr">Ctrl K</kbd>
+          </button>
+        )}
+        <div className="spad-console-topbar-shortcuts">
+          <Link to={`${adminRoot}/advertisements/add`} className="spad-console-primary">
+            <i className="simple-icon-plus" aria-hidden="true" /> ثبت آگهی
           </Link>
-          <Link to={`${adminRoot}/crm/add-customer`} className="spad-admin-quick-btn">
-            <i className="simple-icon-user-follow"/>
-            <span>افزودن درخواست</span>
+          <Link to={`${adminRoot}/crm/add-customer`} className="spad-console-icon-button" title="افزودن درخواست" aria-label="افزودن درخواست">
+            <i className="simple-icon-user-follow" aria-hidden="true" />
           </Link>
-        </div>
-
-        <div className="spad-admin-icon-actions">
-          <a href="https://spad.estate" target="_blank" rel="noopener noreferrer" className="spad-admin-icon-btn" title="نمایش سایت" aria-label="نمایش سایت اسپاد">
-            <i className="simple-icon-globe"/>
+          <a href="https://spad.estate" target="_blank" rel="noopener noreferrer" className="spad-console-icon-button" title="نمایش سایت اسپاد" aria-label="نمایش سایت اسپاد">
+            <i className="simple-icon-globe" aria-hidden="true" />
           </a>
-          <UserCan>
-            <Link to={`${adminRoot}/settings/main`} className="spad-admin-icon-btn" title="تنظیمات">
-              <i className="simple-icon-settings"/>
-            </Link>
-          </UserCan>
-          <button type="button" className="spad-admin-icon-btn" onClick={toggleFullScreen} title="تمام صفحه">
-            <i className={isInFullScreen ? 'simple-icon-size-actual' : 'simple-icon-size-fullscreen'}/>
+          {superAdmin && <Link to={`${adminRoot}/settings/main`} className="spad-console-icon-button" title="تنظیمات" aria-label="تنظیمات">
+            <i className="simple-icon-settings" aria-hidden="true" />
+          </Link>}
+          <button type="button" className="spad-console-icon-button" onClick={toggleFullscreen} title="تمام‌صفحه"
+            aria-label={fullscreen ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه'}>
+            <i className={fullscreen ? 'simple-icon-size-actual' : 'simple-icon-size-fullscreen'} aria-hidden="true" />
           </button>
         </div>
-
-        <UncontrolledDropdown className="spad-admin-user-menu">
-          <DropdownToggle color="empty" className="spad-admin-user-toggle">
-            <span className="spad-admin-user-avatar"><i className="iconsminds-user"/></span>
-            <span className="spad-admin-user-copy">
-              <strong>{displayName}</strong>
-              <small>اپراتور پنل</small>
-            </span>
-            <i className="simple-icon-arrow-down spad-admin-user-arrow"/>
+        <UncontrolledDropdown className="spad-console-account">
+          <DropdownToggle color="empty" className="spad-console-account-trigger" aria-label="منوی حساب مدیریت">
+            <span className="spad-console-avatar"><i className="simple-icon-user" aria-hidden="true" /></span>
+            <span className="spad-console-user-name">{displayName}</span>
+            <i className="simple-icon-arrow-down" aria-hidden="true" />
           </DropdownToggle>
-          <DropdownMenu right className="spad-admin-user-dropdown">
-            <DropdownItem header>حساب مدیریت</DropdownItem>
+          <DropdownMenu right className="spad-console-account-menu">
+            <DropdownItem header>{displayName}</DropdownItem>
+            <DropdownItem className="spad-console-mobile-action" tag={Link} to={`${adminRoot}/advertisements/add`}>ثبت آگهی</DropdownItem>
+            <DropdownItem className="spad-console-mobile-action" tag={Link} to={`${adminRoot}/crm/add-customer`}>افزودن درخواست</DropdownItem>
+            <DropdownItem className="spad-console-mobile-action" tag="a" href="https://spad.estate" target="_blank" rel="noopener noreferrer">نمایش سایت</DropdownItem>
+            <DropdownItem className="spad-console-mobile-action" onClick={toggleFullscreen}>{fullscreen ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه'}</DropdownItem>
             <DropdownItem tag={Link} to={`${adminRoot}/settings/main`}>
-              <i className="simple-icon-settings"/> تنظیمات
+              <i className="simple-icon-settings" aria-hidden="true" /> تنظیمات
             </DropdownItem>
-            <DropdownItem divider/>
-            <DropdownItem onClick={handleLogout}>
-              <i className="simple-icon-logout"/> خروج از حساب
+            <DropdownItem divider />
+            <DropdownItem onClick={() => logoutUserAction(history)}>
+              <i className="simple-icon-logout" aria-hidden="true" /> خروج از حساب
             </DropdownItem>
           </DropdownMenu>
         </UncontrolledDropdown>
       </div>
-    </nav>
+    </header>
   );
 };
 
-const mapStateToProps = ({authUser}) => ({user: authUser.currentUser});
-
-export default connect(mapStateToProps, {logoutUserAction: logoutUser})(TopNav);
+export default connect(({ authUser }) => ({ user: authUser.currentUser }), { logoutUserAction: logoutUser })(TopNav);
