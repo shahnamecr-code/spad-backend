@@ -15,7 +15,7 @@ export default function AdminMenuSearch({ destinations, open, onClose }) {
     title: adminLabel(intl, item),
     parent: parents.map((entry) => adminLabel(intl, entry)).join(' / '),
   })).filter(({ item, title, parent }) => {
-    const text = normalizeAdminSearch([title, parent, item.to].join(' '));
+    const text = normalizeAdminSearch([title, parent, item.keywords, item.to].join(' '));
     return terms.every((term) => text.includes(term));
   }).slice(0, 16);
 

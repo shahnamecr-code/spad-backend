@@ -1,88 +1,60 @@
-import React, { useEffect } from 'react';
-import {Card, CardBody, DropdownMenu, DropdownToggle, Row, UncontrolledButtonDropdown} from 'reactstrap';
-import {Colxx, Separator} from "../../../../components/common/CustomBootstrap";
-import Breadcrumb from "../../../../containers/navs/Breadcrumb";
-import {adminPathApi} from '../../../../constants/defaultValues';
-import {Link} from 'react-router-dom';
-import TableAjax from "../../../../components/TableAjax";
-import axios from "axios";
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Card, CardBody } from 'reactstrap';
+import axios from 'axios';
+import { adminPathApi, adminRoot } from '../../../../constants/defaultValues';
 
-const SidebarList = ({match})=>{
-  const [data, setData] = React.useState([])
-  const [loading, setLoading] = React.useState(false)
+const date = new Intl.DateTimeFormat('fa-IR', { timeZone: 'Asia/Tehran', dateStyle: 'medium' });
+const widgetLabels = {
+  latestBlogPosts: 'آخرین نوشته‌های وبلاگ',
+  latestAds: 'آخرین آگهی‌ها',
+  advertising: 'تبلیغات',
+  BlogCategories: 'دسته‌بندی‌های وبلاگ',
+};
 
-  const Actions = ({id}) => {
-    return (
-      <UncontrolledButtonDropdown>
-        <DropdownToggle color="secondary" outline>
-          <i className={'simple-icon-options-vertical'} />
-        </DropdownToggle>
-        <DropdownMenu>
-          <Link to={`edit/${id}`} className={'dropdown-item'}>ویرایش</Link>
-        </DropdownMenu>
-      </UncontrolledButtonDropdown>
-    );
-  };
+export default function SidebarList() {
+  const [sidebars, setSidebars] = useState(null);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setError(false);
+    axios.get(`${adminPathApi}/settings/sidebar`, { timeout: 15000 }).then(({ data }) => {
+      if (!Array.isArray(data)) throw new Error('Unexpected sidebar list');
+      if (active) setSidebars(data);
+    }).catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [attempt]);
 
-  const fetchData = React.useCallback(async () => {
-      await axios.get(`${adminPathApi}/settings/sidebar`)
-        .then((res) => {
-          setData(res)
-        })
-        .catch((error) => error)
-    }
-    ,[]);
-  const cols = React.useMemo(
-    () => [
-      {
-        Header: 'نام سایدبار',
-        accessor: 'name',
-        cellClass: 'text-muted',
-        Cell: (props) => <>{props.value}</>,
-      },
-      {
-        Header: 'تاریخ انتشار',
-        accessor: 'created_at',
-        cellClass: 'text-muted',
-        Cell: (props) => <>{props.value}</>,
-      },
-      {
-        Header: 'گزینه ها',
-        accessor: 'id',
-        cellClass: 'text-muted text-center',
-        Cell: (props) => (<Actions id={props.value}/>),
-      },
-    ],
-    []
+  return (
+    <Card>
+      <CardBody>
+        <header className="spad-work-list-heading">
+          <div><h1>فهرست عناصر سایدبار سایت</h1><p>چیدمان‌ها و محتوای سایدبار وب‌سایت اسپاد</p></div>
+          <Link className="btn btn-primary" to={`${adminRoot}/settings/sidebar-post`}>افزودن سایدبار</Link>
+        </header>
+        {error ? <div role="alert"><p>دریافت فهرست سایدبار ممکن نشد.</p>
+          <button className="btn btn-outline-primary" type="button" onClick={() => setAttempt((value) => value + 1)}>تلاش دوباره</button></div>
+          : !sidebars ? <p role="status">در حال دریافت فهرست…</p>
+            : sidebars.length === 0 ? <p role="status">هنوز سایدباری ثبت نشده است.</p>
+              : <div className="table-responsive" tabIndex={0} role="region" aria-label="جدول سایدبارها">
+                <table className="table mb-0">
+                  <thead><tr><th scope="col">نام سایدبار</th><th scope="col">تاریخ ایجاد</th><th scope="col">محتوا</th></tr></thead>
+                  <tbody>
+                    {sidebars.map(({ id, name, created_at: createdAt, content }) => {
+                      const widgets = Array.isArray(content) ? content : [];
+                      const created = createdAt ? new Date(createdAt) : null;
+                      return <tr key={id}>
+                        <td>{name}</td><td>{created && !Number.isNaN(created.getTime()) ? date.format(created) : '—'}</td>
+                        <td>{widgets.length ? <details><summary>مشاهده عناصر</summary>
+                          <ul>{widgets.map((widget, index) => <li key={index}>{widget?.title || widgetLabels[widget?.type] || 'عنصر سایدبار'}</li>)}</ul>
+                        </details> : '—'}</td>
+                      </tr>;
+                    })}
+                  </tbody>
+                </table>
+              </div>}
+      </CardBody>
+    </Card>
   );
-
-
-  return(
-    <>
-      <Row>
-        <Colxx md="12">
-          <Breadcrumb heading="menu.sidebar" match={match}/>
-          <div className="text-zero top-right-button-container">
-            <Link to={`sidebar-post`} className={"btn btn-primary top-right-button"}>
-              <i className={"fa fa-plus mr-1"}/>
-              افزودن
-            </Link>
-          </div>
-          <Separator className="mb-5"/>
-        </Colxx>
-      </Row>
-
-      <Row>
-        <Colxx md = "12">
-          <Card>
-            <CardBody>
-              <TableAjax columns={cols} data={data} fetchData={fetchData} loading={loading}/>
-            </CardBody>
-          </Card>
-        </Colxx>
-      </Row>
-    </>
-  )
 }
-
-export default SidebarList;

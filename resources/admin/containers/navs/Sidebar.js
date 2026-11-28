@@ -43,7 +43,7 @@ function NavigationItem({ item, ancestors, openGroups, setGroup, active, onClose
   );
 }
 
-export default function Sidebar({ sections, active, open, onClose }) {
+export default function Sidebar({ sections, destinations, active, open, onClose }) {
   const intl = useIntl();
   const location = useLocation();
   const drawer = useRef(null);
@@ -51,6 +51,7 @@ export default function Sidebar({ sections, active, open, onClose }) {
   const [expanded, setExpanded] = useState({ pathname: '', groups: {} });
   const openGroups = expanded.pathname === location.pathname ? expanded.groups : {};
   const setGroup = (key, value) => setExpanded({ pathname: location.pathname, groups: { ...openGroups, [key]: value } });
+  const shortcuts = destinations.filter(({ item }) => item.shortcut);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -91,6 +92,12 @@ export default function Sidebar({ sections, active, open, onClose }) {
           </button>
         </div>
         <nav aria-label="بخش‌های پنل مدیریت">
+          {shortcuts.length > 0 && <div className="spad-console-shortcuts" aria-label="دسترسی سریع">
+            {shortcuts.map(({ item, key }) => <Link key={key} to={item.to} onClick={onClose}>
+              <i className={item.icon} aria-hidden="true" /><span>{adminLabel(intl, item)}</span>
+              <i className="simple-icon-arrow-left" aria-hidden="true" />
+            </Link>)}
+          </div>}
           {sections.map(({ title, items }) => (
             <section className="spad-console-nav-section" key={title} aria-label={title}>
               <h2>{title}</h2>
