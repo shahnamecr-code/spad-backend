@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Schema;
 
 class PublicSiteUserStatsController extends Controller
 {
-    private const ACTIVITIES = [
+    public const ACTIVITIES = [
         'mortgage_requests' => 'ثبت درخواست وام مسکن',
         'spad_property_affair_requests' => 'ثبت درخواست امور ملکی',
         'inquiry_requests' => 'ثبت استعلام ملکی',

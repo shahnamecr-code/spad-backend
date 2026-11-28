@@ -415,6 +415,13 @@ const data = [
         label: "menu.regions",
         to: `${adminRoot}/settings/regions`,
       },
+      {
+        icon: "simple-icon-people",
+        id: "public-site-users",
+        label: "آمار و فعالیت کاربران",
+        to: `${adminRoot}/settings/user-statistics`,
+        roles: ["Super Admin"],
+      },
 /*
       {
         icon: "simple-icon-event",

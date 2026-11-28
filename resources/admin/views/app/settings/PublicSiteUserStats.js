@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Alert, Button, Card, CardBody, Table } from "reactstrap";
-import { adminPathApi } from "../../../constants/defaultValues";
+import { Link } from "react-router-dom";
+import { adminPathApi, adminRoot } from "../../../constants/defaultValues";
 
 const number = new Intl.NumberFormat("fa-IR");
 const localTime = new Intl.DateTimeFormat("fa-IR", {
@@ -32,7 +33,10 @@ export default function PublicSiteUserStats() {
     <section dir="rtl" aria-labelledby="spad-public-user-stats">
       <div className="d-flex flex-wrap align-items-center justify-content-between mb-3">
         <h2 id="spad-public-user-stats">آمار کاربران سایت اصلی</h2>
-        <Button color="outline-primary" onClick={() => setReload((attempt) => attempt + 1)}>به‌روزرسانی</Button>
+        <div className="d-flex flex-wrap">
+          {report && <Button tag={Link} to={`${adminRoot}/settings/user-statistics`} color="primary" className="m-1">کنسول آمار و فعالیت کاربران</Button>}
+          <Button color="outline-primary" className="m-1" onClick={() => setReload((attempt) => attempt + 1)}>به‌روزرسانی</Button>
+        </div>
       </div>
       {error && <Alert color="danger" role="alert">{error}</Alert>}
       {!report && !error && <p role="status">در حال دریافت گزارش…</p>}

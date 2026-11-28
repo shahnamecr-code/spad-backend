@@ -178,6 +178,7 @@ const DashboardDefault=()=>{
  // preserved; operational shortcuts never imply API secrets are publicly exposed.
  const settingsLinks=[
   {name:'تنظیمات اصلی سایت',sub:'تنظیمات عمومی',icon:'simple-icon-settings',url:adminRoot+'/settings/main'},
+  {name:'آمار و فعالیت کاربران',sub:'پروندهٔ کاربران، بازدید صفحات و ملک‌ها',icon:'simple-icon-people',url:adminRoot+'/settings/user-statistics'},
   {name:'مدیریت وب‌سرویس‌ها',sub:'API، شاهکار و پیامک',icon:'simple-icon-puzzle',url:paths.services},
   {name:'تنظیمات استعلامات',sub:'سرویس‌های استعلام',icon:'simple-icon-magnifier',url:adminRoot+'/inquiries/settings'},
   {name:'خدمات استعلام',sub:'فهرست سرویس‌ها',icon:'simple-icon-layers',url:adminRoot+'/inquiries/services'},

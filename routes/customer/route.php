@@ -142,3 +142,7 @@ foreach ([
 
 Route::post('site-usage/visit', [\App\Http\Controllers\PublicSiteVisitController::class, 'store'])
     ->middleware('throttle:30,1');
+
+Route::post('site-usage/page-view', \App\Http\Controllers\PublicSitePageViewController::class)
+    ->withoutMiddleware('throttle:api')
+    ->middleware(['auth:sanctum', 'throttle:45,1,spad-public-page-view']);

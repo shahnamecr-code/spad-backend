@@ -37,3 +37,8 @@ require __DIR__ . '/spad-home-services.php';
 
 Route::get('site-usage/users', [\App\Http\Controllers\Admin\PublicSiteUserStatsController::class, 'index'])
     ->middleware('throttle:30,1');
+
+Route::prefix('site-usage/directory')->middleware('throttle:30,1,spad-user-directory')->group(function () {
+    Route::post('search', [\App\Http\Controllers\Admin\PublicSiteUserDirectoryController::class, 'index']);
+    Route::get('{userId}', [\App\Http\Controllers\Admin\PublicSiteUserDirectoryController::class, 'show'])->whereNumber('userId');
+});

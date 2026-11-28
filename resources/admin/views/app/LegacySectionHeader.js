@@ -44,7 +44,8 @@ const LEGACY=new Set(SECTIONS.map(s=>s.slug));
 export const isLegacyAdminRoute=pathname=>{
  const root=adminRoot+'/';
  if(!pathname||!pathname.startsWith(root))return false;
- const slug=pathname.slice(root.length).split('/')[0];
+ const [slug,page]=pathname.slice(root.length).split('/');
+ if(slug==='settings'&&page==='user-statistics')return false;
  return LEGACY.has(slug);
 };
 const LegacySectionHeader=({pathname})=>{
