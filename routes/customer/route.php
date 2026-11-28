@@ -139,3 +139,6 @@ foreach ([
     Route::middleware(\App\Http\Middleware\SpadHomeService::class . ':' . $spadHomeService)
         ->group(__DIR__ . '/' . $spadHomeRoutes);
 }
+
+Route::post('site-usage/visit', [\App\Http\Controllers\PublicSiteVisitController::class, 'store'])
+    ->middleware('throttle:30,1');

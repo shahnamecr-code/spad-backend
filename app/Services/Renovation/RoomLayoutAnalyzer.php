@@ -2,15 +2,16 @@
 
 namespace App\Services\Renovation;
 
+use App\Services\SpadOpenAi;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Reads one equirectangular 360° room panorama with the Claude API and returns
+ * Reads one equirectangular 360° room panorama with a vision model and returns
  * the room's layout in image coordinates (u: 0..1 left→right, v: 0..1
  * top→bottom): wall corners where they meet the floor and the ceiling, the
  * ceiling height, every recognisable element (windows, curtains, doors,
  * cabinets, hob, hood, sink, lights, furniture...) as a box, and where new
- * items would best go. Claude only reads the image; nothing is generated. The
+ * items would best go. The model only reads the image; nothing is generated. The
  * studio turns this into a 3D room: materials are laid on the real photo and
  * catalog items replace the detected elements or go to the suggested spots.
  */
@@ -19,14 +20,14 @@ final class RoomLayoutAnalyzer
     public const KINDS = ['window', 'door', 'opening', 'radiator', 'fireplace', 'appliance', 'furniture', 'stairs', 'column', 'other'];
     public const ROOMS = ['living', 'kitchen', 'bedroom', 'bathroom', 'hall', 'entrance', 'balcony', 'other'];
     public const FLOORS = ['ceramic', 'stone', 'parquet', 'laminate', 'carpet', 'mosaic', 'concrete', 'other'];
-    /** Element kinds Claude may report; the studio knows how to replace most of them. */
+    /** Element kinds The model may report; the studio knows how to replace most of them. */
     public const ELEMENTS = [
         'window', 'door', 'opening', 'curtain', 'blind', 'radiator', 'fireplace', 'stairs', 'column',
         'cabinet_upper', 'cabinet_lower', 'cabinet_tall', 'countertop', 'hob', 'hood', 'oven', 'sink', 'fridge',
         'chandelier', 'ceiling_light', 'sconce', 'sofa', 'armchair', 'table', 'bed', 'tv', 'rug', 'plant',
         'wardrobe', 'toilet', 'vanity', 'shower', 'bathtub', 'mirror', 'appliance', 'furniture', 'other',
     ];
-    /** Items Claude may suggest a free spot for. */
+    /** Items The model may suggest a free spot for. */
     public const SUGGEST = ['chandelier', 'sofa', 'tv', 'table', 'rug', 'plant', 'sconce', 'hob', 'hood', 'sink', 'oven', 'vanity', 'toilet', 'shower'];
     /** How each element kind maps to the older exclusion list (kept for saved designs and the admin). */
     private const LEGACY = [
@@ -37,7 +38,15 @@ final class RoomLayoutAnalyzer
 
     public static function configured(): bool
     {
-        return (string) config('spad-claude.key', '') !== '';
+        return self::provider() !== null;
+    }
+
+    public static function provider(): ?string
+    {
+        if (SpadOpenAi::key(SpadOpenAi::settings())) {
+            return 'openai';
+        }
+        return (string) config('spad-claude.key', '') !== '' ? 'claude' : null;
     }
 
     /** A plain box room, used until (or instead of) an analysis. */
@@ -63,9 +72,11 @@ final class RoomLayoutAnalyzer
      * @param array<int, array{name: string, bytes: string}> $neighbours
      * @return array{layout: array, model: string}
      */
-    public function analyze(string $imageBytes, array $neighbours = [], string $roomName = ''): array
+    public function analyze(string $imageBytes, array $neighbours = [], string $roomName = '', string $provider = 'claude'): array
     {
-        $model = (string) config('spad-claude.model', 'claude-opus-5-5');
+        $model = $provider === 'openai'
+            ? (SpadOpenAi::settings()->model ?? 'gpt-4.1-mini')
+            : (string) config('spad-claude.model', 'claude-opus-5-5');
         $content = [self::image($this->prepare($imageBytes))];
         foreach (array_slice($neighbours, 0, 2) as $i => $nb) {
             try {
@@ -77,10 +88,10 @@ final class RoomLayoutAnalyzer
         }
         $content[] = ['type' => 'text', 'text' => self::prompt() . ($roomName !== '' ? "\nThe tour calls this space: " . mb_substr($roomName, 0, 40) . '.' : '')
             . (count($content) > 1 ? "\nReport geometry and elements for image 1 only." : '')];
-        $data = $this->ask($model, $content, 6000);
+        $data = $this->ask($model, $content, 6000, $provider);
         $layout = self::normalize($data);
         try {
-            $layout = $this->refine($model, $imageBytes, $layout);
+            $layout = $this->refine($model, $imageBytes, $layout, $provider);
         } catch (\Throwable $e) {
             // keep the first pass
         }
@@ -92,12 +103,27 @@ final class RoomLayoutAnalyzer
         return ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => 'image/jpeg', 'data' => base64_encode($jpeg)]];
     }
 
-    private function ask(string $model, array $content, int $maxTokens): array
+    private function ask(string $model, array $content, int $maxTokens, string $provider): array
     {
+        if ($provider === 'openai') {
+            $openAiContent = array_map(static function (array $part): array {
+                if ($part['type'] === 'image') {
+                    return [
+                        'type' => 'input_image',
+                        'image_url' => 'data:image/jpeg;base64,' . $part['source']['data'],
+                        'detail' => 'high',
+                    ];
+                }
+                return ['type' => 'input_text', 'text' => $part['text']];
+            }, $content);
+            $openAiContent[] = ['type' => 'input_text', 'text' => 'Return a valid JSON object.'];
+            return SpadOpenAi::vision($openAiContent, $maxTokens);
+        }
+
         $reply = Http::withHeaders([
             'x-api-key' => (string) config('spad-claude.key'),
             'anthropic-version' => '2023-06-01',
-        ])->acceptJson()->timeout(150)->connectTimeout(15)->post((string) config('spad-claude.endpoint'), [
+        ])->acceptJson()->timeout(150)->withOptions(['connect_timeout' => 15])->post((string) config('spad-claude.endpoint'), [
             'model' => $model,
             'max_tokens' => $maxTokens,
             'messages' => [['role' => 'user', 'content' => $content]],
@@ -121,7 +147,7 @@ final class RoomLayoutAnalyzer
     private const REFINE_KINDS = ['window', 'curtain', 'blind', 'door', 'hob', 'hood', 'sink', 'oven', 'chandelier', 'cabinet_lower', 'cabinet_upper', 'countertop'];
 
     /** Second pass: close-ups of the original panorama around every corner and key element. */
-    public function refine(string $model, string $imageBytes, array $layout): array
+    public function refine(string $model, string $imageBytes, array $layout, string $provider = 'claude'): array
     {
         $crops = $this->closeUps($imageBytes, $layout);
         if (!$crops['images']) return $layout;
@@ -131,7 +157,7 @@ final class RoomLayoutAnalyzer
             $content[] = self::image($c['jpeg']);
         }
         $content[] = ['type' => 'text', 'text' => self::refinePrompt()];
-        $fix = $this->ask($model, $content, 4000);
+        $fix = $this->ask($model, $content, 4000, $provider);
 
         $corners = $layout['corners'];
         foreach ((array) ($fix['corners'] ?? []) as $c) {

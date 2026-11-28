@@ -34,3 +34,6 @@ include_once __DIR__ . '/crm-pro.php';
 // Super Admin-only management of owner acceptance requests.
 include_once __DIR__ . '/property-acceptance.php';
 require __DIR__ . '/spad-home-services.php';
+
+Route::get('site-usage/users', [\App\Http\Controllers\Admin\PublicSiteUserStatsController::class, 'index'])
+    ->middleware('throttle:30,1');

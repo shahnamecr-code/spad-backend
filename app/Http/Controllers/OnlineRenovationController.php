@@ -3,6 +3,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Advertisement;
 use App\Models\VirtualTour;
+use App\Services\Renovation\PersonalTourPlanner;
+use App\Services\SpadOpenAi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -160,6 +162,29 @@ class OnlineRenovationController extends Controller {
   DB::table('spad_renovation_projects')->where('id',$p->id)->update($d);
   return response()->json(['data'=>$this->detail($this->project($r,$id))]);
  }
+    public function suggestTour(Request $request, $id, PersonalTourPlanner $planner)
+    {
+        $this->ready();
+        $project = $this->project($request, $id);
+        abort_unless($project->source_type === 'user_upload', 422, 'این ابزار برای تور تصاویر شخصی است.');
+        abort_if(in_array($project->status, ['completed', 'reviewed'], true), 422, 'این پروژه قابل ویرایش نیست.');
+        $request->validate(['consent' => 'accepted']);
+        abort_unless(extension_loaded('gd') && SpadOpenAi::key(SpadOpenAi::settings()), 503,
+            'سرویس ساخت تور هوشمند هنوز فعال نشده است.');
+
+        $images = DB::table('spad_renovation_media')->where('project_id', $project->id)
+            ->where('user_id', $project->user_id)->where('kind', 'source')
+            ->orderBy('id')->limit(12)->get(['id', 'path']);
+        abort_if($images->isEmpty(), 422, 'ابتدا حداقل یک تصویر بارگذاری کنید.');
+        try {
+            $scenes = $planner->suggest($images->all());
+        } catch (\Throwable $error) {
+            abort(503, 'پیشنهاد تور آماده نشد. چینش دستی همچنان در دسترس است.');
+        }
+
+        return response()->json(['data' => $scenes])->header('Cache-Control', 'private, no-store');
+    }
+
  public function upload(Request $r,$id){
   $this->ready();$p=$this->project($r,$id);abort_if($p->status==='completed',422);
   $d=$r->validate(['image'=>'required|file|mimes:jpg,jpeg,png,webp|max:8192',

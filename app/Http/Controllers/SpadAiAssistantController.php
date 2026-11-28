@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SpadAiAssistantSetting;
+use App\Services\SpadOpenAi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -12,8 +12,8 @@ class SpadAiAssistantController extends Controller
 {
     public function config()
     {
-        $settings = SpadAiAssistantSetting::activeSettings();
-        $ready = $settings && $settings->enabled && $settings->apiKey();
+        $settings = SpadOpenAi::settings();
+        $ready = SpadOpenAi::key($settings);
         return response()->json([
             'enabled' => (bool) $ready,
             'title' => $settings ? $settings->title : 'دستیار هوشمند ملکی اسپاد',
@@ -28,8 +28,8 @@ class SpadAiAssistantController extends Controller
 
     public function chat(Request $request)
     {
-        $settings = SpadAiAssistantSetting::activeSettings();
-        if (!$settings || !$settings->enabled || !($apiKey = $settings->apiKey())) {
+        $settings = SpadOpenAi::settings();
+        if (!($apiKey = SpadOpenAi::key($settings))) {
             return response()->json(['message' => 'دستیار هوشمند در حال حاضر فعال نیست.'], 503);
         }
 
@@ -76,7 +76,7 @@ PROMPT;
             $response = Http::withToken($apiKey)
                 ->acceptJson()
                 ->timeout(28)
-                ->connectTimeout(8)
+                ->withOptions(['connect_timeout' => 8])
                 ->post('https://api.openai.com/v1/responses', [
                     'model' => $settings->model,
                     'instructions' => $instructions,
