@@ -19,6 +19,7 @@ const Sidebar = React.lazy(() =>
 
 const SmsSettings = React.lazy(() => import(/* webpackChunkName: "spad-sms-settings" */ './sms'));
 const SmsSendCenter = React.lazy(() => import(/* webpackChunkName: "spad-sms-send" */ './sms-send'));
+const UserStatistics = React.lazy(() => import(/* webpackChunkName: "spad-user-statistics" */ './user-statistics'));
 
 const Settings = ({match}) => {
   return (
@@ -46,6 +47,7 @@ const Settings = ({match}) => {
           path={`${match.url}/sidebar-post`}
           render={(props) => <Sidebar {...props}/>}
         />
+        <Route exact path={`${match.url}/user-statistics/:userId?`} component={UserStatistics} />
         <Redirect to="/error"/>
       </Switch>
     </Suspense>
