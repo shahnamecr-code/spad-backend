@@ -33,6 +33,10 @@ import {
 } from "../../../containers/form-validations/FormikFields";
 import tabs from "./setting_tab";
 
+const AssistantSettings = React.lazy(() => import("../ai-assistant/AssistantSettings"));
+const PublicSiteUserStats = React.lazy(() => import("./PublicSiteUserStats"));
+const extraTabs = { "public-user-stats": "آمار کاربران", "openai-api": "API چت جی‌بی‌تی" };
+
 import classnames from "classnames";
 import CustomAttribute from "../../../components/CustomAttribute";
 import { adminPathApi } from "../../../constants/defaultValues";
@@ -132,7 +136,7 @@ const Settings = ({ match }) => {
   }, []);
 
   React.useEffect(() => {
-    if (activeTab) {
+    if (activeTab && !Object.prototype.hasOwnProperty.call(extraTabs, activeTab)) {
       axios
         .get(`${adminPathApi}/settings/${activeTab}`)
         .then((res) => res.data)
@@ -166,8 +170,20 @@ const Settings = ({ match }) => {
                   </NavLink>
                 </NavItem>
               ))}
+              {Object.entries(extraTabs).map(([id, name]) => (
+                <NavItem key={id}>
+                  <NavLink tag="button" type="button" className={classnames({ active: activeTab === id })} onClick={() => toggle(id)}>
+                    {name}
+                  </NavLink>
+                </NavItem>
+              ))}
             </Nav>
             <CardBody>
+              {Object.prototype.hasOwnProperty.call(extraTabs, activeTab) ? (
+                <Suspense fallback={<p role="status">در حال بارگذاری…</p>}>
+                  {activeTab === "openai-api" ? <AssistantSettings /> : <PublicSiteUserStats />}
+                </Suspense>
+              ) : (
               <TabContent activeTab={activeTab}>
                 {Object.keys(tabs).map((index) => (
                   <TabPane tabId={index}>
@@ -175,6 +191,7 @@ const Settings = ({ match }) => {
                   </TabPane>
                 ))}
               </TabContent>
+              )}
             </CardBody>
           </Card>
         </Colxx>

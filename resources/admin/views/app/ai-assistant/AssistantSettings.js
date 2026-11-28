@@ -39,7 +39,7 @@ export default function AssistantSettings(){
  return <div dir="rtl" className="spad-ai-admin">
   <header className="spad-ai-admin-hero">
    <div><span>SPAD INTELLIGENCE</span><h1>دستیار هوشمند ملکی اسپاد</h1>
-   <p>مدیریت پاسخ‌گویی خودکار، مدل هوش مصنوعی، مصرف و دستورالعمل پاسخ‌ها در تمام صفحات عمومی سایت.</p></div>
+   <p>مدیریت کلید مشترک OpenAI برای دستیار ملکی، تحلیل و رندر بازسازی و پیشنهاد تور مجازی.</p></div>
    <button type="button" onClick={load} disabled={busy||loading}>به‌روزرسانی تنظیمات</button>
   </header>
   {error?<div className="spad-ai-admin-alert" role="alert">{error}</div>:null}
@@ -48,8 +48,8 @@ export default function AssistantSettings(){
    <div className="spad-ai-admin-grid">
     <Card title="وضعیت و هویت دستیار">
      <label className="spad-ai-admin-toggle"><input type="checkbox" checked={Boolean(form.enabled)} onChange={e=>set("enabled",e.target.checked)}/>
-      <span>فعال‌سازی چت‌بات در سایت</span></label>
-     <p>تا زمانی که کلید API معتبر ثبت نشده باشد، امکان فعال‌سازی وجود ندارد. در حالت غیرفعال، دکمه چت برای کاربران نمایش داده نمی‌شود.</p>
+      <span>فعال‌سازی اتصال OpenAI در سایت</span></label>
+     <p>فعال‌سازی به کلید API نیاز دارد. همین کلید برای دستیار ملکی، تحلیل بازسازی، رندر و پیشنهاد تور مجازی استفاده می‌شود.</p>
      <label>نام نمایشی دستیار<input maxLength={100} required value={form.title} onChange={e=>set("title",e.target.value)}/></label>
      <div className="spad-ai-admin-status">وضعیت کلید API: <b>{form.api_key_configured?"ثبت شده (مخفی)":"ثبت نشده"}</b></div>
     </Card>
@@ -62,7 +62,7 @@ export default function AssistantSettings(){
       </select>
      </label>
      <label>کلید API (فقط در صورت ثبت یا جایگزینی)<input type="password" autoComplete="new-password" value={form.api_key} onChange={e=>set("api_key",e.target.value)} placeholder={form.api_key_configured?"برای حفظ کلید قبلی خالی بگذارید":"کلید خصوصی OpenAI"} /></label>
-     <p>کلید فقط به سرور ارسال و رمزنگاری می‌شود و هیچ‌وقت به کاربران یا API عمومی برنمی‌گردد. برای سرویس OpenAI باید اعتبار API جداگانه فعال باشد.</p>
+     <p>کلید فقط به سرور ارسال و رمزنگاری می‌شود و در پاسخ API نمایش داده نمی‌شود. برای سرویس OpenAI باید اعتبار API جداگانه فعال باشد.</p>
     </Card>
     <Card title="کنترل هزینه و سرعت پاسخ‌گویی">
      <label>حداکثر پیام روزانه برای هر IP<input type="number" min="5" max="100" required value={form.daily_limit} onChange={e=>set("daily_limit",Number(e.target.value))}/></label>

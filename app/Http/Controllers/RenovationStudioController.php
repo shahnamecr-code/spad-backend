@@ -203,25 +203,29 @@ class RenovationStudioController extends Controller
     public function layout($tourId, $sceneKey)
     {
         $this->ready();
+        $provider = RoomLayoutAnalyzer::provider();
         $row = DB::table('spad_renovation_layouts')->where('tour_id', (int) $tourId)->where('scene_key', $sceneKey)
-            ->whereIn('source', ['claude', 'admin'])->orderByRaw("source = 'admin' desc")->first();
+            ->whereIn('source', ['claude', 'openai', 'admin'])
+            ->orderByRaw("CASE source WHEN 'admin' THEN 0 WHEN 'openai' THEN 1 ELSE 2 END")->first();
         return response()->json(['data' => [
             'layout' => $row ? json_decode($row->layout, true) : RoomLayoutAnalyzer::defaultLayout(),
             'source' => $row ? $row->source : 'default',
-            'analysis' => RoomLayoutAnalyzer::configured(),
+            'analysis' => $provider !== null,
+            'analysis_source' => $provider,
         ]]);
     }
 
     public function analyze($tourId, $sceneKey)
     {
         $this->ready();
-        abort_unless(RoomLayoutAnalyzer::configured(), 503, 'تحلیل خودکار اتاق هنوز فعال نشده است؛ گوشه‌های دیوار را خودتان تنظیم کنید.');
+        $provider = RoomLayoutAnalyzer::provider();
+        abort_unless($provider, 503, 'تحلیل خودکار اتاق هنوز فعال نشده است؛ گوشه‌های دیوار را خودتان تنظیم کنید.');
         $existing = DB::table('spad_renovation_layouts')->where('tour_id', (int) $tourId)
-            ->where('scene_key', $sceneKey)->where('source', 'claude')->first();
+            ->where('scene_key', $sceneKey)->where('source', $provider)->first();
         // Layouts from the first version (walls only, no elements) are analysed again once.
         $old = $existing ? json_decode($existing->layout, true) : null;
         if ($old && (int) ($old['schema'] ?? 1) >= 2) {
-            return response()->json(['data' => ['layout' => $old, 'source' => 'claude', 'analysis' => true]]);
+            return response()->json(['data' => ['layout' => $old, 'source' => $provider, 'analysis' => true]]);
         }
         $tour = $this->publishedTours()->firstWhere('id', (int) $tourId);
         abort_unless($tour, 404, 'تور یافت نشد.');
@@ -246,15 +250,15 @@ class RenovationStudioController extends Controller
                     if ($np) $neighbours[] = ['name' => (string) ($scenes[$j]['name'] ?? ''), 'bytes' => (string) $this->disk()->get($np)];
                 }
             }
-            $result = (new RoomLayoutAnalyzer())->analyze((string) $this->disk()->get($path), $neighbours, $name);
+            $result = (new RoomLayoutAnalyzer())->analyze((string) $this->disk()->get($path), $neighbours, $name, $provider);
             DB::table('spad_renovation_layouts')->updateOrInsert(
-                ['tour_id' => (int) $tourId, 'scene_key' => $sceneKey, 'source' => 'claude'],
+                ['tour_id' => (int) $tourId, 'scene_key' => $sceneKey, 'source' => $provider],
                 ['layout' => json_encode($result['layout'], JSON_UNESCAPED_UNICODE), 'model' => $result['model'],
                  'updated_at' => now(), 'created_at' => now()]
             );
-            return response()->json(['data' => ['layout' => $result['layout'], 'source' => 'claude', 'analysis' => true]]);
+            return response()->json(['data' => ['layout' => $result['layout'], 'source' => $provider, 'analysis' => true]]);
         } catch (\Throwable $e) {
-            Log::warning('renovation studio analysis failed', ['tour' => $tourId, 'scene' => $sceneKey, 'error' => $e->getMessage()]);
+            Log::warning('renovation studio analysis failed', ['tour' => $tourId, 'scene' => $sceneKey, 'error_type' => get_class($e)]);
             abort(503, 'تحلیل خودکار این فضا انجام نشد؛ گوشه‌های دیوار را خودتان تنظیم کنید.');
         } finally {
             optional($lock)->release();

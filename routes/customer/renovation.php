@@ -11,6 +11,8 @@ Route::prefix('online-renovation')->group(function(){
   Route::get('{id}',[R::class,'show'])->whereNumber('id');
   Route::put('{id}',[R::class,'update'])->whereNumber('id')->middleware('throttle:20,1');
   Route::post('{id}/images',[R::class,'upload'])->whereNumber('id')->middleware('throttle:12,1');
+  Route::post('{id}/ai-tour', [R::class, 'suggestTour'])->whereNumber('id')->middleware('throttle:2,10');
+  Route::post('{id}/ai-placement', [Ai::class, 'suggestPlacement'])->whereNumber('id')->middleware('throttle:4,10');
   Route::post('{id}/ai-preview',[Ai::class,'render'])->whereNumber('id')->middleware('throttle:2,10');
   Route::get('{id}/media/{mediaId}',[R::class,'media'])->whereNumber('id')->whereNumber('mediaId');
   Route::post('{id}/finalize',[R::class,'finalize'])->whereNumber('id')->middleware('throttle:4,1');
