@@ -76,9 +76,6 @@ const TopNav = ({ history, logoutUserAction, user, active, showNavigation, menuO
           <Link to={`${adminRoot}/crm/add-customer`} className="spad-console-icon-button" title="افزودن درخواست" aria-label="افزودن درخواست">
             <i className="simple-icon-user-follow" aria-hidden="true" />
           </Link>
-          <a href="https://spad.estate" target="_blank" rel="noopener noreferrer" className="spad-console-icon-button" title="نمایش سایت اسپاد" aria-label="نمایش سایت اسپاد">
-            <i className="simple-icon-globe" aria-hidden="true" />
-          </a>
           {superAdmin && <Link to={`${adminRoot}/settings/main`} className="spad-console-icon-button" title="تنظیمات" aria-label="تنظیمات">
             <i className="simple-icon-settings" aria-hidden="true" />
           </Link>}
@@ -97,7 +94,6 @@ const TopNav = ({ history, logoutUserAction, user, active, showNavigation, menuO
             <DropdownItem header>{displayName}</DropdownItem>
             <DropdownItem className="spad-console-mobile-action" tag={Link} to={`${adminRoot}/advertisements/add`}>ثبت آگهی</DropdownItem>
             <DropdownItem className="spad-console-mobile-action" tag={Link} to={`${adminRoot}/crm/add-customer`}>افزودن درخواست</DropdownItem>
-            <DropdownItem className="spad-console-mobile-action" tag="a" href="https://spad.estate" target="_blank" rel="noopener noreferrer">نمایش سایت</DropdownItem>
             <DropdownItem className="spad-console-mobile-action" onClick={toggleFullscreen}>{fullscreen ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه'}</DropdownItem>
             <DropdownItem tag={Link} to={`${adminRoot}/settings/main`}>
               <i className="simple-icon-settings" aria-hidden="true" /> تنظیمات

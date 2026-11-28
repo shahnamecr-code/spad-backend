@@ -311,7 +311,7 @@
     z-index: 1041;
     visibility: hidden;
     transform: translateX(100%);
-    transition: transform .18s ease, visibility .18s;
+    transition: transform .18s ease;
 
     &.is-open { visibility: visible; transform: none; }
   }

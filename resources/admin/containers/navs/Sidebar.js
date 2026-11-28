@@ -55,7 +55,7 @@ export default function Sidebar({ sections, active, open, onClose }) {
   useEffect(() => {
     if (!open) return undefined;
     const focusBeforeOpening = document.activeElement;
-    closeButton.current?.focus();
+    const firstFocus = requestAnimationFrame(() => closeButton.current?.focus({ preventScroll: true }));
     const onKeyDown = (event) => {
       if (event.key === 'Escape') onClose();
       if (event.key !== 'Tab') return;
@@ -73,6 +73,7 @@ export default function Sidebar({ sections, active, open, onClose }) {
     document.addEventListener('keydown', onKeyDown);
     document.body.classList.add('spad-admin-menu-open');
     return () => {
+      cancelAnimationFrame(firstFocus);
       document.removeEventListener('keydown', onKeyDown);
       document.body.classList.remove('spad-admin-menu-open');
       if (focusBeforeOpening instanceof HTMLElement && focusBeforeOpening.offsetParent) focusBeforeOpening.focus();
