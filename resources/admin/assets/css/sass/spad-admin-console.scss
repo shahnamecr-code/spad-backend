@@ -333,3 +333,10 @@
   .spad-console > :is(.spad-console-topbar, .spad-console-sidebar, .spad-console-footer) { display: none; }
   .spad-console > .spad-console-main { padding: 0 !important; }
 }
+
+.spad-console-topbar {
+  box-shadow: 0 3px 12px #1536530b;
+}
+.spad-console:not(.spad-console--standalone) .spad-console-nav-item[aria-current='page'] {
+  background: linear-gradient(100deg, #245781, #1d456d);
+}
